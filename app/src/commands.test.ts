@@ -48,6 +48,7 @@ describe("sessionStatus", () => {
 
 const informe: OpenedProject = {
   root: "/proyectos/informe",
+  revision: 1,
   document: {
     version: 1,
     meta: { title: "Informe anual 2026" },

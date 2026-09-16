@@ -61,6 +61,11 @@ export interface OpenedProject {
   root: string;
   /** El documento, ya validado. */
   document: Document;
+  /**
+   * La revisión con la que queda abierto. Los resultados de compilación de
+   * revisiones anteriores son de lo que había antes.
+   */
+  revision: number;
 }
 
 /**
@@ -75,6 +80,9 @@ export function chooseProjectFolder(): Promise<string | null> {
 
 /**
  * Abre la carpeta de un proyecto, elegida antes con `chooseProjectFolder`.
+ *
+ * Además, el backend empieza a compilarlo en segundo plano: el resultado
+ * llega con los eventos de compilación (ver `hooks/useCompilation.ts`).
  *
  * Si falla, la promesa se rechaza con un `CommandError`, y lo que hubiera
  * abierto sigue abierto.
@@ -154,4 +162,51 @@ export interface ExportedPdf {
  */
 export function exportPdf(): Promise<ExportedPdf | null> {
   return invoke<ExportedPdf | null>("export_pdf");
+}
+
+/**
+ * Pide compilar el documento abierto en segundo plano. Vuelve enseguida: el
+ * resultado llega con los eventos de compilación.
+ */
+export function requestCompilation(): Promise<void> {
+  return invoke<void>("request_compilation");
+}
+
+/**
+ * Los eventos de la compilación en segundo plano, emitidos por
+ * `src-tauri/src/compile_worker.rs`.
+ */
+export const CompilationEvents = {
+  start: "compilation:start",
+  finish: "compilation:finish",
+  error: "compilation:error",
+} as const;
+
+/** `compilation:start`: empieza una compilación. */
+export interface CompilationStarted {
+  revision: number;
+}
+
+/** `compilation:finish`: una compilación ha salido bien. */
+export interface CompilationFinished {
+  revision: number;
+  /** Lo que tardó, en milisegundos. */
+  ms: number;
+  /** Si salió de una compilación anterior de la misma revisión. */
+  reused: boolean;
+  /** Los avisos de Typst. */
+  diagnostics: Diagnostic[];
+  /** El SVG de cada página. */
+  pages: string[];
+}
+
+/** `compilation:error`: una compilación ha fallado. */
+export interface CompilationFailed {
+  revision: number;
+  ms: number;
+  reused: boolean;
+  /** Los errores de Typst, si el fallo es de Typst. */
+  diagnostics: Diagnostic[];
+  /** Por qué falló. */
+  error: CommandError;
 }

@@ -18,6 +18,7 @@ const loader: ImageLoader = {
 
 const a4: OpenedProject = {
   root: "/p",
+  revision: 1,
   document: {
     version: 1,
     meta: { title: "A4" },

@@ -68,12 +68,12 @@ describe("selectores", () => {
     act(() => useDocumentStore.getState().setZoom(4));
     expect(renders.count).toBe(1);
 
-    act(() => useCompilationStore.getState().start());
+    act(() => useCompilationStore.getState().start({ revision: 1 }));
     expect(renders.count).toBe(2);
     expect(container.textContent).toBe('"compiling"');
 
     // Volver a empezar no cambia el valor: no hay render.
-    act(() => useCompilationStore.getState().start());
+    act(() => useCompilationStore.getState().start({ revision: 1 }));
     expect(renders.count).toBe(2);
   });
 });
