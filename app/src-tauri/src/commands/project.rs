@@ -72,7 +72,7 @@ pub async fn choose_project_folder(
     };
     let folder = chosen
         .into_path()
-        .map_err(|_| CommandError::NotALocalFolder)?;
+        .map_err(|_| CommandError::NotALocalPath)?;
 
     state.choose_folder(&folder);
     Ok(Some(folder))

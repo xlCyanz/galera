@@ -18,10 +18,8 @@
 //! rechaza— cuando la petición no tiene sentido: no hay nada abierto o la
 //! página no existe.
 
-use std::sync::Arc;
-
 use galera_core::{Diagnostic, GaleraError};
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 use tauri::State;
 
 use crate::commands::CommandError;
@@ -37,7 +35,7 @@ pub struct RenderedPage {
     pub diagnostics: Vec<Diagnostic>,
     /// Por qué no compila, con la forma de cualquier error: `{ kind,
     /// message, … }`. `null` si compiló.
-    pub error: Option<SharedError>,
+    pub error: Option<CommandError>,
     /// Lo que tardó la compilación de la que sale la página, en
     /// milisegundos.
     pub ms: f64,
@@ -46,16 +44,6 @@ pub struct RenderedPage {
     /// La revisión del documento que se compiló. Si no es la última que
     /// conoce la interfaz, la respuesta llega tarde y se puede ignorar.
     pub revision: u64,
-}
-
-/// Un error del núcleo compartido con el estado, que lo guarda.
-#[derive(Debug)]
-pub struct SharedError(Arc<GaleraError>);
-
-impl Serialize for SharedError {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.0.serialize(serializer)
-    }
 }
 
 /// Devuelve el SVG de una página del documento abierto, compilándolo si
@@ -94,7 +82,7 @@ fn render(state: &AppState, page: usize) -> Result<RenderedPage, CommandError> {
                 GaleraError::Typst(diagnostics) => diagnostics.clone(),
                 _ => Vec::new(),
             },
-            error: Some(SharedError(error)),
+            error: Some(CommandError::DoesNotCompile(error)),
             ms,
             reused: compilation.reused,
             revision: compilation.revision,

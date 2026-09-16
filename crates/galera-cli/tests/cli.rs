@@ -193,6 +193,37 @@ fn emit_typst_writes_to_a_file_when_given_one() {
     assert!(code.contains("<el-r1>"));
 }
 
+/// El PDF de la terminal es exactamente el que produce `galera-core`,
+/// byte a byte. La app exporta con el mismo núcleo y lo comprueba en sus
+/// pruebas: así, lo que sale de la app y de la terminal es idéntico.
+#[test]
+fn the_pdf_is_exactly_the_one_the_core_produces() {
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures");
+    let out = TempDir::new().expect("carpeta temporal");
+    let pdf_path = out.path().join("cli.pdf");
+
+    let output = galera(
+        &fixtures,
+        &["informe.json", "-o", pdf_path.to_str().expect("ruta UTF-8")],
+    );
+    assert!(output.status.success(), "{}", stderr(&output));
+
+    let project = galera_core::Project::open(&fixtures).expect("fixtures/ es un proyecto");
+    let document = galera_core::Document::from_json_str(
+        &fs::read_to_string(fixtures.join("informe.json")).expect("informe.json existe"),
+    )
+    .expect("es un documento");
+    let from_core = galera_core::compile(&document, &project)
+        .expect("compila")
+        .to_pdf()
+        .expect("exporta");
+
+    assert!(
+        fs::read(&pdf_path).expect("el PDF existe") == from_core,
+        "los bytes tienen que ser idénticos"
+    );
+}
+
 /// El criterio de salida de la Fase 0, tal como lo escribe `guide.md`:
 /// `galera-cli fixtures/informe.json -o salida.pdf` genera un PDF correcto.
 #[test]
