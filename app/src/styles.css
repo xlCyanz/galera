@@ -6,15 +6,36 @@
   color-scheme: light dark;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
 }
 
+/* Una columna: controles arriba y el lienzo ocupando el resto. */
 .galera {
-  display: grid;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+  padding: 1rem;
+}
+
+.galera > * {
+  margin: 0;
+}
+
+.project {
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
-  justify-items: start;
-  padding: 2rem;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .actions {
@@ -32,17 +53,41 @@ body {
   white-space: pre-line;
 }
 
-.pages {
+/* El área de trabajo. La página queda centrada con `margin: auto`: si cabe,
+   en el centro; si no, desde el borde y con desplazamiento, sin cortarse. */
+.canvas {
+  --workspace: #e5e7eb;
+  box-sizing: border-box;
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 2rem;
+  background: var(--workspace);
+  border-radius: 0.5rem;
 }
 
-/* Cada página se ve entera, sobre blanco como el papel. */
-.pages img {
-  width: 16rem;
+@media (prefers-color-scheme: dark) {
+  .canvas {
+    --workspace: #27272a;
+  }
+}
+
+/* La hoja: blanca como el papel, también en modo oscuro. */
+.canvas-page {
+  flex: none;
+  margin: auto;
   background: #fff;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.2),
+    0 8px 24px rgb(0 0 0 / 0.12);
+}
+
+.canvas-page img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
 }
 
 .warnings {
