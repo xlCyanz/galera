@@ -6,11 +6,11 @@
 #     después desde Swift o WASM (principio 5 del README).
 #   - galera-cli:  herramienta de terminal que usa el núcleo sin interfaz.
 #
-# Más adelante `app/src-tauri` se añade aquí como tercer miembro.
+#   - app/src-tauri: el backend de la app de escritorio (Tauri).
 
 [workspace]
 resolver = "3"
-members = ["crates/galera-core", "crates/galera-cli"]
+members = ["crates/galera-core", "crates/galera-cli", "app/src-tauri"]
 
 [workspace.package]
 version = "0.1.0"
@@ -26,6 +26,11 @@ clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
+
+# Tauri también se fija con `=`: la versión del crate tiene que casar con la
+# de `@tauri-apps/api` y `@tauri-apps/cli` en `app/package.json`.
+tauri = "=2.11.5"
+tauri-build = "=2.6.3"
 insta = "1.43"
 
 # Typst se fija con `=`: su API cambia entre versiones menores, así que

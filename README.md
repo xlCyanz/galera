@@ -113,8 +113,8 @@ galera/
 | Herramienta | Versión mínima |
 |---|---|
 | Rust (stable) | 1.92 (edición 2024) |
-| Node.js | 20 LTS |
-| pnpm | 9 |
+| Node.js | 24 LTS (mínimo 22.12) |
+| pnpm | 12 |
 | Xcode Command Line Tools (macOS) | — |
 
 Dependencias del sistema para Tauri: <https://tauri.app/start/prerequisites/>
@@ -132,9 +132,14 @@ cargo test --workspace
 # CLI: JSON → PDF (disponible desde la Fase 0)
 cargo run -p galera-cli -- fixtures/informe.json -o salida.pdf
 
-# App de escritorio (disponible desde la Fase 1)
+# App de escritorio
 pnpm install
-pnpm tauri dev
+pnpm tauri dev          # abre la ventana; recompila al guardar
+
+# Interfaz por separado
+pnpm typecheck
+pnpm test
+pnpm build
 ```
 
 ## Modelo de documento
@@ -177,7 +182,7 @@ El documento es un JSON versionado. Ejemplo mínimo:
 | Fase | Objetivo | Estado |
 |---|---|---|
 | [Fase 0](../../milestone/1) | Núcleo por terminal: JSON entra, PDF sale | Hecha |
-| [Fase 1](../../milestone/2) | Ventana y vista fiel | Pendiente |
+| [Fase 1](../../milestone/2) | Ventana y vista fiel | En curso |
 | [Fase 2](../../milestone/3) | Layout y selección | Pendiente |
 | [Fase 3](../../milestone/4) | Creación de elementos y paneles | Pendiente |
 | [Fase 4](../../milestone/5) | Edición de texto de alta fidelidad | Pendiente |

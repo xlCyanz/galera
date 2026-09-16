@@ -7,7 +7,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | Fase | Tareas | Hechas |
 |---|---|---|
 | [Fase 0 — Núcleo por terminal](https://github.com/xlCyanz/galera/milestone/1) | 16 | 16 |
-| [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 0 |
+| [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 1 |
 | [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 0 |
 | [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 0 |
 | [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 0 |
@@ -15,7 +15,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **16** |
+| **Total** | **95** | **17** |
 
 
 ---
@@ -55,7 +55,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 
 | Estado | Tarea | Issue | Depende de |
 |:--:|---|:--:|---|
-| ⬜ | **F1-01** — Crear la app Tauri 2 con React, TypeScript y Vite | [#17](https://github.com/xlCyanz/galera/issues/17) | #14 |
+| ✅ | **F1-01** — Crear la app Tauri 2 con React, TypeScript y Vite | [#17](https://github.com/xlCyanz/galera/issues/17) | #14 |
 | ⬜ | **F1-02** — Enlazar galera-core con el backend Tauri | [#18](https://github.com/xlCyanz/galera/issues/18) | #17, #12 |
 | ⬜ | **F1-03** — Comando abrir_proyecto | [#19](https://github.com/xlCyanz/galera/issues/19) | #18, #11 |
 | ⬜ | **F1-04** — Comando compilar y obtener el SVG de una página | [#20](https://github.com/xlCyanz/galera/issues/20) | #19, #13 |

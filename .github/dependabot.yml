@@ -13,16 +13,8 @@ updates:
       # Las versiones de los crates de Typst se fijan a mano y se suben
       # de forma deliberada, porque su API cambia entre versiones menores.
       - dependency-name: "typst*"
-
-  - package-ecosystem: cargo
-    directory: "/app/src-tauri"
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore(deps)"
-    labels: ["chore", "area:tauri"]
+      # Tauri también: su versión tiene que casar con la de @tauri-apps/*.
+      - dependency-name: "tauri*"
 
   - package-ecosystem: npm
     directory: "/"
@@ -33,6 +25,9 @@ updates:
     commit-message:
       prefix: "chore(deps)"
     labels: ["chore", "area:ui"]
+    ignore:
+      # Se suben junto con los crates de Tauri, nunca por separado.
+      - dependency-name: "@tauri-apps/*"
     groups:
       dev-dependencies:
         dependency-type: development

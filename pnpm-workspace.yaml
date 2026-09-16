@@ -1,0 +1,4 @@
+packages:
+  - app
+minimumReleaseAgeExclude:
+  - '@types/node@24.13.5'

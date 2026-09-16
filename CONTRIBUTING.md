@@ -23,15 +23,16 @@ rustup component add rustfmt clippy
 # Revisión de instantáneas del código Typst generado
 cargo install cargo-insta
 
-# Frontend
-corepack enable
+# Frontend (Node 24 y pnpm 12; la versión exacta de pnpm la fija package.json)
 pnpm install
 
 # Comprobación completa (lo mismo que hace CI)
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+pnpm typecheck
 pnpm test
+pnpm build
 ```
 
 Dependencias del sistema para Tauri: <https://tauri.app/start/prerequisites/>

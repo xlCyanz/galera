@@ -1,0 +1,26 @@
+/* Provisional: los colores, la tipografía y los espaciados del brief de
+   diseño llegan como tokens en F1-13. */
+
+:root {
+  font-family: system-ui, sans-serif;
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+}
+
+.galera {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  padding: 2rem;
+}
+
+.ok {
+  color: #15803d;
+}
+
+.error {
+  color: #b91c1c;
+}
