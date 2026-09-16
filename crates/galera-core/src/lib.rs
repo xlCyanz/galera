@@ -11,7 +11,7 @@
 //! todavía no existe queda marcado como pendiente:
 //!
 //! - [`model`]: el documento, sus páginas y sus elementos (serde).
-//! - `codegen`: traducción del documento a código Typst. *(pendiente)*
+//! - [`codegen`]: traducción del documento a código Typst.
 //! - `world`:   implementación de `typst::World` con las fuentes del proyecto. *(pendiente)*
 //! - `compile`: compilación a PDF, SVG y PNG. *(pendiente)*
 //! - `layout`:  cajas, posiciones de glifos y detección de clics. *(pendiente)*
@@ -23,8 +23,10 @@
 //! El JSON es la fuente de verdad y Typst es un formato de salida. El núcleo
 //! genera código Typst, nunca lo lee ni lo modifica.
 
+pub mod codegen;
 pub mod model;
 
+pub use codegen::{escape, escape_into};
 pub use model::{
     Align, Document, Element, ElementBox, Meta, Page, PageSize, Run, Stroke, TextStyle, Unit,
 };
