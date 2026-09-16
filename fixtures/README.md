@@ -5,6 +5,7 @@ Documentos de ejemplo que sirven de banco de pruebas para todo el proyecto. Comp
 | Fixture | Qué cubre |
 |---|---|
 | `informe.json` | El ejemplo de la sección 4 de [`guide.md`](../guide.md), **idéntico**. Una prueba lo compara con la guía. |
+| `document.json` | Copia exacta de `informe.json`, para que `fixtures/` se pueda abrir como proyecto desde la app. Una prueba comprueba que siguen iguales, y no tiene instantánea propia. |
 | `rectangulo.json` | Relleno y borde, sin ninguno, solo borde, rotación, alto automático, color con transparencia. |
 | `elipse.json` | Relleno, solo borde, rotación negativa, color corto (`#abc`). |
 | `linea.json` | Horizontal, hacia atrás (deltas negativos), rotada. |
@@ -14,7 +15,7 @@ Documentos de ejemplo que sirven de banco de pruebas para todo el proyecto. Comp
 | `escape.json` | Todo lo que tiene que escaparse: caracteres de marcado, marcadores de línea, comentarios, enlaces y comillas en el título. Las comillas en nombres de fuente se prueban en las pruebas unitarias de `codegen`: una familia que no existe ya no pasa la validación. |
 | `multipagina.json` | Cinco páginas: mismo tamaño seguido, apaisada, en pulgadas, vacía. |
 
-`assets/` tiene imágenes de 1×1 px en los tres formatos. `fonts/` todavía no existe: ver más abajo.
+`assets/` tiene imágenes de 1×1 px en los tres formatos, y `fonts/`, las fuentes: ver más abajo.
 
 ## Instantáneas
 
@@ -59,6 +60,8 @@ Con ellas, todos los fixtures compilan a PDF:
 ```bash
 cargo run -p galera-cli -- fixtures/informe.json -o salida.pdf
 ```
+
+Y la carpeta entera se abre desde la app con **Abrir proyecto…**, gracias a `document.json`.
 
 Inter no tiene glifos de emoji ni de escrituras CJK. Galera nunca recurre a fuentes del sistema (principio 4), así que en `escape.json` esos caracteres salen como cuadrados vacíos. Es lo esperado: un documento que los necesite tiene que traer una fuente que los tenga.
 

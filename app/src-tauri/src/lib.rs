@@ -32,6 +32,43 @@ pub fn run() -> tauri::Result<()> {
         // Tauri guarda el estado y se lo pasa a cada comando que lo pida
         // con un argumento `State<'_, AppState>`.
         .manage(AppState::default())
-        .invoke_handler(tauri::generate_handler![commands::session_status])
+        // El diálogo se usa solo desde Rust: la interfaz no tiene permiso
+        // para abrirlo por su cuenta. Ver `commands::project`.
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![
+            commands::session::session_status,
+            commands::project::choose_project_folder,
+            commands::project::open_project,
+        ])
         .run(tauri::generate_context!())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    /// Criterio de F1-03: la interfaz no tiene permisos de sistema de
+    /// archivos, ni de diálogo. Solo los básicos de Tauri; lo que lee del
+    /// disco lo lee el backend, y solo de la carpeta elegida.
+    ///
+    /// Si hace falta un permiso nuevo, se añade a propósito aquí y en
+    /// `capabilities/default.json`, explicando por qué en el PR.
+    #[test]
+    fn the_webview_only_has_the_basic_permissions() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("capabilities/default.json");
+        let capability: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(&path).expect("capabilities/default.json existe"),
+        )
+        .expect("es JSON");
+
+        assert_eq!(
+            capability["permissions"],
+            serde_json::json!(["core:default"])
+        );
+
+        let capabilities = std::fs::read_dir(path.parent().expect("tiene carpeta"))
+            .expect("capabilities/ existe")
+            .count();
+        assert_eq!(capabilities, 1, "no hay más archivos de permisos");
+    }
 }

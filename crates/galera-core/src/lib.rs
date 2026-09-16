@@ -16,6 +16,7 @@
 //! - [`compile`](mod@compile): compilación a PDF y SVG; PNG llega después.
 //! - [`error`]: el error único del núcleo, [`GaleraError`], y los diagnósticos.
 //! - [`project`]: la carpeta del proyecto y qué se puede leer de ella.
+//! - [`open`](mod@open): abrir un proyecto comprobando su documento y sus recursos.
 //! - `layout`:  cajas, posiciones de glifos y detección de clics. *(pendiente)*
 //! - `ops`:     comandos de edición e historial de deshacer y rehacer. *(pendiente)*
 //! - `snap`:    guías de alineación. *(pendiente)*
@@ -37,6 +38,7 @@ pub mod codegen;
 pub mod compile;
 pub mod error;
 pub mod model;
+pub mod open;
 pub mod project;
 pub mod world;
 
@@ -47,6 +49,7 @@ pub use model::{
     Align, Document, Element, ElementBox, Meta, Page, PageSize, Run, Stroke, TextStyle, Unit,
     ValidationError, ValidationErrors,
 };
+pub use open::{DOCUMENT_FILE, OpenError, Opened, open};
 pub use project::{AccessError, Project, ProjectError};
 pub use world::{GaleraWorld, WorldError};
 

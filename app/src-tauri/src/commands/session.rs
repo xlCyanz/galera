@@ -1,11 +1,4 @@
-//! Los comandos que la interfaz puede invocar.
-//!
-//! Cada comando es una puerta fina: recibe lo que manda la interfaz, llama a
-//! `galera-core` o al estado, y devuelve el resultado. Sin lógica propia
-//! (principio 5 del README).
-//!
-//! Lo que devuelven se serializa a JSON con los nombres en `camelCase`, que es
-//! como se escriben en TypeScript.
+//! El estado de la sesión.
 
 use serde::Serialize;
 use tauri::State;
@@ -28,8 +21,8 @@ pub struct SessionStatus {
 
 /// Devuelve el estado de la sesión.
 ///
-/// Sirve de momento para comprobar que la interfaz, el backend y el núcleo
-/// están conectados; los comandos de abrir y compilar llegan en F1-03 y F1-04.
+/// Sirve para comprobar que la interfaz, el backend y el núcleo están
+/// conectados, y para saber qué hay abierto.
 #[tauri::command]
 pub fn session_status(state: State<'_, AppState>) -> SessionStatus {
     status_of(&state)

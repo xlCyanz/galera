@@ -6,7 +6,7 @@
 //! app mañana— maneja un solo tipo.
 //!
 //! Cada módulo conserva su propio error, que es más preciso
-//! ([`ProjectError`], [`ValidationErrors`], [`CodegenError`],
+//! ([`ProjectError`], [`OpenError`], [`ValidationErrors`], [`CodegenError`],
 //! [`WorldError`]), y `GaleraError` los envuelve. Con `?` la conversión es
 //! automática.
 //!
@@ -43,6 +43,7 @@ use thiserror::Error;
 
 use crate::codegen::CodegenError;
 use crate::model::ValidationErrors;
+use crate::open::OpenError;
 use crate::project::ProjectError;
 use crate::world::WorldError;
 
@@ -52,6 +53,11 @@ pub enum GaleraError {
     /// La carpeta del proyecto no se puede abrir.
     #[error(transparent)]
     Project(#[from] ProjectError),
+
+    /// El proyecto no se puede abrir: falta `document.json`, no es un
+    /// documento o una imagen no está.
+    #[error(transparent)]
+    Open(#[from] OpenError),
 
     /// El documento no es válido. Se detecta antes de compilar.
     #[error(transparent)]
@@ -89,6 +95,7 @@ impl GaleraError {
     pub fn kind(&self) -> &'static str {
         match self {
             GaleraError::Project(_) => "project",
+            GaleraError::Open(_) => "open",
             GaleraError::Invalid(_) => "invalid",
             GaleraError::Codegen(_) => "codegen",
             GaleraError::World(_) => "world",

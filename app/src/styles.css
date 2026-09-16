@@ -17,10 +17,17 @@ body {
   padding: 2rem;
 }
 
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .ok {
   color: #15803d;
 }
 
+/* Los errores de validación traen un problema por línea. */
 .error {
   color: #b91c1c;
+  white-space: pre-line;
 }
