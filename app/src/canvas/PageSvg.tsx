@@ -94,6 +94,9 @@ export interface PageSvgProps {
   height: number;
   /** Cómo se anuncia la página a un lector de pantalla. */
   label: string;
+  /** Posición de la esquina superior izquierda en el área, en píxeles CSS. */
+  left?: number;
+  top?: number;
   /** Solo para pruebas. */
   loader?: ImageLoader;
 }
@@ -102,11 +105,25 @@ export interface PageSvgProps {
  * La hoja: un rectángulo blanco del tamaño de la página con el SVG encima.
  * Mientras no hay SVG, se ve la hoja en blanco, ya con su tamaño.
  */
-export function PageSvg({ svg, width, height, label, loader = browserImageLoader }: PageSvgProps) {
+export function PageSvg({
+  svg,
+  width,
+  height,
+  label,
+  left = 0,
+  top = 0,
+  loader = browserImageLoader,
+}: PageSvgProps) {
   const url = useDecodedSvgUrl(svg, loader);
 
   return (
-    <div className="canvas-page" role="img" aria-label={label} style={{ width, height }}>
+    <div
+      className="canvas-page"
+      role="img"
+      aria-label={label}
+      // `translate` y no `left`/`top`: mover la página no vuelve a maquetar.
+      style={{ width, height, transform: `translate(${left}px, ${top}px)` }}
+    >
       {url !== null && <img src={url} alt="" draggable={false} />}
     </div>
   );

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { type KeyPress, exportPdfShortcutLabel, isExportPdfShortcut, isMac } from "./shortcuts";
+import {
+  type KeyPress,
+  exportPdfShortcutLabel,
+  isExportPdfShortcut,
+  isMac,
+  zoomShortcut,
+  zoomShortcutLabel,
+} from "./shortcuts";
 
 function press(overrides: Partial<KeyPress>): KeyPress {
   return { key: "E", metaKey: false, ctrlKey: false, shiftKey: true, altKey: false, ...overrides };
@@ -40,5 +47,34 @@ describe("exportPdfShortcutLabel", () => {
   it("se escribe como en cada sistema", () => {
     expect(exportPdfShortcutLabel(true)).toBe("⌘⇧E");
     expect(exportPdfShortcutLabel(false)).toBe("Ctrl+Shift+E");
+  });
+});
+
+describe("zoomShortcut", () => {
+  const key = (value: string, overrides: Partial<KeyPress> = {}) =>
+    press({ key: value, shiftKey: false, metaKey: true, ...overrides });
+
+  it("⌘+ y ⌘= acercan, ⌘- aleja, ⌘0 es 100 % y ⌘1 ajusta", () => {
+    expect(zoomShortcut(key("+", { shiftKey: true }), true)).toBe("in");
+    expect(zoomShortcut(key("="), true)).toBe("in");
+    expect(zoomShortcut(key("-"), true)).toBe("out");
+    expect(zoomShortcut(key("0"), true)).toBe("reset");
+    expect(zoomShortcut(key("1"), true)).toBe("fit");
+  });
+
+  it("en Windows y Linux van con Ctrl", () => {
+    expect(zoomShortcut(key("0", { metaKey: false, ctrlKey: true }), false)).toBe("reset");
+    expect(zoomShortcut(key("0"), false)).toBeNull();
+  });
+
+  it("sin modificador, con Alt o con otra tecla no son atajos", () => {
+    expect(zoomShortcut(key("0", { metaKey: false }), true)).toBeNull();
+    expect(zoomShortcut(key("0", { altKey: true }), true)).toBeNull();
+    expect(zoomShortcut(key("2"), true)).toBeNull();
+  });
+
+  it("se escriben como en cada sistema", () => {
+    expect(zoomShortcutLabel("fit", true)).toBe("⌘1");
+    expect(zoomShortcutLabel("in", false)).toBe("Ctrl++");
   });
 });

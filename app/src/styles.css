@@ -53,16 +53,14 @@ body {
   white-space: pre-line;
 }
 
-/* El área de trabajo. La página queda centrada con `margin: auto`: si cabe,
-   en el centro; si no, desde el borde y con desplazamiento, sin cortarse. */
+/* El área de trabajo. El área que se desplaza ocupa todo el lienzo, y los
+   controles de zoom flotan encima. */
 .canvas {
   --workspace: #e5e7eb;
-  box-sizing: border-box;
-  display: flex;
+  position: relative;
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  padding: 2rem;
+  overflow: hidden;
   background: var(--workspace);
   border-radius: 0.5rem;
 }
@@ -73,10 +71,45 @@ body {
   }
 }
 
+/* El área no se desplaza con barras: la página se coloca con `transform`
+   según el zoom y el desplazamiento del store (ver `canvas/zoom.ts`). */
+.canvas-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.canvas-viewport.is-pan-ready {
+  cursor: grab;
+}
+
+.canvas-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.canvas-zoom {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: Canvas;
+  border-radius: 0.375rem;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+}
+
+.canvas-zoom-level {
+  min-width: 4.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
 /* La hoja: blanca como el papel, también en modo oscuro. */
 .canvas-page {
-  flex: none;
-  margin: auto;
+  position: absolute;
+  top: 0;
+  left: 0;
   background: #fff;
   box-shadow:
     0 1px 3px rgb(0 0 0 / 0.2),

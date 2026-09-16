@@ -198,9 +198,12 @@ describe("Canvas", () => {
     act(() => root.render(<Canvas loader={loader} />));
     await finish("blob:0:<svg>glifos</svg>");
 
-    expect(container.textContent).toBe("");
-    const tags = [...container.querySelectorAll("*")].map((element) => element.tagName);
-    expect(tags).toEqual(["DIV", "DIV", "IMG"]);
+    // Lo que pinta el documento: solo la hoja y la imagen de Typst. Los
+    // controles de zoom van aparte y solo traen sus propios textos.
+    const viewport = container.querySelector(".canvas-viewport");
+    expect(viewport?.textContent).toBe("");
+    const tags = [...(viewport?.querySelectorAll("*") ?? [])].map((element) => element.tagName);
+    expect(tags).toEqual(["DIV", "IMG"]);
     expect(image()?.getAttribute("alt")).toBe("");
     expect(container.innerHTML).not.toContain("secreto");
   });

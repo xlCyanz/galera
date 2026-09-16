@@ -114,6 +114,25 @@ describe("store del documento", () => {
   });
 });
 
+describe("setView", () => {
+  it("cambia zoom y desplazamiento a la vez, con un solo aviso", () => {
+    let notifications = 0;
+    const unsubscribe = useDocumentStore.subscribe(() => notifications++);
+    store().setView(3, { x: -40, y: 12 });
+    unsubscribe();
+
+    expect(store()).toMatchObject({ zoom: 3, scroll: { x: -40, y: 12 } });
+    expect(notifications).toBe(1);
+  });
+
+  it("respeta los límites y descarta lo que no es un número", () => {
+    store().setView(50, { x: 1, y: 2 });
+    expect(store().zoom).toBe(MAX_ZOOM);
+    store().setView(Number.NaN, { x: Number.NaN, y: 0 });
+    expect(store()).toMatchObject({ zoom: MAX_ZOOM, scroll: { x: 1, y: 2 } });
+  });
+});
+
 describe("límites", () => {
   it("clampZoom", () => {
     expect(clampZoom(0.25)).toBe(0.25);

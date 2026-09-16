@@ -27,3 +27,42 @@ export function isExportPdfShortcut(event: KeyPress, mac: boolean): boolean {
 export function exportPdfShortcutLabel(mac: boolean): string {
   return mac ? "⌘⇧E" : "Ctrl+Shift+E";
 }
+
+/** Lo que pide un atajo de zoom. */
+export type ZoomCommand = "in" | "out" | "reset" | "fit";
+
+/**
+ * Atajos de zoom, con ⌘ en macOS y Ctrl en Windows y Linux:
+ *
+ * - `+` o `=`: acercar. Se acepta `=` para no tener que pulsar Shift en los
+ *   teclados donde `+` está encima.
+ * - `-`: alejar.
+ * - `0`: 100 %.
+ * - `1`: ajustar a la ventana.
+ */
+export function zoomShortcut(event: KeyPress, mac: boolean): ZoomCommand | null {
+  const modifier = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+  if (!modifier || event.altKey) {
+    return null;
+  }
+  switch (event.key) {
+    case "+":
+    case "=":
+      return "in";
+    case "-":
+    case "_":
+      return "out";
+    case "0":
+      return "reset";
+    case "1":
+      return "fit";
+    default:
+      return null;
+  }
+}
+
+/** Cómo se escribe cada atajo de zoom, para enseñarlo en la interfaz. */
+export function zoomShortcutLabel(command: ZoomCommand, mac: boolean): string {
+  const key = { in: "+", out: "-", reset: "0", fit: "1" }[command];
+  return mac ? `⌘${key}` : `Ctrl+${key}`;
+}
