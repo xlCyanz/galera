@@ -70,7 +70,7 @@ Nunca se hace push directo a `main`; está protegida.
 Refs #12
 ```
 
-Ámbitos habituales: `core`, `model`, `codegen`, `world`, `compile`, `layout`, `ops`, `snap`, `cli`, `tauri`, `ui`, `canvas`, `text`, `ci`, `docs`.
+Ámbitos habituales: `core`, `model`, `codegen`, `world`, `project`, `compile`, `layout`, `ops`, `snap`, `cli`, `tauri`, `ui`, `canvas`, `text`, `ci`, `docs`.
 
 ```
 feat(codegen): emit place() wrapper for rect elements

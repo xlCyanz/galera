@@ -270,9 +270,9 @@ pub enum Element {
     /// Código Typst escrito a mano.
     ///
     /// Es una **caja opaca**: el editor no lo lee ni lo modifica, y se evalúa
-    /// tal cual, aislado del resto del documento y sin acceso a disco. Es la
-    /// única excepción al principio 1, y por eso un documento de origen
-    /// desconocido no es contenido de confianza; ver `SECURITY.md`.
+    /// tal cual. Puede leer archivos de la carpeta del proyecto, pero no de
+    /// fuera. Es la única excepción al principio 1, y por eso un documento de
+    /// origen desconocido no es contenido de confianza; ver `SECURITY.md`.
     Code {
         /// Identidad, posición y tamaño.
         #[serde(flatten)]
