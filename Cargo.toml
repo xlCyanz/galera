@@ -31,6 +31,9 @@ thiserror = "2.0"
 # de `@tauri-apps/api` y `@tauri-apps/cli` en `app/package.json`.
 tauri = "=2.11.5"
 tauri-build = "=2.6.3"
+# El plugin del diálogo se usa solo desde Rust, sin paquete de npm; se fija
+# igual para que suba a la vez que Tauri y no por su cuenta.
+tauri-plugin-dialog = "=2.7.3"
 insta = "1.43"
 
 # Typst se fija con `=`: su API cambia entre versiones menores, así que

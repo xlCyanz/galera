@@ -31,8 +31,16 @@
 //!
 //! Para saber si cambió, cada cambio del documento incrementa una
 //! **revisión**.
+//!
+//! # Carpetas elegidas
+//!
+//! El estado también recuerda qué carpetas ha elegido quien usa la app en el
+//! diálogo nativo de abrir. Son las únicas que se pueden abrir: ver
+//! [`crate::commands::project`].
 
-use std::sync::{Arc, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use galera_core::{Compiled, Document, GaleraError, Project};
 
@@ -40,6 +48,8 @@ use galera_core::{Compiled, Document, GaleraError, Project};
 #[derive(Default)]
 pub struct AppState {
     session: RwLock<Session>,
+    /// Las carpetas elegidas en el diálogo de abrir, con su ruta real.
+    chosen_folders: Mutex<HashSet<PathBuf>>,
 }
 
 /// Lo que hay abierto.
@@ -173,6 +183,26 @@ impl AppState {
         }))
     }
 
+    /// Anota una carpeta que quien usa la app ha elegido en el diálogo de
+    /// abrir. Dura lo que dure la app abierta.
+    pub fn choose_folder(&self, folder: &Path) {
+        self.chosen_folders
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(real_path(folder));
+    }
+
+    /// Si una carpeta se ha elegido en el diálogo de abrir.
+    ///
+    /// Se compara la ruta real, así que da igual cómo se escriba: con `./`,
+    /// con `..` o a través de un enlace simbólico.
+    pub fn was_chosen(&self, folder: &Path) -> bool {
+        self.chosen_folders
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .contains(&real_path(folder))
+    }
+
     /// Cerrojo de lectura. Un cerrojo envenenado solo significa que un hilo
     /// falló mientras lo tenía; los datos siguen siendo utilizables, y dejar
     /// la app inservible por ello sería peor.
@@ -190,6 +220,12 @@ impl AppState {
     fn is_unlocked(&self) -> bool {
         self.session.try_write().is_ok()
     }
+}
+
+/// La ruta real de una carpeta, con los enlaces simbólicos resueltos. Si no
+/// se puede resolver —porque ya no existe, por ejemplo—, la ruta tal cual.
+fn real_path(folder: &Path) -> PathBuf {
+    folder.canonicalize().unwrap_or_else(|_| folder.to_owned())
 }
 
 #[cfg(test)]
@@ -323,6 +359,36 @@ mod tests {
             Err(GaleraError::Invalid(_))
         ));
         assert!(!state.summary().compiled_is_current);
+    }
+
+    #[test]
+    fn a_chosen_folder_is_remembered_however_it_is_written() {
+        let state = AppState::default();
+        let (dir, _project, _document) = project_and_document("Informe");
+        fs::create_dir(dir.path().join("sub")).expect("sub/");
+        assert!(!state.was_chosen(dir.path()));
+
+        state.choose_folder(dir.path());
+        assert!(state.was_chosen(dir.path()));
+        assert!(state.was_chosen(&dir.path().join("sub/..")));
+        assert!(state.was_chosen(&dir.path().join(".")));
+    }
+
+    /// Elegir una carpeta no deja abrir ni su carpeta de arriba ni las de
+    /// dentro.
+    #[test]
+    fn only_the_chosen_folder_itself_counts() {
+        let state = AppState::default();
+        let (dir, _project, _document) = project_and_document("Informe");
+        let inner = dir.path().join("sub");
+        let deeper = inner.join("mas");
+        fs::create_dir_all(&deeper).expect("sub/mas/");
+
+        state.choose_folder(&inner);
+        assert!(state.was_chosen(&inner));
+        assert!(!state.was_chosen(dir.path()));
+        assert!(!state.was_chosen(&inner.join("..")));
+        assert!(!state.was_chosen(&deeper));
     }
 
     #[test]

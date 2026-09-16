@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "meta": { "title": "Informe anual 2026" },
+  "fonts": ["fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf"],
+  "assets": { "logo": "assets/logo.png" },
+  "variables": { "nombre": "Cooperativa Agrícola del Este" },
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "r1", "type": "rect", "x": 0, "y": 0, "w": 210, "h": 15,
+          "rotation": 0, "fill": "#1e40af", "stroke": null, "radius": 0 },
+        { "id": "t1", "type": "text", "x": 20, "y": 30, "w": 170, "h": null,
+          "rotation": 0,
+          "content": [ { "text": "Informe anual", "bold": true } ],
+          "style": { "font": "Inter", "size": 28, "color": "#1F2733",
+                     "align": "left", "leading": 0.65 } },
+        { "id": "i1", "type": "image", "x": 20, "y": 60, "w": 80, "h": null,
+          "rotation": 0, "asset": "logo" },
+        { "id": "c1", "type": "code", "x": 20, "y": 200, "w": 170, "h": 40,
+          "source": "#table(columns: 2)[A][B]" }
+      ]
+    }
+  ]
+}

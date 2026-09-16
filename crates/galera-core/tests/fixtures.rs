@@ -11,6 +11,10 @@ use galera_core::{Document, Project, Severity, codegen, compile};
 
 /// Los fixtures con instantánea. Si se añade un `.json` a `fixtures/` y no se
 /// añade aquí, `every_fixture_has_a_snapshot` falla.
+///
+/// `document.json` no está: es una copia de `informe.json` para que
+/// `fixtures/` se pueda abrir como proyecto, y
+/// `document_json_is_a_copy_of_informe` comprueba que siguen iguales.
 const FIXTURES: &[&str] = &[
     "codigo",
     "elipse",
@@ -58,6 +62,7 @@ fn every_fixture_has_a_snapshot() {
                 .flatten()
         })
         .collect();
+    on_disk.retain(|name| name != "document");
     on_disk.sort();
 
     let listed: Vec<String> = FIXTURES.iter().map(|name| (*name).to_owned()).collect();
@@ -96,6 +101,22 @@ fn informe_matches_the_example_in_the_guide() {
     .expect("informe.json es JSON válido");
 
     assert_eq!(fixture, from_guide);
+}
+
+/// `fixtures/` es también un proyecto que la app puede abrir, y su
+/// `document.json` es el informe de la guía. Si alguien cambia uno sin el
+/// otro, esta prueba lo dice.
+#[test]
+fn document_json_is_a_copy_of_informe() {
+    let read = |name: &str| {
+        std::fs::read_to_string(fixtures_dir().join(name))
+            .unwrap_or_else(|error| panic!("no se puede leer {name}: {error}"))
+    };
+    assert_eq!(
+        read("document.json"),
+        read("informe.json"),
+        "fixtures/document.json tiene que ser una copia exacta de fixtures/informe.json"
+    );
 }
 
 /// Los fixtures de un tipo de elemento tienen que contener de verdad ese

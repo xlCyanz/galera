@@ -153,13 +153,28 @@ impl Project {
     /// Los de [`Project::resolve`], más [`AccessError::IsDirectory`] si la
     /// ruta es una carpeta.
     pub fn read(&self, relative: &str) -> Result<Vec<u8>, AccessError> {
+        let path = self.file(relative)?;
+        std::fs::read(&path).map_err(AccessError::Io)
+    }
+
+    /// Comprueba que una ruta relativa al proyecto es un archivo que se puede
+    /// usar, sin leerlo, y devuelve su ruta real.
+    ///
+    /// Sirve para comprobar que un recurso está antes de necesitarlo: una
+    /// imagen grande no se lee entera solo para saber que existe.
+    ///
+    /// # Errores
+    ///
+    /// Los de [`Project::resolve`], más [`AccessError::IsDirectory`] si la
+    /// ruta es una carpeta.
+    pub fn file(&self, relative: &str) -> Result<PathBuf, AccessError> {
         let path = self.resolve(relative)?;
 
         if path.is_dir() {
             return Err(AccessError::IsDirectory);
         }
 
-        std::fs::read(&path).map_err(AccessError::Io)
+        Ok(path)
     }
 }
 
@@ -315,6 +330,28 @@ mod tests {
         assert!(matches!(
             project.read("assets"),
             Err(AccessError::IsDirectory)
+        ));
+    }
+
+    /// `file` aplica las mismas reglas que `read`, sin leer.
+    #[test]
+    fn file_checks_like_read_without_reading() {
+        let (_dir, project) = project();
+        assert_eq!(
+            project.file("assets/logo.png").expect("es un archivo"),
+            project.root().join("assets/logo.png")
+        );
+        assert!(matches!(
+            project.file("assets"),
+            Err(AccessError::IsDirectory)
+        ));
+        assert!(matches!(
+            project.file("assets/no-existe.png"),
+            Err(AccessError::NotFound)
+        ));
+        assert!(matches!(
+            project.file("../../etc/passwd"),
+            Err(AccessError::Outside)
         ));
     }
 
