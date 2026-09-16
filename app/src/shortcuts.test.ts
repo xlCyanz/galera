@@ -5,6 +5,7 @@ import {
   exportPdfShortcutLabel,
   isExportPdfShortcut,
   isMac,
+  isToggleRulersShortcut,
   zoomShortcut,
   zoomShortcutLabel,
 } from "./shortcuts";
@@ -76,5 +77,20 @@ describe("zoomShortcut", () => {
   it("se escriben como en cada sistema", () => {
     expect(zoomShortcutLabel("fit", true)).toBe("⌘1");
     expect(zoomShortcutLabel("in", false)).toBe("Ctrl++");
+  });
+});
+
+describe("isToggleRulersShortcut", () => {
+  it("es ⇧R, en cualquier sistema", () => {
+    expect(isToggleRulersShortcut(press({ key: "R" }))).toBe(true);
+    expect(isToggleRulersShortcut(press({ key: "r" }))).toBe(true);
+  });
+
+  it("sin Shift o con otro modificador no lo es", () => {
+    expect(isToggleRulersShortcut(press({ key: "r", shiftKey: false }))).toBe(false);
+    expect(isToggleRulersShortcut(press({ key: "R", metaKey: true }))).toBe(false);
+    expect(isToggleRulersShortcut(press({ key: "R", ctrlKey: true }))).toBe(false);
+    expect(isToggleRulersShortcut(press({ key: "R", altKey: true }))).toBe(false);
+    expect(isToggleRulersShortcut(press({ key: "E" }))).toBe(false);
   });
 });

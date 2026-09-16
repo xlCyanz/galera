@@ -1,5 +1,5 @@
-/** Los botones de zoom sobre el lienzo, con el nivel actual. */
-import { isMac, type ZoomCommand, zoomShortcutLabel } from "../shortcuts";
+/** Los botones de zoom sobre el lienzo, con el nivel actual, y el de las reglas. */
+import { TOGGLE_RULERS_LABEL, isMac, type ZoomCommand, zoomShortcutLabel } from "../shortcuts";
 import { formatZoom } from "./zoom";
 
 const mac = isMac();
@@ -7,9 +7,11 @@ const mac = isMac();
 export interface ZoomControlsProps {
   zoom: number;
   onCommand: (command: ZoomCommand) => void;
+  rulersVisible: boolean;
+  onToggleRulers: () => void;
 }
 
-export function ZoomControls({ zoom, onCommand }: ZoomControlsProps) {
+export function ZoomControls({ zoom, onCommand, rulersVisible, onToggleRulers }: ZoomControlsProps) {
   const label = formatZoom(zoom);
   const button = (command: ZoomCommand, text: string, name: string) => (
     <button
@@ -36,6 +38,14 @@ export function ZoomControls({ zoom, onCommand }: ZoomControlsProps) {
       </button>
       {button("in", "+", "Acercar")}
       {button("fit", "Ajustar", "Ajustar a la ventana")}
+      <button
+        type="button"
+        onClick={onToggleRulers}
+        aria-pressed={rulersVisible}
+        title={`Reglas (${TOGGLE_RULERS_LABEL})`}
+      >
+        Reglas
+      </button>
     </div>
   );
 }

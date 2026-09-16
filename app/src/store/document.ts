@@ -43,6 +43,8 @@ export interface DocumentState {
   zoom: number;
   /** Cuánto se ha movido la página desde el centro, en píxeles CSS. */
   scroll: Scroll;
+  /** Si se ven las reglas. Es de quien mira: no cambia al abrir otro documento. */
+  rulersVisible: boolean;
 
   /**
    * Guarda un proyecto recién abierto. Vuelve a la primera página y quita el
@@ -65,6 +67,8 @@ export interface DocumentState {
    * hace el zoom hacia el puntero.
    */
   setView: (zoom: number, scroll: Scroll) => void;
+  /** Enseña u oculta las reglas. */
+  toggleRulers: () => void;
 }
 
 const origin: Scroll = { x: 0, y: 0 };
@@ -75,6 +79,7 @@ export const useDocumentStore = create<DocumentState>()((set) => ({
   currentPage: 0,
   zoom: 1,
   scroll: origin,
+  rulersVisible: true,
 
   open: (opened) =>
     set({ document: opened.document, root: opened.root, currentPage: 0, scroll: origin }),
@@ -111,6 +116,8 @@ export const useDocumentStore = create<DocumentState>()((set) => ({
           ? { x: scroll.x, y: scroll.y }
           : state.scroll,
     })),
+
+  toggleRulers: () => set((state) => ({ rulersVisible: !state.rulersVisible })),
 }));
 
 /** Un zoom dentro de los límites. */
@@ -143,3 +150,5 @@ export const useCurrentPage = () => useDocumentStore((state) => state.currentPag
 export const useZoom = () => useDocumentStore((state) => state.zoom);
 /** El desplazamiento del lienzo. */
 export const useScroll = () => useDocumentStore((state) => state.scroll);
+/** Si se ven las reglas. */
+export const useRulersVisible = () => useDocumentStore((state) => state.rulersVisible);

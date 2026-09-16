@@ -66,3 +66,32 @@ export function zoomShortcutLabel(command: ZoomCommand, mac: boolean): string {
   const key = { in: "+", out: "-", reset: "0", fit: "1" }[command];
   return mac ? `⌘${key}` : `Ctrl+${key}`;
 }
+
+/**
+ * Enseñar u ocultar las reglas: ⇧R, como en otros editores de diseño. Sin
+ * ⌘ ni Ctrl, así que quien lo atiende tiene que ignorarlo mientras se
+ * escribe.
+ */
+export function isToggleRulersShortcut(event: KeyPress): boolean {
+  return (
+    event.shiftKey &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    event.key.toLowerCase() === "r"
+  );
+}
+
+/** Cómo se escribe el atajo de las reglas. */
+export const TOGGLE_RULERS_LABEL = "⇧R";
+
+/**
+ * Si el foco está en un sitio donde se escribe. Los atajos sin ⌘ ni Ctrl
+ * (Espacio, ⇧R) no se atienden ahí.
+ */
+export function isTypingTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+  );
+}

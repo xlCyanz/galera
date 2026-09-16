@@ -23,7 +23,7 @@ import {
   useState,
 } from "react";
 
-import { type ZoomCommand, isMac, zoomShortcut } from "../shortcuts";
+import { type ZoomCommand, isMac, isTypingTarget, zoomShortcut } from "../shortcuts";
 import { type Scroll, useDocumentStore, useScroll, useZoom } from "../store/document";
 import type { PageSize } from "../types/model";
 import { type PixelSize, pageSizeInPx } from "./geometry";
@@ -227,7 +227,7 @@ export function useCanvasNavigation(
       run(command);
       return;
     }
-    if (event.code === "Space" && !isTyping(event.target)) {
+    if (event.code === "Space" && !isTypingTarget(event.target)) {
       event.preventDefault();
       setPanReady(true);
     }
@@ -283,12 +283,4 @@ export function useCanvasNavigation(
   };
 
   return { zoom, scroll, viewportSize, run, panReady, panning, viewportHandlers };
-}
-
-/** Si el foco está en un sitio donde Espacio escribe. */
-function isTyping(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
-  );
 }
