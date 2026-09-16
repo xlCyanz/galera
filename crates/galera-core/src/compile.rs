@@ -1,9 +1,11 @@
-//! Compilación: del documento al PDF.
+//! Compilación: del documento al PDF y al SVG.
 //!
 //! Aquí se unen todas las piezas del núcleo:
 //!
 //! ```text
-//! Document ──codegen──► código Typst ──World + typst::compile──► Compiled ──► PDF
+//!                                                                      ┌──► PDF
+//! Document ──codegen──► código Typst ──World + typst::compile──► Compiled
+//!                                                                      └──► SVG por página
 //! ```
 //!
 //! Es uno de los tres módulos donde se permite usar Typst (principio 5 del
@@ -14,9 +16,10 @@
 //! # Compilar una vez, exportar varias
 //!
 //! [`compile`] hace el trabajo caro y devuelve un [`Compiled`]. De ahí salen
-//! las exportaciones. Hoy solo PDF; en F0-13 el SVG, **del mismo documento
-//! compilado**, que es lo que garantiza que lo que se ve en el lienzo es lo
-//! que se exporta (principio 2).
+//! las exportaciones: el PDF que se entrega y el SVG que muestra el lienzo,
+//! **los dos del mismo documento compilado**. Eso es lo que garantiza que lo
+//! que se ve en el lienzo es lo que se exporta (principio 2): no hay dos
+//! compilaciones que puedan discrepar.
 //!
 //! # PDF reproducible
 //!
@@ -30,6 +33,7 @@ use typst::diag::{Severity as TypstSeverity, SourceDiagnostic, Warned};
 use typst::foundations::Smart;
 use typst_layout::PagedDocument;
 use typst_pdf::PdfOptions;
+use typst_svg::SvgOptions;
 
 use crate::codegen::{self, CodegenError};
 use crate::model::Document;
@@ -103,6 +107,13 @@ pub enum CompileError {
     World(WorldError),
     /// Typst encontró errores al compilar o al exportar.
     Typst(Vec<Diagnostic>),
+    /// Se pidió una página que el documento no tiene.
+    PageOutOfRange {
+        /// La página pedida, empezando en 0.
+        page: usize,
+        /// Cuántas páginas tiene el documento.
+        count: usize,
+    },
 }
 
 impl fmt::Display for CompileError {
@@ -122,6 +133,10 @@ impl fmt::Display for CompileError {
                 }
                 Ok(())
             }
+            CompileError::PageOutOfRange { page, count } => write!(
+                f,
+                "no existe la página {page}: el documento tiene {count} (se cuentan desde 0)"
+            ),
         }
     }
 }
@@ -131,7 +146,7 @@ impl std::error::Error for CompileError {
         match self {
             CompileError::Codegen(error) => Some(error),
             CompileError::World(error) => Some(error),
-            CompileError::Typst(_) => None,
+            CompileError::Typst(_) | CompileError::PageOutOfRange { .. } => None,
         }
     }
 }
@@ -183,6 +198,25 @@ impl Compiled {
         typst_pdf::pdf(&self.document, &options)
             .map_err(|errors| CompileError::Typst(errors.iter().map(Diagnostic::from).collect()))
     }
+
+    /// Exporta una página a SVG. Las páginas se cuentan desde 0.
+    ///
+    /// Es lo que muestra el lienzo. El texto no va como texto sino como el
+    /// trazado de cada glifo, así que el SVG no depende de ninguna fuente
+    /// instalada y se ve exactamente como el PDF.
+    ///
+    /// # Errores
+    ///
+    /// [`CompileError::PageOutOfRange`] si la página no existe.
+    pub fn to_svg(&self, page: usize) -> Result<String, CompileError> {
+        let pages = self.document.pages();
+        let page = pages.get(page).ok_or(CompileError::PageOutOfRange {
+            page,
+            count: pages.len(),
+        })?;
+
+        Ok(typst_svg::svg(page, &SvgOptions::default()))
+    }
 }
 
 /// Compila un documento.
@@ -222,6 +256,23 @@ pub fn compile(document: &Document, project: &Project) -> Result<Compiled, Compi
 /// Los de [`compile`] y los de [`Compiled::to_pdf`].
 pub fn compile_pdf(document: &Document, project: &Project) -> Result<Vec<u8>, CompileError> {
     compile(document, project)?.to_pdf()
+}
+
+/// Compila un documento y exporta una de sus páginas a SVG.
+///
+/// Es [`compile`] seguido de [`Compiled::to_svg`]. Para enseñar varias
+/// páginas, o el SVG y el PDF, mejor compilar una vez y exportar del mismo
+/// [`Compiled`].
+///
+/// # Errores
+///
+/// Los de [`compile`] y los de [`Compiled::to_svg`].
+pub fn compile_svg(
+    document: &Document,
+    project: &Project,
+    page: usize,
+) -> Result<String, CompileError> {
+    compile(document, project)?.to_svg(page)
 }
 
 #[cfg(test)]
@@ -456,6 +507,301 @@ mod tests {
                     && warning.message.to_lowercase().contains("inter")),
             "debe avisar de la familia desconocida: {:#?}",
             compiled.warnings()
+        );
+    }
+
+    // ── SVG ─────────────────────────────────────────────────────────────
+
+    /// Un documento de dos páginas de tamaños distintos: en la primera, un
+    /// rectángulo y un texto; en la segunda, nada.
+    fn box_and_text() -> Document {
+        Document::from_json_str(
+            r##"{
+              "version": 1,
+              "meta": { "title": "Caja" },
+              "fonts": ["fonts/LibertinusSerif-Regular.otf"],
+              "pages": [
+                { "id": "p1", "size": { "width": 210, "height": 297, "unit": "mm" },
+                  "elements": [
+                    { "id": "r1", "type": "rect", "x": 20, "y": 30, "w": 100, "h": 50,
+                      "fill": "#1e40af", "stroke": null },
+                    { "id": "t1", "type": "text", "x": 20, "y": 100, "w": 100, "h": null,
+                      "content": [{ "text": "Hola" }],
+                      "style": { "font": "Libertinus Serif", "size": 12, "color": "#000000" } }
+                  ] },
+                { "id": "p2", "size": { "width": 148, "height": 210, "unit": "mm" } }
+              ]
+            }"##,
+        )
+        .expect("debe deserializar")
+    }
+
+    /// Puntos tipográficos por milímetro.
+    const PT_PER_MM: f64 = 72.0 / 25.4;
+
+    /// Una caja en puntos, con el origen arriba a la izquierda.
+    #[derive(Debug)]
+    struct PtBox {
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+    }
+
+    impl PtBox {
+        fn assert_close_to(&self, other: &PtBox, what: &str) {
+            // Una centésima de punto: el PDF redondea a seis decimales y el
+            // SVG a nueve, y eso ya es menos de 0,004 mm.
+            const TOLERANCE: f64 = 0.01;
+            for (name, a, b) in [
+                ("x", self.x, other.x),
+                ("y", self.y, other.y),
+                ("ancho", self.w, other.w),
+                ("alto", self.h, other.h),
+            ] {
+                assert!(
+                    (a - b).abs() < TOLERANCE,
+                    "{what}: {name} difiere ({a} frente a {b}): {self:?} / {other:?}"
+                );
+            }
+        }
+    }
+
+    /// Lee del SVG la caja del trazado relleno con `fill`.
+    ///
+    /// Typst escribe un rectángulo como
+    /// `<path fill="#…" transform="translate(X Y)" d="M 0 0v H h W v -H Z "/>`.
+    fn svg_box(svg: &str, fill: &str) -> PtBox {
+        let start = svg
+            .find(&format!(r#"<path fill="{fill}""#))
+            .unwrap_or_else(|| panic!("el SVG debe tener un trazado relleno de {fill}"));
+        let tag = &svg[start..start + svg[start..].find("/>").expect("etiqueta cerrada")];
+
+        let attribute = |name: &str| -> &str {
+            let open = format!(r#"{name}=""#);
+            let from = tag.find(&open).expect("atributo presente") + open.len();
+            &tag[from..from + tag[from..].find('"').expect("atributo cerrado")]
+        };
+
+        let translate = attribute("transform")
+            .trim_start_matches("translate(")
+            .trim_end_matches(')');
+        let mut xy = translate
+            .split_whitespace()
+            .map(|n| n.parse::<f64>().expect("número"));
+        let (x, y) = (xy.next().expect("x"), xy.next().expect("y"));
+
+        let path = attribute("d");
+        let number_after = |marker: &str| -> f64 {
+            let from = path.find(marker).expect("comando presente") + marker.len();
+            path[from..]
+                .split(|c: char| c != '.' && c != '-' && !c.is_ascii_digit())
+                .next()
+                .expect("número")
+                .parse()
+                .expect("número válido")
+        };
+
+        PtBox {
+            x,
+            y,
+            h: number_after("v "),
+            w: number_after("h "),
+        }
+    }
+
+    /// Lee del PDF la caja del primer trazado relleno que no es texto.
+    ///
+    /// Typst escribe un rectángulo como
+    /// `q 1 0 0 -1 X Y' cm … 0 0 m W 0 l W H l 0 H l h f Q`,
+    /// con el eje y hacia arriba desde el pie de la página, así que la y de
+    /// arriba es la altura de la página menos `Y'`.
+    fn pdf_box(pdf: &[u8]) -> PtBox {
+        let page_height = pdf_page_height(pdf);
+
+        for content in pdf_streams(pdf) {
+            for block in content.split("\nQ") {
+                let Some(q) = block.find("q 1 0 0 -1 ") else {
+                    continue;
+                };
+                let block = &block[q..];
+                if block.contains("BT") || !block.contains("\nf") {
+                    continue;
+                }
+
+                let numbers: Vec<f64> = block["q 1 0 0 -1 ".len()..]
+                    .split_whitespace()
+                    .take(2)
+                    .map(|n| n.parse().expect("número"))
+                    .collect();
+
+                let path = &block[block.find(" m ").expect("trazado") + 3..];
+                let points: Vec<f64> = path
+                    .split_whitespace()
+                    .filter_map(|token| token.parse::<f64>().ok())
+                    .collect();
+                let w = points.iter().step_by(2).cloned().fold(0.0, f64::max);
+                let h = points
+                    .iter()
+                    .skip(1)
+                    .step_by(2)
+                    .cloned()
+                    .fold(0.0, f64::max);
+
+                return PtBox {
+                    x: numbers[0],
+                    y: page_height - numbers[1],
+                    w,
+                    h,
+                };
+            }
+        }
+
+        panic!("el PDF debe tener un trazado relleno");
+    }
+
+    /// Los flujos del PDF que se pueden descomprimir, como texto.
+    fn pdf_streams(pdf: &[u8]) -> Vec<String> {
+        let mut streams = Vec::new();
+        let mut rest = pdf;
+        while let Some(start) = find(rest, b"stream\n") {
+            let body = &rest[start + b"stream\n".len()..];
+            let Some(end) = find(body, b"endstream") else {
+                break;
+            };
+            // Entre los datos y `endstream` va un salto de línea que no es
+            // parte del flujo comprimido.
+            let data = body[..end]
+                .strip_suffix(b"\n")
+                .map(|data| data.strip_suffix(b"\r").unwrap_or(data))
+                .unwrap_or(&body[..end]);
+            if let Ok(inflated) = miniz_oxide::inflate::decompress_to_vec_zlib(data) {
+                streams.push(String::from_utf8_lossy(&inflated).into_owned());
+            }
+            // Saltar `endstream` entero: si no, su propio `stream\n` se
+            // tomaría por el principio del siguiente flujo.
+            rest = &body[end + b"endstream".len()..];
+        }
+        streams
+    }
+
+    /// La altura de la primera página, de su `/MediaBox`.
+    fn pdf_page_height(pdf: &[u8]) -> f64 {
+        let start = find(pdf, b"/MediaBox[").expect("el PDF tiene MediaBox") + b"/MediaBox[".len();
+        let end = start + find(&pdf[start..], b"]").expect("MediaBox cerrado");
+        std::str::from_utf8(&pdf[start..end])
+            .expect("MediaBox en ASCII")
+            .split_whitespace()
+            .nth(3)
+            .expect("cuatro números")
+            .parse()
+            .expect("número")
+    }
+
+    fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+        haystack
+            .windows(needle.len())
+            .position(|window| window == needle)
+    }
+
+    /// El criterio central de la tarea: el mismo elemento mide lo mismo en el
+    /// SVG que ve el lienzo y en el PDF que se exporta. Y lo que dice el modelo.
+    #[test]
+    fn an_element_has_the_same_box_in_svg_and_pdf() {
+        let dir = project_dir();
+        let compiled = compile(&box_and_text(), &open(&dir)).expect("debe compilar");
+
+        let svg = svg_box(&compiled.to_svg(0).expect("svg"), "#1e40af");
+        let pdf = pdf_box(&compiled.to_pdf().expect("pdf"));
+        let model = PtBox {
+            x: 20.0 * PT_PER_MM,
+            y: 30.0 * PT_PER_MM,
+            w: 100.0 * PT_PER_MM,
+            h: 50.0 * PT_PER_MM,
+        };
+
+        svg.assert_close_to(&pdf, "SVG frente a PDF");
+        svg.assert_close_to(&model, "SVG frente al modelo");
+        pdf.assert_close_to(&model, "PDF frente al modelo");
+    }
+
+    /// El criterio de la tarea: el texto va como trazados de glifos, así que
+    /// el SVG no depende de ninguna fuente instalada en quien lo muestra.
+    #[test]
+    fn svg_text_is_drawn_as_glyph_outlines() {
+        let dir = project_dir();
+        let svg = compile_svg(&box_and_text(), &open(&dir), 0).expect("debe exportarse");
+
+        assert!(!svg.contains("<text"), "el texto no puede ir como <text>");
+        assert!(!svg.contains("font-family"), "ni nombrar una fuente");
+        assert!(
+            svg.contains("<symbol"),
+            "los glifos van definidos como símbolos"
+        );
+        assert!(
+            svg.contains(r##"xlink:href="#g"##),
+            "y se usan desde el texto"
+        );
+    }
+
+    /// El criterio de la tarea: el SVG y el PDF salen de la misma compilación.
+    #[test]
+    fn svg_and_pdf_come_from_one_compilation() {
+        let dir = project_dir();
+        let compiled = compile(&box_and_text(), &open(&dir)).expect("debe compilar");
+
+        let pdf = compiled.to_pdf().expect("pdf");
+        let svgs: Vec<String> = (0..compiled.page_count())
+            .map(|page| compiled.to_svg(page).expect("svg"))
+            .collect();
+
+        assert_eq!(svgs.len(), 2);
+        assert!(pdf.starts_with(b"%PDF-"));
+        assert_eq!(
+            compile_pdf(&box_and_text(), &open(&dir)).expect("pdf"),
+            pdf,
+            "exportar de un Compiled da lo mismo que compilar y exportar de golpe"
+        );
+    }
+
+    #[test]
+    fn each_page_keeps_its_own_size_in_svg() {
+        let dir = project_dir();
+        let compiled = compile(&box_and_text(), &open(&dir)).expect("debe compilar");
+
+        let width = |page: usize| -> f64 {
+            let svg = compiled.to_svg(page).expect("svg");
+            let from = svg.find(r#"width=""#).expect("ancho") + r#"width=""#.len();
+            svg[from..from + svg[from..].find("pt").expect("en puntos")]
+                .parse()
+                .expect("número")
+        };
+
+        assert!((width(0) - 210.0 * PT_PER_MM).abs() < 0.01);
+        assert!((width(1) - 148.0 * PT_PER_MM).abs() < 0.01);
+    }
+
+    #[test]
+    fn a_page_that_does_not_exist_is_an_error() {
+        let dir = project_dir();
+        let compiled = compile(&box_and_text(), &open(&dir)).expect("debe compilar");
+
+        match compiled.to_svg(2) {
+            Err(CompileError::PageOutOfRange { page: 2, count: 2 }) => {}
+            other => panic!(
+                "se esperaba PageOutOfRange: {:?}",
+                other.map(|svg| svg.len())
+            ),
+        }
+    }
+
+    #[test]
+    fn the_same_page_always_produces_the_same_svg() {
+        let dir = project_dir();
+        let project = open(&dir);
+        assert_eq!(
+            compile_svg(&box_and_text(), &project, 0).expect("svg"),
+            compile_svg(&box_and_text(), &project, 0).expect("svg"),
         );
     }
 

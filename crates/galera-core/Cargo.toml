@@ -14,8 +14,10 @@ serde_json.workspace = true
 typst.workspace = true
 typst-layout.workspace = true
 typst-pdf.workspace = true
+typst-svg.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
+miniz_oxide.workspace = true
 tempfile.workspace = true
 typst-assets = { workspace = true, features = ["fonts"] }
