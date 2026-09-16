@@ -151,6 +151,15 @@ pub fn generate(document: &Document) -> Result<String, CodegenError> {
     out.push_str("// Generado por Galera a partir de document.json.\n");
     out.push_str("// No editar a mano: este archivo se reescribe entero en cada compilación.\n");
 
+    // El título acaba en los metadatos del PDF, que es lo que enseñan los
+    // lectores en la barra de la ventana y en las propiedades del archivo.
+    if !document.meta.title.is_empty() {
+        out.push_str(&format!(
+            "#set document(title: {})\n",
+            typst_string(&document.meta.title)
+        ));
+    }
+
     let mut previous_size: Option<&PageSize> = None;
     for (index, page) in document.pages.iter().enumerate() {
         emit_page(page, index, previous_size, document, &mut out)?;
@@ -382,6 +391,32 @@ mod tests {
     fn generate_str(json: &str) -> String {
         let document = Document::from_json_str(json).expect("el documento debe deserializar");
         generate(&document).expect("el documento debe generar código")
+    }
+
+    #[test]
+    fn the_title_goes_into_the_document_metadata() {
+        let typst = generate(&example()).expect("debe generar");
+        assert!(
+            typst.contains(r#"#set document(title: "Informe anual 2026")"#),
+            "{typst}"
+        );
+    }
+
+    #[test]
+    fn an_empty_title_is_not_written() {
+        let typst = generate_str(r#"{ "version": 1, "meta": { "title": "" }, "pages": [] }"#);
+        assert!(!typst.contains("#set document"), "{typst}");
+    }
+
+    #[test]
+    fn a_title_cannot_break_out_of_its_string() {
+        let typst = generate_str(
+            r#"{ "version": 1, "meta": { "title": "x\") #import \"evil.typ\" #(\"" }, "pages": [] }"#,
+        );
+        assert!(
+            typst.contains(r#"#set document(title: "x\") #import \"evil.typ\" #(\"")"#),
+            "{typst}"
+        );
     }
 
     #[test]

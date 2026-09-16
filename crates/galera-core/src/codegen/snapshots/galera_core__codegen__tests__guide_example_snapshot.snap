@@ -4,6 +4,7 @@ expression: typst
 ---
 // Generado por Galera a partir de document.json.
 // No editar a mano: este archivo se reescribe entero en cada compilación.
+#set document(title: "Informe anual 2026")
 #set page(width: 210mm, height: 297mm, margin: 0pt)
 
 // p1
