@@ -2,7 +2,7 @@
 
 Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub con la descripción completa, los criterios de aceptación y cómo probarla.
 
-**Este archivo se actualiza en el mismo PR que completa la tarea.** Estados: `pendiente` · `en curso` · `hecha`.
+**Este archivo se actualiza en el mismo PR que completa la tarea.** Estados: ⬜ `pendiente` · 🟡 `en curso` · ✅ `hecha`.
 
 | Fase | Tareas | Hechas |
 |---|---|---|
@@ -35,7 +35,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F0-05** — Emitir el esqueleto del documento y las páginas en Typst | [#5](https://github.com/xlCyanz/galera/issues/5) | #2, #4 |
 | ✅ | **F0-06** — Generar rect, ellipse y line | [#6](https://github.com/xlCyanz/galera/issues/6) | #5 |
 | ✅ | **F0-07** — Generar texto sin formato | [#7](https://github.com/xlCyanz/galera/issues/7) | #5 |
-| ⬜ | **F0-08** — Generar imagen desde los assets del proyecto | [#8](https://github.com/xlCyanz/galera/issues/8) | #5, #11 |
+| 🟡 | **F0-08** — Generar imagen desde los assets del proyecto | [#8](https://github.com/xlCyanz/galera/issues/8) | #5, #11 |
 | ⬜ | **F0-09** — Generar el bloque de código personalizado | [#9](https://github.com/xlCyanz/galera/issues/9) | #5 |
 | ⬜ | **F0-10** — Implementar typst::World con las fuentes del proyecto | [#10](https://github.com/xlCyanz/galera/issues/10) | #1 |
 | ⬜ | **F0-11** — Resolver assets y rutas del proyecto en World | [#11](https://github.com/xlCyanz/galera/issues/11) | #10 |
