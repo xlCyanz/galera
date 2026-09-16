@@ -6,7 +6,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 
 | Fase | Tareas | Hechas |
 |---|---|---|
-| [Fase 0 — Núcleo por terminal](https://github.com/xlCyanz/galera/milestone/1) | 16 | 15 |
+| [Fase 0 — Núcleo por terminal](https://github.com/xlCyanz/galera/milestone/1) | 16 | 16 |
 | [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 0 |
 | [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 0 |
 | [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 0 |
@@ -15,7 +15,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **15** |
+| **Total** | **95** | **16** |
 
 
 ---
@@ -43,7 +43,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F0-13** — Compilar a SVG | [#13](https://github.com/xlCyanz/galera/issues/13) | #12 |
 | ✅ | **F0-14** — Construir la herramienta de terminal galera-cli | [#14](https://github.com/xlCyanz/galera/issues/14) | #12, #13 |
 | ✅ | **F0-15** — Fixtures y pruebas de instantánea con insta | [#15](https://github.com/xlCyanz/galera/issues/15) | #6, #7, #8, #9 |
-| ⬜ | **F0-16** — Errores tipados y diagnósticos de Typst legibles | [#16](https://github.com/xlCyanz/galera/issues/16) | #3, #12 |
+| ✅ | **F0-16** — Errores tipados y diagnósticos de Typst legibles | [#16](https://github.com/xlCyanz/galera/issues/16) | #3, #12 |
 
 ---
 
@@ -218,6 +218,42 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 
 Al terminar cada fase se anota aquí qué se hizo, qué quedó pendiente y qué decisiones técnicas nuevas se tomaron.
 
-### Fase 0
-_Pendiente._
+### Fase 0 — Núcleo por terminal ✅
+
+**Criterio de salida cumplido.** `galera-cli fixtures/informe.json -o salida.pdf` genera el PDF con Inter incrustada; las instantáneas del código generado pasan; un texto con `#*_$@` compila y sale literal (comprobado renderizando `fixtures/escape.json`). Cada punto tiene su prueba automática.
+
+**Qué se hizo**
+
+| Módulo | Qué hace |
+|---|---|
+| `model` | Documento con serde, forma canónica, versión validada al leer. |
+| `model::validate` | Todos los problemas de una vez, cada uno con su elemento: ids, recursos, familias, medidas, colores. |
+| `codegen` | JSON → Typst: escape, página, formas, texto, imagen y bloque de código. |
+| `project` | La única frontera de acceso a archivos: nada fuera de la carpeta, ni por `..`, ni por ruta absoluta, ni por enlace simbólico. |
+| `world` | `typst::World` con las fuentes del proyecto y nunca las del sistema. |
+| `compile` | Una compilación, dos exportaciones (PDF y SVG) que coinciden al 0,01 pt. |
+| `error` | `GaleraError` único, serializable, con el elemento de cada diagnóstico. |
+| `galera-cli` | PDF, SVG por página y `--emit-typst`. |
+| `fixtures/` | Nueve documentos con instantánea, que además compilan. |
+
+**Decisiones técnicas nuevas**
+
+- **Typst 0.15.1**, fijado con `=`; exige Rust 1.92, que pasa a ser el mínimo. La API de `World` se leyó del código fuente, no de ejemplos: difiere en `today`, en las rutas virtuales y en dónde vive `PagedDocument`.
+- **La línea se define por dos extremos** (`x`, `y`, `x2`, `y2`), no por ancho y alto.
+- **Serialización canónica**: mismo documento, mismos bytes.
+- **El escape cubre más que la lista de la guía**: `/` (comentarios y autoenlaces), `~`, y los marcadores de bloque al principio de línea. Las comillas y rayas tipográficas se dejan pasar.
+- **Los bloques de código se evalúan con `eval`**, que da un error limpio en vez de varios y posiciones relativas al bloque. No aísla del disco ni salva el resto del documento: eso se afirmó por error en #109 y se corrigió en #111.
+- **Una familia tipográfica que no está es un error**, no el aviso de Typst que cambiaría la fuente en silencio.
+- **Ids de página y de elemento con la misma regla** (ASCII, guion, guion bajo) y un solo espacio de nombres. La de página se añadió tras encontrar una inyección por comentario.
+- **Ningún `unwrap` ni `expect` fuera de las pruebas**, impuesto por clippy.
+
+**Qué queda pendiente o diferido**
+
+- La negrita, cursiva y subrayado **por tramos** no se emiten todavía: es F4-08 (#62). El título del ejemplo sale en redonda.
+- Se prepara un `World` nuevo en cada compilación; reutilizarlo es F4-04 (#58).
+- `today()` usa UTC cuando Typst pide la fecha local.
+- Las imágenes con ancho y alto usan el ajuste por defecto de Typst (`cover`); no hay campo para elegir otro.
+- Que la etiqueta detrás de `place` permita localizar la caja del contenido se comprueba en F2-01 (#30).
+- Inter no tiene emoji ni escrituras CJK, y Galera no recurre a fuentes del sistema: esos caracteres salen vacíos si el documento no trae una fuente que los tenga. A tener en cuenta en el panel de fuentes (F3-08, #48).
+- `docs/galera-design-brief.md` sigue sin estar en el repositorio; bloquea F1-13 (#29).
 

@@ -14,6 +14,8 @@
 //! - [`codegen`]: traducción del documento a código Typst.
 //! - [`world`]: implementación de `typst::World` con las fuentes del proyecto.
 //! - [`compile`](mod@compile): compilación a PDF y SVG; PNG llega después.
+//! - [`error`]: el error único del núcleo, [`GaleraError`], y los diagnósticos.
+//! - [`project`]: la carpeta del proyecto y qué se puede leer de ella.
 //! - `layout`:  cajas, posiciones de glifos y detección de clics. *(pendiente)*
 //! - `ops`:     comandos de edición e historial de deshacer y rehacer. *(pendiente)*
 //! - `snap`:    guías de alineación. *(pendiente)*
@@ -22,15 +24,25 @@
 //!
 //! El JSON es la fuente de verdad y Typst es un formato de salida. El núcleo
 //! genera código Typst, nunca lo lee ni lo modifica.
+//!
+//! # Sin `unwrap` ni `expect`
+//!
+//! Fuera de las pruebas, el núcleo no puede hacer `panic!` por un `unwrap()`
+//! o un `expect()`: todo lo que puede fallar devuelve un [`Result`]. No es una
+//! convención sino una regla de clippy, así que CI lo impide.
+
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod codegen;
 pub mod compile;
+pub mod error;
 pub mod model;
 pub mod project;
 pub mod world;
 
 pub use codegen::{escape, escape_into};
-pub use compile::{CompileError, Compiled, Diagnostic, Severity, compile, compile_pdf};
+pub use compile::{Compiled, compile, compile_pdf, compile_svg};
+pub use error::{Diagnostic, GaleraError, Result, Severity};
 pub use model::{
     Align, Document, Element, ElementBox, Meta, Page, PageSize, Run, Stroke, TextStyle, Unit,
     ValidationError, ValidationErrors,

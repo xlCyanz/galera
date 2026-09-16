@@ -10,8 +10,8 @@
 //!
 //! Es uno de los tres módulos donde se permite usar Typst (principio 5 del
 //! README), junto con `world` y `layout`. Hacia fuera no deja salir ningún
-//! tipo de Typst: los errores salen como [`Diagnostic`] propios y el
-//! documento compilado queda dentro de [`Compiled`].
+//! tipo de Typst: los errores salen como [`GaleraError`] con [`Diagnostic`]
+//! propios, y el documento compilado queda dentro de [`Compiled`].
 //!
 //! # Compilar una vez, exportar varias
 //!
@@ -21,157 +21,48 @@
 //! que se ve en el lienzo es lo que se exporta (principio 2): no hay dos
 //! compilaciones que puedan discrepar.
 //!
+//! # A qué elemento pertenece cada diagnóstico
+//!
+//! Typst sitúa cada problema en una posición del código generado. En ese
+//! código, cada elemento ocupa **una línea** que termina en su etiqueta:
+//!
+//! ```typst
+//! #place(top + left, dx: 20mm, dy: 200mm)[#block(…, eval("#table(…)[A", …))] <el-c1>
+//! ```
+//!
+//! Así que basta con mirar en qué línea cae el problema y leer la etiqueta
+//! del final. Se toma **la última** etiqueta de la línea: un bloque de código
+//! puede llevar dentro el texto `<el-r1>`, pero nunca al final de la línea,
+//! que es donde el codegen pone la de verdad.
+//!
 //! # PDF reproducible
 //!
 //! El mismo documento produce siempre los mismos bytes: no se escribe fecha
 //! de creación y el identificador del PDF se deriva de su contenido. Así se
 //! puede cachear, comparar en pruebas y versionar sin ruido.
 
-use std::fmt;
+use std::ops::Range;
 
 use typst::diag::{Severity as TypstSeverity, SourceDiagnostic, Warned};
 use typst::foundations::Smart;
+use typst::syntax::{DiagSpan, DiagSpanKind, Source};
 use typst_layout::PagedDocument;
 use typst_pdf::PdfOptions;
 use typst_svg::SvgOptions;
 
-use crate::codegen::{self, CodegenError};
-use crate::model::{Document, ValidationErrors};
+use crate::codegen;
+use crate::error::{Diagnostic, GaleraError, Result, Severity};
+use crate::model::{Document, is_valid_id};
 use crate::project::Project;
-use crate::world::{GaleraWorld, WorldError};
-
-/// Gravedad de un diagnóstico de Typst.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Severity {
-    /// Impide producir el documento.
-    Error,
-    /// El documento se produce, pero algo no está como se pidió; por ejemplo,
-    /// una fuente que no existe y se sustituye.
-    Warning,
-}
-
-/// Un mensaje de Typst sobre el documento.
-///
-/// En F0-16 gana el id del elemento al que se refiere, para que la interfaz
-/// pueda señalarlo.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Diagnostic {
-    /// Si es un error o un aviso.
-    pub severity: Severity,
-    /// El mensaje, tal como lo da Typst.
-    pub message: String,
-    /// Sugerencias de Typst para arreglarlo, si las hay.
-    pub hints: Vec<String>,
-}
-
-impl fmt::Display for Diagnostic {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let kind = match self.severity {
-            Severity::Error => "error",
-            Severity::Warning => "aviso",
-        };
-        write!(f, "{kind}: {}", self.message)?;
-        for hint in &self.hints {
-            write!(f, "\n  sugerencia: {hint}")?;
-        }
-        Ok(())
-    }
-}
-
-impl From<&SourceDiagnostic> for Diagnostic {
-    fn from(diagnostic: &SourceDiagnostic) -> Self {
-        Self {
-            severity: match diagnostic.severity {
-                TypstSeverity::Error => Severity::Error,
-                TypstSeverity::Warning => Severity::Warning,
-            },
-            message: diagnostic.message.to_string(),
-            hints: diagnostic
-                .hints
-                .iter()
-                .map(|hint| hint.v.to_string())
-                .collect(),
-        }
-    }
-}
-
-/// Algo impidió compilar o exportar el documento.
-///
-/// En F0-16 este enum se absorbe dentro del error único del núcleo.
-#[derive(Debug)]
-pub enum CompileError {
-    /// El documento no es válido: ids repetidos, recursos o familias que no
-    /// existen, medidas imposibles. Se detecta antes de compilar.
-    Invalid(ValidationErrors),
-    /// El documento no se pudo traducir a Typst.
-    Codegen(CodegenError),
-    /// El entorno de compilación no se pudo preparar: una fuente que falta,
-    /// por ejemplo.
-    World(WorldError),
-    /// Typst encontró errores al compilar o al exportar.
-    Typst(Vec<Diagnostic>),
-    /// Se pidió una página que el documento no tiene.
-    PageOutOfRange {
-        /// La página pedida, empezando en 0.
-        page: usize,
-        /// Cuántas páginas tiene el documento.
-        count: usize,
-    },
-}
-
-impl fmt::Display for CompileError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CompileError::Invalid(errors) => write!(f, "{errors}"),
-            CompileError::Codegen(error) => write!(f, "{error}"),
-            CompileError::World(error) => write!(f, "{error}"),
-            CompileError::Typst(diagnostics) => {
-                let count = diagnostics.len();
-                write!(
-                    f,
-                    "Typst encontró {count} {}",
-                    if count == 1 { "error" } else { "errores" }
-                )?;
-                for diagnostic in diagnostics {
-                    write!(f, "\n{diagnostic}")?;
-                }
-                Ok(())
-            }
-            CompileError::PageOutOfRange { page, count } => write!(
-                f,
-                "no existe la página {page}: el documento tiene {count} (se cuentan desde 0)"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for CompileError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            CompileError::Invalid(errors) => Some(errors),
-            CompileError::Codegen(error) => Some(error),
-            CompileError::World(error) => Some(error),
-            CompileError::Typst(_) | CompileError::PageOutOfRange { .. } => None,
-        }
-    }
-}
-
-impl From<CodegenError> for CompileError {
-    fn from(error: CodegenError) -> Self {
-        CompileError::Codegen(error)
-    }
-}
-
-impl From<WorldError> for CompileError {
-    fn from(error: WorldError) -> Self {
-        CompileError::World(error)
-    }
-}
+use crate::world::GaleraWorld;
 
 /// Un documento ya compilado, listo para exportarse.
 pub struct Compiled {
     document: PagedDocument,
     warnings: Vec<Diagnostic>,
+    /// El código generado, para atribuir a su elemento los problemas que
+    /// aparezcan al exportar, cuando el entorno de compilación ya no existe.
+    source: Source,
 }
 
 impl Compiled {
@@ -192,7 +83,7 @@ impl Compiled {
     ///
     /// Falla si Typst no puede escribir el PDF, lo que en la práctica solo
     /// pasa con documentos que infringen un estándar PDF que se haya pedido.
-    pub fn to_pdf(&self) -> Result<Vec<u8>, CompileError> {
+    pub fn to_pdf(&self) -> Result<Vec<u8>> {
         let options = PdfOptions {
             creator: Smart::Custom(Some(format!("Galera {}", crate::version()))),
             // Sin fecha de creación, a propósito: ver el módulo.
@@ -201,7 +92,7 @@ impl Compiled {
         };
 
         typst_pdf::pdf(&self.document, &options)
-            .map_err(|errors| CompileError::Typst(errors.iter().map(Diagnostic::from).collect()))
+            .map_err(|errors| GaleraError::Typst(diagnostics(&self.source, &errors)))
     }
 
     /// Exporta una página a SVG. Las páginas se cuentan desde 0.
@@ -212,10 +103,10 @@ impl Compiled {
     ///
     /// # Errores
     ///
-    /// [`CompileError::PageOutOfRange`] si la página no existe.
-    pub fn to_svg(&self, page: usize) -> Result<String, CompileError> {
+    /// [`GaleraError::PageOutOfRange`] si la página no existe.
+    pub fn to_svg(&self, page: usize) -> Result<String> {
         let pages = self.document.pages();
-        let page = pages.get(page).ok_or(CompileError::PageOutOfRange {
+        let page = pages.get(page).ok_or(GaleraError::PageOutOfRange {
             page,
             count: pages.len(),
         })?;
@@ -226,18 +117,19 @@ impl Compiled {
 
 /// Compila un documento.
 ///
-/// Genera el código Typst, prepara el entorno con las fuentes y los archivos
-/// del proyecto, y compila.
+/// Valida el documento, genera el código Typst, prepara el entorno con las
+/// fuentes y los archivos del proyecto, y compila.
 ///
 /// # Errores
 ///
-/// - [`CompileError::Invalid`] si el documento no pasa la validación.
-/// - [`CompileError::Codegen`] si el documento no se puede traducir.
-/// - [`CompileError::World`] si falta una fuente o no se puede leer.
-/// - [`CompileError::Typst`] con los diagnósticos de Typst si la compilación
-///   falla. Nunca un `panic!`.
-pub fn compile(document: &Document, project: &Project) -> Result<Compiled, CompileError> {
-    document.validate().map_err(CompileError::Invalid)?;
+/// - [`GaleraError::Invalid`] si el documento no pasa la validación.
+/// - [`GaleraError::Codegen`] si el documento no se puede traducir.
+/// - [`GaleraError::World`] si falta una fuente o no se puede leer.
+/// - [`GaleraError::Typst`] con los diagnósticos de Typst, cada uno con su
+///   elemento cuando se puede saber, si la compilación falla. Nunca un
+///   `panic!`.
+pub fn compile(document: &Document, project: &Project) -> Result<Compiled> {
+    document.validate()?;
 
     let source = codegen::generate(document)?;
 
@@ -248,17 +140,22 @@ pub fn compile(document: &Document, project: &Project) -> Result<Compiled, Compi
     // Las familias solo se conocen con las fuentes ya leídas. Sin esto, una
     // familia que no está sería un aviso de Typst y el texto saldría con
     // otra fuente, sin que nadie se enterase (principio 4).
-    document
-        .validate_font_families(&world.font_families())
-        .map_err(CompileError::Invalid)?;
+    document.validate_font_families(&world.font_families())?;
+
+    // Se guarda el código generado para atribuir diagnósticos también
+    // después, al exportar, cuando el entorno ya no existe.
+    let source = world.main_source();
 
     let Warned { output, warnings } = typst::compile::<PagedDocument>(&world);
-    let warnings = warnings.iter().map(Diagnostic::from).collect();
+    let warnings = diagnostics(&source, &warnings);
 
-    let document = output
-        .map_err(|errors| CompileError::Typst(errors.iter().map(Diagnostic::from).collect()))?;
+    let document = output.map_err(|errors| GaleraError::Typst(diagnostics(&source, &errors)))?;
 
-    Ok(Compiled { document, warnings })
+    Ok(Compiled {
+        document,
+        warnings,
+        source,
+    })
 }
 
 /// Compila un documento y lo exporta a PDF.
@@ -269,7 +166,7 @@ pub fn compile(document: &Document, project: &Project) -> Result<Compiled, Compi
 /// # Errores
 ///
 /// Los de [`compile`] y los de [`Compiled::to_pdf`].
-pub fn compile_pdf(document: &Document, project: &Project) -> Result<Vec<u8>, CompileError> {
+pub fn compile_pdf(document: &Document, project: &Project) -> Result<Vec<u8>> {
     compile(document, project)?.to_pdf()
 }
 
@@ -282,12 +179,59 @@ pub fn compile_pdf(document: &Document, project: &Project) -> Result<Vec<u8>, Co
 /// # Errores
 ///
 /// Los de [`compile`] y los de [`Compiled::to_svg`].
-pub fn compile_svg(
-    document: &Document,
-    project: &Project,
-    page: usize,
-) -> Result<String, CompileError> {
+pub fn compile_svg(document: &Document, project: &Project, page: usize) -> Result<String> {
     compile(document, project)?.to_svg(page)
+}
+
+/// Convierte los diagnósticos de Typst en los de Galera, con su elemento.
+fn diagnostics(source: &Source, found: &[SourceDiagnostic]) -> Vec<Diagnostic> {
+    found
+        .iter()
+        .map(|diagnostic| Diagnostic {
+            severity: match diagnostic.severity {
+                TypstSeverity::Error => Severity::Error,
+                TypstSeverity::Warning => Severity::Warning,
+            },
+            message: diagnostic.message.to_string(),
+            hints: diagnostic
+                .hints
+                .iter()
+                .map(|hint| hint.v.to_string())
+                .collect(),
+            element_id: range_in(source, diagnostic.span)
+                .and_then(|range| element_at(source.text(), range.start)),
+        })
+        .collect()
+}
+
+/// La posición de un diagnóstico dentro del código generado, si cae en él.
+///
+/// Es lo mismo que hace `WorldExt::range` de Typst, pero con el `Source`
+/// guardado: sirve también cuando el entorno de compilación ya no existe.
+fn range_in(source: &Source, span: DiagSpan) -> Option<Range<usize>> {
+    match span.get() {
+        DiagSpanKind::Detached => None,
+        DiagSpanKind::Number { id, num, sub_range } => {
+            (id == source.id()).then(|| source.range(num, sub_range))?
+        }
+        DiagSpanKind::Range { id, range } => (id == source.id()).then_some(range),
+    }
+}
+
+/// El id del elemento cuya línea contiene la posición `at`.
+///
+/// Lee la última etiqueta `<el-ID>` de la línea. Devuelve `None` si la línea
+/// no es la de un elemento, o si lo que parece un id no lo es.
+fn element_at(code: &str, at: usize) -> Option<String> {
+    let at = at.min(code.len());
+    let start = code[..at].rfind('\n').map_or(0, |index| index + 1);
+    let end = code[at..].find('\n').map_or(code.len(), |index| at + index);
+    let line = &code[start..end];
+
+    let label = line.rfind("<el-")? + "<el-".len();
+    let id = &line[label..label + line[label..].find('>')?];
+
+    is_valid_id(id).then(|| id.to_owned())
 }
 
 #[cfg(test)]
@@ -299,6 +243,7 @@ mod tests {
 
     use super::*;
     use crate::model::{Element, TextStyle};
+    use crate::world::WorldError;
 
     fn libertinus_regular() -> &'static [u8] {
         typst_assets::fonts()
@@ -459,7 +404,7 @@ mod tests {
         .expect("debe deserializar");
 
         match compile_pdf(&document, &open(&dir)) {
-            Err(CompileError::Typst(diagnostics)) => {
+            Err(GaleraError::Typst(diagnostics)) => {
                 assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
                 assert_eq!(diagnostics[0].severity, Severity::Error);
                 assert!(!diagnostics[0].message.is_empty());
@@ -477,7 +422,7 @@ mod tests {
 
         assert!(matches!(
             compile_pdf(&document, &open(&dir)),
-            Err(CompileError::World(WorldError::FontNotFound { .. }))
+            Err(GaleraError::World(WorldError::FontNotFound { .. }))
         ));
     }
 
@@ -490,13 +435,127 @@ mod tests {
         document.assets.clear();
 
         match compile_pdf(&document, &open(&dir)) {
-            Err(CompileError::Invalid(errors)) => {
+            Err(GaleraError::Invalid(errors)) => {
                 assert_eq!(errors.len(), 1, "{errors}");
                 assert!(errors.to_string().contains("\"i1\""), "{errors}");
             }
             Err(other) => panic!("se esperaba Invalid: {other}"),
             Ok(_) => panic!("un recurso inexistente no puede compilar"),
         }
+    }
+
+    // ── Atribución de diagnósticos a elementos ─────────────────────────
+
+    /// Un documento con un rectángulo delante y detrás del elemento dado.
+    fn around(element: &str) -> Document {
+        Document::from_json_str(&format!(
+            r##"{{
+              "version": 1,
+              "meta": {{ "title": "Atribución" }},
+              "assets": {{ "portada": "assets/portada.png" }},
+              "pages": [{{
+                "id": "p1",
+                "size": {{ "width": 210, "height": 297, "unit": "mm" }},
+                "elements": [
+                  {{ "id": "antes", "type": "rect", "x": 0, "y": 0, "w": 10, "h": 10,
+                     "fill": "#000000", "stroke": null }},
+                  {element},
+                  {{ "id": "despues", "type": "rect", "x": 0, "y": 50, "w": 10, "h": 10,
+                     "fill": "#000000", "stroke": null }}
+                ]
+              }}]
+            }}"##
+        ))
+        .expect("debe deserializar")
+    }
+
+    fn typst_errors(result: Result<Compiled>) -> Vec<Diagnostic> {
+        match result {
+            Err(GaleraError::Typst(diagnostics)) => diagnostics,
+            Err(other) => panic!("se esperaban diagnósticos de Typst: {other}"),
+            Ok(_) => panic!("debería fallar al compilar"),
+        }
+    }
+
+    /// El criterio de la tarea: un error en un bloque de código se atribuye
+    /// a su elemento.
+    #[test]
+    fn a_code_block_error_is_attributed_to_its_element() {
+        let dir = project_dir();
+        let diagnostics = typst_errors(compile(
+            &around(
+                r##"{ "id": "tabla", "type": "code", "x": 0, "y": 20, "w": 50, "h": null,
+                     "source": "#table(columns: 2)[A" }"##,
+            ),
+            &open(&dir),
+        ));
+
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
+        assert_eq!(diagnostics[0].element_id.as_deref(), Some("tabla"));
+    }
+
+    /// Un bloque que escribe la etiqueta de otro elemento dentro de su código
+    /// no confunde la atribución: cuenta la etiqueta del final de la línea.
+    #[test]
+    fn a_label_written_inside_code_does_not_steal_the_error() {
+        let dir = project_dir();
+        let diagnostics = typst_errors(compile(
+            &around(
+                r##"{ "id": "tabla", "type": "code", "x": 0, "y": 20, "w": 50, "h": null,
+                     "source": "<el-antes> #table(columns: 2)[A" }"##,
+            ),
+            &open(&dir),
+        ));
+
+        assert_eq!(diagnostics[0].element_id.as_deref(), Some("tabla"));
+    }
+
+    #[test]
+    fn a_missing_image_file_is_attributed_to_its_image() {
+        let dir = project_dir();
+        let diagnostics = typst_errors(compile(
+            &around(
+                r##"{ "id": "foto", "type": "image", "x": 0, "y": 20, "w": 50, "h": null,
+                     "asset": "portada" }"##,
+            ),
+            &open(&dir),
+        ));
+
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
+        assert_eq!(diagnostics[0].element_id.as_deref(), Some("foto"));
+    }
+
+    #[test]
+    fn a_warning_is_attributed_to_its_element() {
+        let dir = project_dir();
+        let compiled = compile(
+            &around(
+                r##"{ "id": "nota", "type": "code", "x": 0, "y": 20, "w": 50, "h": null,
+                     "source": "#text(font: \"Desconocida\")[x]" }"##,
+            ),
+            &open(&dir),
+        )
+        .expect("compila, con avisos");
+
+        assert_eq!(compiled.warnings().len(), 1, "{:#?}", compiled.warnings());
+        assert_eq!(compiled.warnings()[0].element_id.as_deref(), Some("nota"));
+    }
+
+    #[test]
+    fn element_at_reads_the_label_at_the_end_of_the_line() {
+        let code = "// cabecera\n#place(…)[#rect()] <el-r1>\n#place(…)[#block(eval(\"<el-r1>\"))] <el-c1>\n";
+
+        let line_of = |needle: &str| code.find(needle).expect("está en el código");
+        assert_eq!(element_at(code, line_of("#rect")).as_deref(), Some("r1"));
+        assert_eq!(element_at(code, line_of("eval")).as_deref(), Some("c1"));
+        assert_eq!(element_at(code, line_of("cabecera")), None);
+        assert_eq!(element_at(code, code.len()), None);
+    }
+
+    #[test]
+    fn element_at_ignores_something_that_is_not_an_id() {
+        assert_eq!(element_at("#place()[] <el-a b>", 0), None);
+        assert_eq!(element_at("#place()[] <el-sin-cerrar", 0), None);
     }
 
     /// Una familia que ninguna fuente cargada proporciona es un error, no el
@@ -518,7 +577,7 @@ mod tests {
         }
 
         match compile(&document, &open(&dir)) {
-            Err(CompileError::Invalid(errors)) => {
+            Err(GaleraError::Invalid(errors)) => {
                 let message = errors.to_string();
                 assert!(message.contains("\"Inter\""), "{message}");
                 assert!(message.contains("\"t1\""), "{message}");
@@ -618,12 +677,12 @@ mod tests {
     /// `<path fill="#…" transform="translate(X Y)" d="M 0 0v H h W v -H Z "/>`.
     fn svg_box(svg: &str, fill: &str) -> PtBox {
         let start = svg
-            .find(&format!(r#"<path fill="{fill}""#))
+            .find(&format!(r##"<path fill="{fill}""##))
             .unwrap_or_else(|| panic!("el SVG debe tener un trazado relleno de {fill}"));
         let tag = &svg[start..start + svg[start..].find("/>").expect("etiqueta cerrada")];
 
         let attribute = |name: &str| -> &str {
-            let open = format!(r#"{name}=""#);
+            let open = format!(r##"{name}=""##);
             let from = tag.find(&open).expect("atributo presente") + open.len();
             &tag[from..from + tag[from..].find('"').expect("atributo cerrado")]
         };
@@ -816,7 +875,7 @@ mod tests {
 
         let width = |page: usize| -> f64 {
             let svg = compiled.to_svg(page).expect("svg");
-            let from = svg.find(r#"width=""#).expect("ancho") + r#"width=""#.len();
+            let from = svg.find(r##"width=""##).expect("ancho") + r#"width=""#.len();
             svg[from..from + svg[from..].find("pt").expect("en puntos")]
                 .parse()
                 .expect("número")
@@ -832,7 +891,7 @@ mod tests {
         let compiled = compile(&box_and_text(), &open(&dir)).expect("debe compilar");
 
         match compiled.to_svg(2) {
-            Err(CompileError::PageOutOfRange { page: 2, count: 2 }) => {}
+            Err(GaleraError::PageOutOfRange { page: 2, count: 2 }) => {}
             other => panic!(
                 "se esperaba PageOutOfRange: {:?}",
                 other.map(|svg| svg.len())
@@ -847,19 +906,6 @@ mod tests {
         assert_eq!(
             compile_svg(&box_and_text(), &project, 0).expect("svg"),
             compile_svg(&box_and_text(), &project, 0).expect("svg"),
-        );
-    }
-
-    #[test]
-    fn a_diagnostic_reads_well() {
-        let diagnostic = Diagnostic {
-            severity: Severity::Error,
-            message: "unclosed delimiter".to_owned(),
-            hints: vec!["cierra el corchete".to_owned()],
-        };
-        assert_eq!(
-            diagnostic.to_string(),
-            "error: unclosed delimiter\n  sugerencia: cierra el corchete"
         );
     }
 }

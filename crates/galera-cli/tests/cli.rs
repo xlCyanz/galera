@@ -376,7 +376,7 @@ fn warnings_are_printed() {
     assert!(
         stderr(&output)
             .to_lowercase()
-            .contains("aviso: unknown font family: desconocida"),
+            .contains(r#"aviso en el elemento "c1": unknown font family: desconocida"#),
         "{}",
         stderr(&output)
     );

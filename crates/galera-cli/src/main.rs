@@ -19,13 +19,15 @@
 //! cada campo es una opción, los comentarios `///` son su ayuda, y los
 //! atributos `#[arg(...)]` dicen cómo se escribe. `--help` sale de ahí solo.
 
+#![deny(clippy::unwrap_used, clippy::expect_used)]
+
 use std::fmt;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::{Parser, ValueEnum};
-use galera_core::{CompileError, Document, Project, ProjectError, Severity, codegen, compile};
+use galera_core::{Document, GaleraError, Project, ProjectError, codegen, compile};
 
 /// Formato de salida.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
@@ -98,7 +100,7 @@ enum CliError {
     },
     Compile {
         path: PathBuf,
-        source: CompileError,
+        source: GaleraError,
     },
     MissingOutput {
         format: Format,
@@ -197,12 +199,9 @@ fn run(args: &Args) -> Result<(), CliError> {
         source,
     })?;
 
+    // Cada diagnóstico se escribe solo: «aviso en el elemento "c1": …».
     for warning in compiled.warnings() {
-        let kind = match warning.severity {
-            Severity::Error => "error",
-            Severity::Warning => "aviso",
-        };
-        eprintln!("{kind}: {}", warning.message);
+        eprintln!("{warning}");
     }
 
     let compile_error = |source| CliError::Compile {
@@ -230,9 +229,9 @@ fn run(args: &Args) -> Result<(), CliError> {
             let svg = compiled
                 .to_svg(page as usize - 1)
                 .map_err(|error| match error {
-                    CompileError::PageOutOfRange { count, .. } => CliError::Compile {
+                    GaleraError::PageOutOfRange { count, .. } => CliError::Compile {
                         path: document_path.clone(),
-                        source: CompileError::PageOutOfRange {
+                        source: GaleraError::PageOutOfRange {
                             page: page as usize,
                             count,
                         },

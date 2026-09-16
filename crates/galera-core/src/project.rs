@@ -26,7 +26,6 @@
 //!    que seguir dentro de la raíz. Un `assets/logo.png` puede ser un enlace
 //!    a `/etc/passwd`, y eso el primer paso no lo ve.
 
-use std::fmt;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 
@@ -42,9 +41,10 @@ pub struct Project {
 }
 
 /// La carpeta del proyecto no se puede abrir.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ProjectError {
     /// No existe o no se puede acceder.
+    #[error("no se puede abrir la carpeta del proyecto {}", root.display())]
     NotFound {
         /// La ruta que se pidió.
         root: PathBuf,
@@ -52,69 +52,28 @@ pub enum ProjectError {
         source: io::Error,
     },
     /// Existe pero no es una carpeta.
+    #[error("{} no es una carpeta de proyecto", root.display())]
     NotADirectory {
         /// La ruta que se pidió.
         root: PathBuf,
     },
 }
 
-impl fmt::Display for ProjectError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ProjectError::NotFound { root, .. } => {
-                write!(
-                    f,
-                    "no se puede abrir la carpeta del proyecto {}",
-                    root.display()
-                )
-            }
-            ProjectError::NotADirectory { root } => {
-                write!(f, "{} no es una carpeta de proyecto", root.display())
-            }
-        }
-    }
-}
-
-impl std::error::Error for ProjectError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            ProjectError::NotFound { source, .. } => Some(source),
-            ProjectError::NotADirectory { .. } => None,
-        }
-    }
-}
-
 /// Una ruta del documento no se puede leer.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum AccessError {
     /// La ruta sale de la carpeta del proyecto.
+    #[error("la ruta sale de la carpeta del proyecto")]
     Outside,
     /// La ruta es válida pero no hay nada ahí.
+    #[error("no hay ningún archivo en esa ruta")]
     NotFound,
     /// La ruta es una carpeta, no un archivo.
+    #[error("la ruta es una carpeta, no un archivo")]
     IsDirectory,
     /// Otro error del sistema de archivos.
-    Io(io::Error),
-}
-
-impl fmt::Display for AccessError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            AccessError::Outside => write!(f, "la ruta sale de la carpeta del proyecto"),
-            AccessError::NotFound => write!(f, "no hay ningún archivo en esa ruta"),
-            AccessError::IsDirectory => write!(f, "la ruta es una carpeta, no un archivo"),
-            AccessError::Io(error) => write!(f, "no se puede leer: {error}"),
-        }
-    }
-}
-
-impl std::error::Error for AccessError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            AccessError::Io(error) => Some(error),
-            _ => None,
-        }
-    }
+    #[error("no se puede leer: {0}")]
+    Io(#[source] io::Error),
 }
 
 impl Project {

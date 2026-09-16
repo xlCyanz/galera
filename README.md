@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/xlCyanz/galera/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xlCyanz/galera/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://github.com/xlCyanz/galera/milestone/1"><img alt="Fase" src="https://img.shields.io/badge/fase-0%20%C2%B7%20n%C3%BAcleo%20por%20terminal-0E4429"></a>
+  <a href="https://github.com/xlCyanz/galera/milestone/1"><img alt="Fase" src="https://img.shields.io/badge/fase%200-completada-0E4429"></a>
   <a href="https://github.com/xlCyanz/galera/issues"><img alt="Tareas" src="https://img.shields.io/github/issues/xlCyanz/galera?label=tareas%20abiertas"></a>
   <img alt="Rust" src="https://img.shields.io/badge/rust-1.92%2B-B7410E?logo=rust&logoColor=white">
   <img alt="Tauri" src="https://img.shields.io/badge/tauri-2-24C8DB?logo=tauri&logoColor=white">
@@ -38,7 +38,7 @@ Sirve para informes, facturas, certificados, carteles y CVs. El documento se gua
 
 **Y el cursor de texto también.** Su posición sale de las coordenadas de glifos que devuelve Typst, no de una medición aparte. Es más difícil de construir y es justo lo que evita que el editor y el PDF se separen.
 
-> **Estado:** desarrollo temprano, Fase 0 de 8. Todavía no hay binarios publicados. El plan completo está en [`guide.md`](guide.md) y el avance tarea a tarea en [`docs/tareas.md`](docs/tareas.md).
+> **Estado:** Fase 0 completada: el núcleo convierte un documento en PDF y SVG desde la terminal. Siguiente, la Fase 1: la ventana. Todavía no hay binarios publicados. El plan completo está en [`guide.md`](guide.md) y el avance tarea a tarea en [`docs/tareas.md`](docs/tareas.md).
 
 ---
 
@@ -176,7 +176,7 @@ El documento es un JSON versionado. Ejemplo mínimo:
 
 | Fase | Objetivo | Estado |
 |---|---|---|
-| [Fase 0](../../milestone/1) | Núcleo por terminal: JSON entra, PDF sale | En curso |
+| [Fase 0](../../milestone/1) | Núcleo por terminal: JSON entra, PDF sale | Hecha |
 | [Fase 1](../../milestone/2) | Ventana y vista fiel | Pendiente |
 | [Fase 2](../../milestone/3) | Layout y selección | Pendiente |
 | [Fase 3](../../milestone/4) | Creación de elementos y paneles | Pendiente |
