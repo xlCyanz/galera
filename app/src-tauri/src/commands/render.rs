@@ -201,6 +201,45 @@ mod tests {
         assert!(json["error"]["problems"].is_array());
     }
 
+    /// El lienzo calcula el tamaño de cada página a partir del documento
+    /// (`canvas/geometry.ts`). Eso solo es fiel si el SVG de Typst mide lo
+    /// mismo: se comprueba con páginas de varios tamaños y unidades.
+    #[test]
+    fn every_svg_measures_what_its_page_says() {
+        let state = state_with("multipagina");
+        let json =
+            std::fs::read_to_string(fixtures_dir().join("multipagina.json")).expect("existe");
+        let document = Document::from_json_str(&json).expect("es un documento");
+
+        for (index, page) in document.pages.iter().enumerate() {
+            let svg = render(&state, index)
+                .expect("la página existe")
+                .svg
+                .expect("compila");
+            let view_box = svg
+                .split_once("viewBox=\"")
+                .and_then(|(_, rest)| rest.split_once('"'))
+                .map(|(view_box, _)| view_box)
+                .expect("el SVG tiene viewBox");
+            let numbers: Vec<f64> = view_box
+                .split_whitespace()
+                .map(|number| number.parse().expect("es un número"))
+                .collect();
+            let [0.0, 0.0, width_pt, height_pt] = numbers[..] else {
+                panic!("viewBox inesperado: {view_box}");
+            };
+
+            let mm_to_pt = 72.0 / 25.4;
+            let expected_width = page.size.unit.to_millimeters(page.size.width) * mm_to_pt;
+            let expected_height = page.size.unit.to_millimeters(page.size.height) * mm_to_pt;
+            assert!(
+                (width_pt - expected_width).abs() < 1e-3
+                    && (height_pt - expected_height).abs() < 1e-3,
+                "página {index}: el SVG mide {width_pt} × {height_pt} pt y el documento {expected_width} × {expected_height} pt"
+            );
+        }
+    }
+
     #[test]
     fn without_an_open_project_the_command_fails() {
         assert!(matches!(

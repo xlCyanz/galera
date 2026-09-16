@@ -8,7 +8,8 @@ import {
   openProject,
   sessionStatus,
 } from "./commands";
-import { compilationSummary, svgDataUrl } from "./preview";
+import { Canvas } from "./canvas/Canvas";
+import { compilationSummary } from "./format";
 import { exportPdfShortcutLabel, isExportPdfShortcut, isMac } from "./shortcuts";
 import {
   compileOpenDocument,
@@ -18,9 +19,9 @@ import {
   useCompilationStatus,
   useCompilationStore,
   useDiagnostics,
-  useRenderedPages,
 } from "./store/compilation";
 import {
+  useCurrentPage,
   useDocumentStore,
   useDocumentTitle,
   usePageCount,
@@ -30,10 +31,10 @@ import {
 const mac = isMac();
 
 /**
- * Pantalla provisional. Abre un proyecto, enseña sus páginas tal como las
- * compila Typst y comprueba que la interfaz, el backend en Rust y
- * `galera-core` están conectados. El lienzo llega con F1-08 y la estructura
- * real de la pantalla con F1-13, siguiendo el brief de diseño.
+ * Pantalla provisional. Abre un proyecto, enseña sus páginas en el lienzo
+ * tal como las compila Typst y comprueba que la interfaz, el backend en Rust
+ * y `galera-core` están conectados. La estructura real de la pantalla llega
+ * con F1-13, siguiendo el brief de diseño.
  *
  * El documento y la compilación viven en los stores (`store/`); aquí solo
  * queda el estado de los propios botones y mensajes.
@@ -131,7 +132,8 @@ export function App() {
         </button>
       </div>
       {title !== null && <ProjectInfo title={title} />}
-      <Preview />
+      <CompilationInfo />
+      <Canvas />
       {status !== null && (
         <dl className="ok">
           <dt>galera-core</dt>
@@ -154,39 +156,60 @@ export function App() {
   );
 }
 
-/** Título, páginas y carpeta del proyecto abierto. */
+/** Título, carpeta y la página que se ve, con botones para cambiarla. */
 function ProjectInfo({ title }: { title: string }) {
   const pageCount = usePageCount();
+  const currentPage = useCurrentPage();
   const root = useProjectRoot();
+  const { setCurrentPage } = useDocumentStore.getState();
 
   return (
-    <dl role="status" className="ok">
-      <dt>Documento</dt>
-      <dd>{title}</dd>
-      <dt>Páginas</dt>
-      <dd>{pageCount}</dd>
-      <dt>Carpeta</dt>
-      <dd>{root}</dd>
-    </dl>
+    <div className="project">
+      <dl role="status" className="ok">
+        <dt>Documento</dt>
+        <dd>{title}</dd>
+        <dt>Carpeta</dt>
+        <dd>{root}</dd>
+      </dl>
+      <nav className="actions" aria-label="Páginas">
+        <button
+          type="button"
+          onClick={() => setCurrentPage(currentPage - 1)}
+          disabled={currentPage === 0}
+        >
+          Página anterior
+        </button>
+        <span>
+          Página {pageCount === 0 ? 0 : currentPage + 1} de {pageCount}
+        </span>
+        <button
+          type="button"
+          onClick={() => setCurrentPage(currentPage + 1)}
+          disabled={currentPage >= pageCount - 1}
+        >
+          Página siguiente
+        </button>
+      </nav>
+    </div>
   );
 }
 
-/** Las páginas de la última compilación buena y, si falla, por qué. */
-function Preview() {
+/** Cuánto tardó la última compilación y, si falla, por qué. */
+function CompilationInfo() {
   const status = useCompilationStatus();
   const ms = useCompilationMs();
   const reused = useCompilationReused();
+  const pageCount = usePageCount();
   const diagnostics = useDiagnostics();
   const failure = useCompilationError();
-  const pages = useRenderedPages();
 
   if (status === "idle") {
     return null;
   }
 
   return (
-    <section className="preview" aria-label="Vista previa">
-      <p>{status === "compiling" ? "Compilando…" : compilationSummary(pages.length, ms, reused)}</p>
+    <section className="compilation" aria-label="Compilación">
+      <p>{status === "compiling" ? "Compilando…" : compilationSummary(pageCount, ms, reused)}</p>
       {failure !== null && (
         <p role="alert" className="error">
           {failure.message}
@@ -199,11 +222,6 @@ function Preview() {
           ))}
         </ul>
       )}
-      <div className="pages">
-        {pages.map((svg, index) => (
-          <img key={index} src={svgDataUrl(svg)} alt={`Página ${index + 1}`} />
-        ))}
-      </div>
     </section>
   );
 }

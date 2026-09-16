@@ -1,17 +1,6 @@
 /**
- * Ayudas para la vista previa provisional de las páginas. El lienzo de
- * verdad llega con F1-08.
+ * Textos que enseña la interfaz a partir del estado.
  */
-/**
- * Convierte un SVG en una dirección `data:` para usarlo como `src` de una
- * `<img>`.
- *
- * Una imagen no ejecuta nada de lo que traiga el SVG, a diferencia de
- * insertarlo en el DOM.
- */
-export function svgDataUrl(svg: string): string {
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-}
 
 /**
  * Una línea que resume la última compilación: cuántas páginas, cuánto tardó
