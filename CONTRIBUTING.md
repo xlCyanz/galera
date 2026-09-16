@@ -20,6 +20,9 @@ Galera lo desarrolla una sola persona con experiencia web y sin experiencia prev
 rustup toolchain install stable
 rustup component add rustfmt clippy
 
+# Revisión de instantáneas del código Typst generado
+cargo install cargo-insta
+
 # Frontend
 corepack enable
 pnpm install
