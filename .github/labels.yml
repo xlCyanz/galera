@@ -1,0 +1,44 @@
+# Fuente de verdad de las etiquetas del repositorio.
+# Sincronizar a mano o con `gh label create/edit`.
+
+# Fases
+- { name: "fase-0", color: "0E4429", description: "Fase 0 — Núcleo por terminal" }
+- { name: "fase-1", color: "1A6E3C", description: "Fase 1 — Ventana y vista fiel" }
+- { name: "fase-2", color: "2D9B54", description: "Fase 2 — Layout y selección" }
+- { name: "fase-3", color: "4FC46F", description: "Fase 3 — Creación de elementos y paneles" }
+- { name: "fase-4", color: "B45309", description: "Fase 4 — Edición de texto de alta fidelidad" }
+- { name: "fase-5", color: "1E40AF", description: "Fase 5 — Productividad" }
+- { name: "fase-6", color: "3B63D6", description: "Fase 6 — Plantillas y variables" }
+- { name: "fase-7", color: "6D28D9", description: "Fase 7 — Texto que fluye" }
+- { name: "fase-8", color: "9333EA", description: "Fase 8 — Pulido y distribución" }
+
+# Tipo
+- { name: "tarea", color: "1F2733", description: "Unidad de trabajo planificada de 1 a 3 horas" }
+- { name: "spike", color: "5B21B6", description: "Investigación acotada para reducir un riesgo" }
+- { name: "chore", color: "C5CAD1", description: "Mantenimiento, dependencias, tooling" }
+
+# Áreas
+- { name: "area:core", color: "0B7285", description: "Crate galera-core" }
+- { name: "area:model", color: "0B7285", description: "Modelo de documento y serde" }
+- { name: "area:codegen", color: "0B7285", description: "Generación de código Typst" }
+- { name: "area:typst", color: "0B7285", description: "World, compilación y crates de Typst" }
+- { name: "area:layout", color: "0B7285", description: "Layout, cajas, glifos y hit-testing" }
+- { name: "area:ops", color: "0B7285", description: "Comandos de edición e historial" }
+- { name: "area:snap", color: "0B7285", description: "Guías de alineación y ajuste" }
+- { name: "area:cli", color: "0B7285", description: "Herramienta de terminal galera-cli" }
+- { name: "area:tauri", color: "8B5CF6", description: "Backend Tauri y comandos" }
+- { name: "area:ui", color: "EC4899", description: "Interfaz React" }
+- { name: "area:canvas", color: "EC4899", description: "Lienzo y capa de controles" }
+- { name: "area:texto", color: "EC4899", description: "Edición de texto" }
+- { name: "area:build", color: "6B7280", description: "CI, empaquetado y distribución" }
+- { name: "area:testing", color: "6B7280", description: "Pruebas, fixtures e instantáneas" }
+
+# Prioridad
+- { name: "p0-bloqueante", color: "B91C1C", description: "Bloquea el resto de la fase" }
+- { name: "p1-alta", color: "EA580C", description: "Prioridad alta" }
+- { name: "p2-normal", color: "FDBA74", description: "Prioridad normal" }
+
+# Transversales
+- { name: "riesgo", color: "DC2626", description: "Toca un riesgo conocido del proyecto" }
+- { name: "rendimiento", color: "F59E0B", description: "Afecta al tiempo de respuesta o a la memoria" }
+- { name: "blocked", color: "000000", description: "Bloqueada por algo externo a la tarea" }

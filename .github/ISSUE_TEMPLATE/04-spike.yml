@@ -1,0 +1,32 @@
+name: Spike / investigación
+description: Investigación acotada para reducir un riesgo antes de implementar.
+title: "spike: "
+labels: ["spike", "riesgo"]
+body:
+  - type: textarea
+    id: pregunta
+    attributes:
+      label: Pregunta que hay que responder
+      description: Una sola pregunta, concreta y con respuesta verificable.
+    validations:
+      required: true
+  - type: textarea
+    id: riesgo
+    attributes:
+      label: Riesgo que mitiga
+    validations:
+      required: true
+  - type: input
+    id: tiempo
+    attributes:
+      label: Tiempo máximo
+      placeholder: "3 horas"
+    validations:
+      required: true
+  - type: textarea
+    id: entregable
+    attributes:
+      label: Entregable
+      description: Prototipo desechable, nota en docs/, decisión escrita…
+    validations:
+      required: true

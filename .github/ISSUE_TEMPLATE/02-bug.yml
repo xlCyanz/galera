@@ -1,0 +1,67 @@
+name: Bug
+description: Algo no funciona como debería.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Qué pasa
+    validations:
+      required: true
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducir
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Resultado esperado
+    validations:
+      required: true
+  - type: textarea
+    id: real
+    attributes:
+      label: Resultado real
+      description: Incluye el mensaje de error literal si lo hay.
+    validations:
+      required: true
+  - type: textarea
+    id: documento
+    attributes:
+      label: Documento mínimo que lo reproduce
+      description: JSON del documento, reducido al mínimo.
+      render: json
+  - type: dropdown
+    id: donde
+    attributes:
+      label: Dónde ocurre
+      options:
+        - Núcleo (galera-core)
+        - CLI (galera-cli)
+        - Backend Tauri
+        - Interfaz / lienzo
+        - Exportación (PDF / SVG / PNG)
+        - No lo sé
+    validations:
+      required: true
+  - type: input
+    id: entorno
+    attributes:
+      label: Entorno
+      description: Sistema operativo, commit de Galera y versión de los crates de Typst.
+      placeholder: "macOS 15.6 · galera a154fd4 · typst 0.13.1"
+    validations:
+      required: true
+  - type: checkboxes
+    id: fidelidad
+    attributes:
+      label: Fidelidad
+      options:
+        - label: El lienzo y el PDF exportado difieren (marcar si aplica; es un bug de máxima prioridad).

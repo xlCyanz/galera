@@ -1,0 +1,78 @@
+name: Tarea de desarrollo
+description: Unidad de trabajo planificada de 1 a 3 horas, dentro de una fase.
+title: "F<fase>-<num> — "
+labels: ["tarea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Una tarea debe caber en una sesión de 1 a 3 horas. Si no cabe, pártela en dos.
+        Los criterios de aceptación tienen que ser verificables con un comando o una salida concreta.
+  - type: dropdown
+    id: fase
+    attributes:
+      label: Fase
+      options:
+        - "Fase 0 — Núcleo por terminal"
+        - "Fase 1 — Ventana y vista fiel"
+        - "Fase 2 — Layout y selección"
+        - "Fase 3 — Creación de elementos y paneles"
+        - "Fase 4 — Edición de texto de alta fidelidad"
+        - "Fase 5 — Productividad"
+        - "Fase 6 — Plantillas y variables"
+        - "Fase 7 — Texto que fluye"
+        - "Fase 8 — Pulido y distribución"
+    validations:
+      required: true
+  - type: input
+    id: depende
+    attributes:
+      label: Depende de
+      description: IDs de tarea o números de issue. Escribe "ninguna" si no depende de nada.
+      placeholder: "F0-02, F0-03"
+    validations:
+      required: true
+  - type: textarea
+    id: archivos
+    attributes:
+      label: Archivos
+      description: Rutas que se espera crear o tocar.
+      placeholder: "crates/galera-core/src/codegen.rs"
+    validations:
+      required: true
+  - type: textarea
+    id: descripcion
+    attributes:
+      label: Descripción
+      description: Qué hay que hacer y por qué.
+    validations:
+      required: true
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceptación
+      value: |
+        - [ ] 
+        - [ ] 
+    validations:
+      required: true
+  - type: textarea
+    id: pruebas
+    attributes:
+      label: Cómo probarlo
+      description: Comandos o pasos exactos, copiables y pegables.
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: notas
+    attributes:
+      label: Notas de Rust / Tauri
+      description: Si la tarea toca un concepto nuevo del lenguaje o del framework, explícalo brevemente aquí.
+  - type: checkboxes
+    id: principios
+    attributes:
+      label: Principios
+      options:
+        - label: Esta tarea no rompe ninguno de los seis principios del README.
+          required: true

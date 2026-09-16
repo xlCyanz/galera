@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Pregunta o duda de diseño
+    url: https://github.com/xlCyanz/galera/discussions
+    about: Para dudas abiertas, ideas sin madurar y decisiones técnicas en discusión.
+  - name: Reportar una vulnerabilidad
+    url: https://github.com/xlCyanz/galera/security/advisories/new
+    about: No abras una issue pública para problemas de seguridad.
+  - name: Guía del proyecto
+    url: https://github.com/xlCyanz/galera/blob/main/guide.md
+    about: Alcance, fases, modelo de documento y principios del proyecto.

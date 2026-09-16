@@ -1,0 +1,42 @@
+# Rust
+/target/
+**/target/
+Cargo.lock.bak
+*.pdb
+
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+.npm/
+.pnpm-store/
+
+# Tauri
+app/src-tauri/target/
+app/src-tauri/gen/
+
+# Pruebas de instantánea
+**/*.snap.new
+
+# Salidas de prueba
+/out/
+*.pdf.tmp
+fixtures/**/salida.*
+
+# Entornos
+.env
+.env.*
+!.env.example
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.idea/
+*.swp
+
+# macOS
+.DS_Store
+.AppleDouble
