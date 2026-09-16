@@ -682,6 +682,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror",
  "typst",
  "typst-assets",
  "typst-layout",

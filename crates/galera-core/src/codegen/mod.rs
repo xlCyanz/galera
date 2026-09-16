@@ -63,21 +63,23 @@ mod text;
 
 pub use escape::{escape, escape_into};
 
-use std::fmt;
-
 use crate::model::{Document, Element, Page, PageSize, is_valid_color, is_valid_id};
 
 /// Algo del documento impide generar código Typst.
 ///
-/// De momento solo hay un motivo. En F0-16 este enum se absorbe dentro del
-/// error único del núcleo, junto con los de validación y compilación.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// La validación ([`Document::validate`]) detecta antes todos estos casos;
+/// aquí quedan como última línea de defensa, porque el codegen escribe los
+/// valores en un sitio donde no hay forma de escaparlos.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum CodegenError {
     /// El id de un elemento no puede escribirse como etiqueta de Typst.
     ///
     /// Los ids acaban dentro del código generado como `<el-ID>`. Si se
     /// aceptara cualquier cadena, un id venido de un archivo ajeno podría
     /// cerrar la etiqueta y escribir código detrás. Ver `SECURITY.md`.
+    #[error(
+        "el id de elemento {id:?} no es válido: solo se admiten letras y dígitos ASCII, guion y guion bajo"
+    )]
     UnsafeElementId {
         /// El id tal como venía en el documento.
         id: String,
@@ -87,6 +89,9 @@ pub enum CodegenError {
     ///
     /// Va dentro de un comentario (`// p1`). Un id con un salto de línea
     /// cerraría el comentario y escribiría código detrás.
+    #[error(
+        "el id de página {id:?} no es válido: solo se admiten letras y dígitos ASCII, guion y guion bajo"
+    )]
     UnsafePageId {
         /// El id tal como venía en el documento.
         id: String,
@@ -97,12 +102,14 @@ pub enum CodegenError {
     /// Los colores se escriben dentro de una cadena de Typst, como
     /// `rgb("#1e40af")`. Aceptar cualquier texto dejaría cerrar la cadena y
     /// escribir código detrás.
+    #[error("el color {value:?} no es válido: se espera #RGB, #RGBA, #RRGGBB o #RRGGBBAA")]
     InvalidColor {
         /// El color tal como venía en el documento.
         value: String,
     },
 
     /// Una imagen se refiere a una clave que no está en `assets`.
+    #[error("la imagen {element_id:?} usa el recurso {key:?}, que no está declarado en assets")]
     UnknownAsset {
         /// El id de la imagen que la usa.
         element_id: String,
@@ -110,31 +117,6 @@ pub enum CodegenError {
         key: String,
     },
 }
-
-impl fmt::Display for CodegenError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CodegenError::UnsafeElementId { id } => write!(
-                f,
-                "el id de elemento {id:?} no es válido: solo se admiten letras y dígitos ASCII, guion y guion bajo"
-            ),
-            CodegenError::UnsafePageId { id } => write!(
-                f,
-                "el id de página {id:?} no es válido: solo se admiten letras y dígitos ASCII, guion y guion bajo"
-            ),
-            CodegenError::InvalidColor { value } => write!(
-                f,
-                "el color {value:?} no es válido: se espera #RGB, #RGBA, #RRGGBB o #RRGGBBAA"
-            ),
-            CodegenError::UnknownAsset { element_id, key } => write!(
-                f,
-                "la imagen {element_id:?} usa el recurso {key:?}, que no está declarado en assets"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for CodegenError {}
 
 /// Traduce un documento entero a código Typst.
 ///

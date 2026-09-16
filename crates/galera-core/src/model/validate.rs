@@ -28,10 +28,14 @@
 use std::collections::HashSet;
 use std::fmt;
 
+use serde::ser::SerializeStruct;
+use serde::{Serialize, Serializer};
+
 use crate::model::{Document, Element, ElementBox, Stroke};
 
 /// Dónde está el problema.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
 pub enum Location {
     /// En una página, identificada por su id.
     Page {
@@ -55,7 +59,8 @@ impl fmt::Display for Location {
 }
 
 /// Qué está mal.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Problem {
     /// Otro elemento o página ya usa este id.
     DuplicateId,
@@ -138,8 +143,21 @@ impl fmt::Display for ValidationError {
     }
 }
 
+/// Se serializa con el mensaje ya redactado, además de los datos, para que la
+/// interfaz pueda enseñarlo tal cual o usar los campos.
+impl Serialize for ValidationError {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut error = serializer.serialize_struct("ValidationError", 3)?;
+        error.serialize_field("location", &self.location)?;
+        error.serialize_field("problem", &self.problem)?;
+        error.serialize_field("message", &self.problem.to_string())?;
+        error.end()
+    }
+}
+
 /// Todos los problemas de un documento. Nunca está vacío.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(transparent)]
 pub struct ValidationErrors(pub Vec<ValidationError>);
 
 impl ValidationErrors {

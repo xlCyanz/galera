@@ -46,7 +46,6 @@
 //! no sabe nada de `GaleraWorld`; solo sabe llamar a esos siete métodos.
 
 use std::collections::HashMap;
-use std::fmt;
 use std::path::PathBuf;
 use std::sync::{Mutex, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -67,23 +66,26 @@ use crate::project::{AccessError, Project};
 const MAIN_PATH: &str = "/main.typ";
 
 /// Algo impide preparar el entorno de compilación.
-///
-/// En F0-16 este enum se absorbe dentro del error único del núcleo.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum WorldError {
     /// Una fuente declarada no está en la carpeta del proyecto.
+    #[error("el documento declara la fuente {path:?}, pero no está en la carpeta del proyecto")]
     FontNotFound {
         /// La ruta tal como la declara el documento.
         path: String,
     },
 
     /// Una fuente declarada apunta fuera de la carpeta del proyecto.
+    #[error(
+        "la fuente {path:?} apunta fuera de la carpeta del proyecto; las fuentes tienen que viajar con el documento"
+    )]
     FontOutsideProject {
         /// La ruta tal como la declara el documento.
         path: String,
     },
 
     /// Una fuente existe pero no se puede leer.
+    #[error("la fuente {path:?} no se puede leer: {source}")]
     FontUnreadable {
         /// La ruta tal como la declara el documento.
         path: String,
@@ -92,6 +94,7 @@ pub enum WorldError {
     },
 
     /// Un archivo declarado como fuente no contiene ninguna fuente válida.
+    #[error("el archivo {path:?} no contiene ninguna fuente que Typst sepa leer")]
     InvalidFont {
         /// La ruta tal como la declara el documento.
         path: String,
@@ -101,42 +104,10 @@ pub enum WorldError {
     ///
     /// Es una constante, así que no debería ocurrir nunca: solo pasaría si una
     /// versión nueva de Typst cambiara las reglas de las rutas virtuales.
+    #[error(
+        "error interno: la ruta del archivo principal {MAIN_PATH:?} no es válida para esta versión de Typst"
+    )]
     InvalidMainPath,
-}
-
-impl fmt::Display for WorldError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            WorldError::FontNotFound { path } => write!(
-                f,
-                "el documento declara la fuente {path:?}, pero no está en la carpeta del proyecto"
-            ),
-            WorldError::FontOutsideProject { path } => write!(
-                f,
-                "la fuente {path:?} apunta fuera de la carpeta del proyecto; las fuentes tienen que viajar con el documento"
-            ),
-            WorldError::FontUnreadable { path, source } => {
-                write!(f, "la fuente {path:?} no se puede leer: {source}")
-            }
-            WorldError::InvalidFont { path } => write!(
-                f,
-                "el archivo {path:?} no contiene ninguna fuente que Typst sepa leer"
-            ),
-            WorldError::InvalidMainPath => write!(
-                f,
-                "error interno: la ruta del archivo principal {MAIN_PATH:?} no es válida para esta versión de Typst"
-            ),
-        }
-    }
-}
-
-impl std::error::Error for WorldError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            WorldError::FontUnreadable { source, .. } => Some(source),
-            _ => None,
-        }
-    }
 }
 
 /// El entorno de compilación de un proyecto de Galera.
@@ -194,6 +165,11 @@ impl GaleraWorld {
     /// La carpeta del proyecto.
     pub fn project(&self) -> &Project {
         &self.project
+    }
+
+    /// El código Typst que se compila. Compartido, no copiado.
+    pub fn main_source(&self) -> Source {
+        self.main.clone()
     }
 
     /// Las familias tipográficas de las fuentes cargadas, una vez cada una,
