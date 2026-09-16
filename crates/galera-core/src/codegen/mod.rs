@@ -2,16 +2,436 @@
 //!
 //! El sentido de este módulo es de ida y solo de ida: el documento entra,
 //! el código `.typ` sale. Galera no lee Typst ni lo interpreta, con la única
-//! excepción del elemento [`Element::Code`](crate::Element::Code), que se
-//! copia tal cual sin mirarlo (principio 1 del README).
+//! excepción del elemento [`Element::Code`], que se copia tal cual sin
+//! mirarlo (principio 1 del README).
+//!
+//! # Forma del archivo generado
+//!
+//! ```typst
+//! #set page(width: 210mm, height: 297mm, margin: 0pt)
+//!
+//! // p1
+//! #place(top + left, dx: 0mm, dy: 0mm)[…] <el-r1>
+//! #place(top + left, dx: 20mm, dy: 30mm)[…] <el-t1>
+//! ```
+//!
+//! Tres decisiones sostienen todo lo demás:
+//!
+//! 1. **Margen cero.** Las coordenadas del JSON son coordenadas absolutas
+//!    sobre el papel, así que la página no puede tener margen propio: lo que
+//!    dice el modelo es lo que se dibuja.
+//! 2. **Todo va en `place`.** Cada elemento se coloca por desplazamiento
+//!    desde la esquina superior izquierda, fuera del flujo. Un documento de
+//!    Galera no fluye: es un lienzo.
+//! 3. **Cada elemento lleva su etiqueta `<el-ID>`.** Es el único hilo que
+//!    une el JSON con lo que Typst dibujó. De ahí saldrán las cajas reales
+//!    de la tarea F2-01, y sin él no hay selección fiel.
 //!
 //! # Piezas
 //!
 //! - [`escape`]: convierte texto del usuario en texto literal para Typst.
 //!   Es la pieza de la que depende la seguridad de todo lo demás.
-//! - El resto —cabecera del documento, páginas, formas, texto, imágenes y
-//!   bloques de código— llega en las tareas F0-05 a F0-09.
+//! - [`generate`]: la cabecera, las páginas y la envoltura de cada elemento.
+//! - El cuerpo de cada tipo de elemento —formas, texto, imágenes y bloques
+//!   de código— llega en las tareas F0-06 a F0-09. Hasta entonces se emite
+//!   la envoltura con el cuerpo vacío.
+//!
+//! # Pendiente de comprobar contra el compilador
+//!
+//! Este módulo está escrito contra la documentación de Typst; todavía no hay
+//! compilador en el proyecto. Dos puntos concretos hay que comprobar en
+//! F0-12, y están marcados en el código:
+//!
+//! - que un `#set page(...)` a media altura del documento empiece página
+//!   nueva sin dejar una en blanco;
+//! - que una etiqueta puesta detrás de un `place` se pueda localizar después
+//!   y devuelva la posición del contenido colocado.
 
 pub mod escape;
 
 pub use escape::{escape, escape_into};
+
+use std::fmt;
+
+use crate::model::{Document, Element, Page, PageSize};
+
+/// Algo del documento impide generar código Typst.
+///
+/// De momento solo hay un motivo. En F0-16 este enum se absorbe dentro del
+/// error único del núcleo, junto con los de validación y compilación.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CodegenError {
+    /// El id de un elemento no puede escribirse como etiqueta de Typst.
+    ///
+    /// Los ids acaban dentro del código generado como `<el-ID>`. Si se
+    /// aceptara cualquier cadena, un id venido de un archivo ajeno podría
+    /// cerrar la etiqueta y escribir código detrás. Ver `SECURITY.md`.
+    UnsafeElementId {
+        /// El id tal como venía en el documento.
+        id: String,
+    },
+}
+
+impl fmt::Display for CodegenError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CodegenError::UnsafeElementId { id } => write!(
+                f,
+                "el id de elemento {id:?} no es válido: solo se admiten letras y dígitos ASCII, guion y guion bajo"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for CodegenError {}
+
+/// Traduce un documento entero a código Typst.
+///
+/// # Errores
+///
+/// Falla si algún elemento tiene un id que no puede escribirse como etiqueta.
+///
+/// # Ejemplos
+///
+/// ```
+/// use galera_core::{codegen, Document};
+///
+/// let json = r#"{
+///   "version": 1,
+///   "meta": { "title": "Vacío" },
+///   "pages": [{ "id": "p1", "size": { "width": 210, "height": 297, "unit": "mm" } }]
+/// }"#;
+///
+/// let document = Document::from_json_str(json).unwrap();
+/// let typst = codegen::generate(&document).unwrap();
+///
+/// assert!(typst.contains("#set page(width: 210mm, height: 297mm, margin: 0pt)"));
+/// ```
+pub fn generate(document: &Document) -> Result<String, CodegenError> {
+    let mut out = String::with_capacity(512);
+
+    out.push_str("// Generado por Galera a partir de document.json.\n");
+    out.push_str("// No editar a mano: este archivo se reescribe entero en cada compilación.\n");
+
+    let mut previous_size: Option<&PageSize> = None;
+    for (index, page) in document.pages.iter().enumerate() {
+        emit_page(page, index, previous_size, &mut out)?;
+        previous_size = Some(&page.size);
+    }
+
+    Ok(out)
+}
+
+/// Emite una página: el salto, su tamaño si cambia, y sus elementos.
+fn emit_page(
+    page: &Page,
+    index: usize,
+    previous_size: Option<&PageSize>,
+    out: &mut String,
+) -> Result<(), CodegenError> {
+    let size_changed = previous_size != Some(&page.size);
+
+    if index > 0 {
+        // Salto explícito antes de tocar el tamaño. Un `set page` solo ya
+        // debería empezar página nueva, pero depender de ese detalle deja el
+        // número de páginas a merced de una sutileza del compilador, y aquí
+        // el número de páginas del PDF tiene que ser exactamente el número
+        // de páginas del modelo. Comprobar en F0-12.
+        out.push_str("\n#pagebreak()\n");
+    }
+
+    if size_changed {
+        out.push_str(&format!(
+            "#set page(width: {}, height: {}, margin: 0pt)\n",
+            millimeters(page.size.unit.to_millimeters(page.size.width)),
+            millimeters(page.size.unit.to_millimeters(page.size.height)),
+        ));
+    }
+
+    out.push_str(&format!("\n// {}\n", page.id));
+
+    for element in &page.elements {
+        emit_element(element, out)?;
+    }
+
+    Ok(())
+}
+
+/// Emite un elemento: su envoltura de posición y su etiqueta.
+///
+/// El cuerpo queda vacío a propósito. Cada tipo lo rellena en su tarea:
+/// formas en F0-06, texto en F0-07, imágenes en F0-08 y bloques de código
+/// en F0-09.
+fn emit_element(element: &Element, out: &mut String) -> Result<(), CodegenError> {
+    let id = element.id();
+    if !is_label_safe(id) {
+        return Err(CodegenError::UnsafeElementId { id: id.to_owned() });
+    }
+
+    let (x, y) = element.position();
+
+    // La etiqueta va detrás del `place`, que es como Typst asocia una
+    // etiqueta con el elemento que la precede. Si al leer el layout en
+    // F2-01 resulta que conviene que envuelva al cuerpo en vez de al
+    // `place`, se cambia aquí y en las instantáneas.
+    out.push_str(&format!(
+        "#place(top + left, dx: {}, dy: {})[] <el-{}>  // {}\n",
+        millimeters(x),
+        millimeters(y),
+        id,
+        element.type_name(),
+    ));
+
+    Ok(())
+}
+
+/// ¿Puede este id escribirse dentro de una etiqueta de Typst sin salirse?
+///
+/// Se aceptan solo letras y dígitos ASCII, guion y guion bajo. La app genera
+/// ids de esa forma; uno que no la cumpla viene de un archivo editado a mano
+/// y se rechaza en vez de escaparse, porque una etiqueta no admite escapes.
+fn is_label_safe(id: &str) -> bool {
+    !id.is_empty()
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+/// Escribe una medida en milímetros, tal como la entiende Typst.
+///
+/// El formato es estable a propósito: las instantáneas comparan texto, así
+/// que `20.0` tiene que salir siempre como `20mm` y nunca como `20.0000mm`.
+fn millimeters(value: f64) -> String {
+    let mut text = format!("{value:.4}");
+
+    if text.contains('.') {
+        text = text.trim_end_matches('0').trim_end_matches('.').to_owned();
+    }
+
+    // `-0` es el mismo punto que `0`, y en el código generado sería ruido.
+    if text == "-0" {
+        text = "0".to_owned();
+    }
+
+    text.push_str("mm");
+    text
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// El documento de ejemplo de la sección 4 de `guide.md`.
+    const EXAMPLE: &str = include_str!("../../../../fixtures/informe.json");
+
+    fn example() -> Document {
+        Document::from_json_str(EXAMPLE).expect("el ejemplo de guide.md debe deserializar")
+    }
+
+    fn generate_str(json: &str) -> String {
+        let document = Document::from_json_str(json).expect("el documento debe deserializar");
+        generate(&document).expect("el documento debe generar código")
+    }
+
+    #[test]
+    fn the_page_has_no_margin_of_its_own() {
+        let typst = generate(&example()).expect("debe generar");
+        assert!(
+            typst.contains("margin: 0pt"),
+            "sin margen cero, las coordenadas del JSON dejan de ser absolutas: {typst}"
+        );
+    }
+
+    #[test]
+    fn a_page_keeps_its_exact_size() {
+        let typst = generate(&example()).expect("debe generar");
+        assert!(
+            typst.contains("#set page(width: 210mm, height: 297mm, margin: 0pt)"),
+            "{typst}"
+        );
+    }
+
+    #[test]
+    fn two_pages_produce_two_pages() {
+        let typst = generate_str(
+            r#"{
+              "version": 1,
+              "meta": { "title": "Dos" },
+              "pages": [
+                { "id": "p1", "size": { "width": 210, "height": 297, "unit": "mm" } },
+                { "id": "p2", "size": { "width": 148, "height": 210, "unit": "mm" } }
+              ]
+            }"#,
+        );
+
+        assert_eq!(typst.matches("#pagebreak()").count(), 1);
+        assert!(typst.contains("#set page(width: 210mm, height: 297mm, margin: 0pt)"));
+        assert!(typst.contains("#set page(width: 148mm, height: 210mm, margin: 0pt)"));
+    }
+
+    /// Repetir el mismo `set page` en cada página es ruido en el archivo
+    /// generado y una instantánea más larga sin motivo.
+    #[test]
+    fn the_page_size_is_only_set_again_when_it_changes() {
+        let typst = generate_str(
+            r#"{
+              "version": 1,
+              "meta": { "title": "Tres iguales" },
+              "pages": [
+                { "id": "p1", "size": { "width": 210, "height": 297, "unit": "mm" } },
+                { "id": "p2", "size": { "width": 210, "height": 297, "unit": "mm" } },
+                { "id": "p3", "size": { "width": 210, "height": 297, "unit": "mm" } }
+              ]
+            }"#,
+        );
+
+        assert_eq!(typst.matches("#set page(").count(), 1);
+        assert_eq!(typst.matches("#pagebreak()").count(), 2);
+    }
+
+    #[test]
+    fn page_sizes_in_other_units_become_millimeters() {
+        let typst = generate_str(
+            r#"{
+              "version": 1,
+              "meta": { "title": "Carta" },
+              "pages": [{ "id": "p1", "size": { "width": 8.5, "height": 11, "unit": "in" } }]
+            }"#,
+        );
+
+        assert!(
+            typst.contains("#set page(width: 215.9mm, height: 279.4mm, margin: 0pt)"),
+            "{typst}"
+        );
+    }
+
+    #[test]
+    fn every_element_is_placed_from_the_top_left_corner() {
+        let typst = generate(&example()).expect("debe generar");
+
+        assert!(
+            typst.contains("#place(top + left, dx: 0mm, dy: 0mm)"),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#place(top + left, dx: 20mm, dy: 30mm)"),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#place(top + left, dx: 20mm, dy: 60mm)"),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#place(top + left, dx: 20mm, dy: 200mm)"),
+            "{typst}"
+        );
+    }
+
+    #[test]
+    fn every_element_carries_its_label() {
+        let typst = generate(&example()).expect("debe generar");
+
+        for id in ["r1", "t1", "i1", "c1"] {
+            assert!(
+                typst.contains(&format!("<el-{id}>")),
+                "falta la etiqueta de {id}, y sin ella F2-01 no puede encontrar su caja: {typst}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_line_is_placed_at_its_first_endpoint() {
+        let typst = generate_str(
+            r##"{
+              "version": 1,
+              "meta": { "title": "Línea" },
+              "pages": [{
+                "id": "p1",
+                "size": { "width": 210, "height": 297, "unit": "mm" },
+                "elements": [{
+                  "id": "l1", "type": "line",
+                  "x": 10, "y": 20, "x2": 100, "y2": 20,
+                  "stroke": { "color": "#000000", "width": 0.5 }
+                }]
+              }]
+            }"##,
+        );
+
+        assert!(
+            typst.contains("#place(top + left, dx: 10mm, dy: 20mm)[] <el-l1>"),
+            "{typst}"
+        );
+    }
+
+    /// Un id acaba escrito dentro de `<el-ID>`, donde no hay escapes que
+    /// valgan: o es seguro o no se genera nada.
+    #[test]
+    fn an_id_that_would_break_out_of_its_label_is_rejected() {
+        for id in [
+            "malo id",
+            "id>",
+            "id> #import \"evil.typ\"",
+            "id\n",
+            "",
+            "acentuado-ñ",
+            "id#",
+        ] {
+            let id_json = serde_json::to_string(id).expect("un str siempre serializa");
+            let json = format!(
+                r#"{{
+                  "version": 1,
+                  "meta": {{ "title": "x" }},
+                  "pages": [{{
+                    "id": "p1",
+                    "size": {{ "width": 210, "height": 297, "unit": "mm" }},
+                    "elements": [{{ "id": {id_json}, "type": "rect", "x": 0, "y": 0, "w": 10, "h": 10,
+                                    "fill": null, "stroke": null }}]
+                  }}]
+                }}"#
+            );
+
+            let document = Document::from_json_str(&json).expect("el JSON debe deserializar");
+            assert_eq!(
+                generate(&document),
+                Err(CodegenError::UnsafeElementId { id: id.to_owned() }),
+                "el id {id:?} debe rechazarse"
+            );
+        }
+    }
+
+    #[test]
+    fn ordinary_ids_are_accepted() {
+        for id in ["r1", "el_2", "bloque-principal", "A1", "0"] {
+            assert!(is_label_safe(id), "{id:?} debería valer");
+        }
+    }
+
+    #[test]
+    fn measurements_are_written_in_a_stable_form() {
+        assert_eq!(millimeters(20.0), "20mm");
+        assert_eq!(millimeters(0.0), "0mm");
+        assert_eq!(millimeters(-0.0), "0mm");
+        assert_eq!(millimeters(0.5), "0.5mm");
+        assert_eq!(millimeters(210.0), "210mm");
+        assert_eq!(millimeters(-12.25), "-12.25mm");
+        // Se corta en cuatro decimales: más precisión que eso no la imprime
+        // ninguna impresora y estropearía las instantáneas.
+        assert_eq!(millimeters(1.0 / 3.0), "0.3333mm");
+    }
+
+    #[test]
+    fn an_empty_document_generates_only_the_header() {
+        let typst = generate_str(r#"{ "version": 1, "meta": { "title": "Vacío" }, "pages": [] }"#);
+        assert!(!typst.contains("#set page("));
+        assert!(!typst.contains("#place("));
+    }
+
+    /// La instantánea del ejemplo de `guide.md`. Cualquier cambio en el
+    /// código generado aparece aquí como un diff que hay que aprobar a mano,
+    /// en vez de colarse sin que nadie lo vea.
+    #[test]
+    fn guide_example_snapshot() {
+        let typst = generate(&example()).expect("debe generar");
+        insta::assert_snapshot!(typst);
+    }
+}

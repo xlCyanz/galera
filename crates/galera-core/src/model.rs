@@ -145,6 +145,21 @@ pub enum Unit {
     Pt,
 }
 
+impl Unit {
+    /// Convierte una medida de esta unidad a milímetros.
+    ///
+    /// El núcleo trabaja siempre en milímetros: la unidad del documento es
+    /// cosa de cómo se le enseña a la persona, no de la geometría.
+    pub fn to_millimeters(self, value: f64) -> f64 {
+        match self {
+            Unit::Mm => value,
+            Unit::Cm => value * 10.0,
+            Unit::In => value * 25.4,
+            Unit::Pt => value * 25.4 / 72.0,
+        }
+    }
+}
+
 /// Datos comunes a casi todos los elementos: identidad, posición y tamaño.
 ///
 /// Se aplana dentro de cada variante de [`Element`], así que en el JSON
@@ -650,6 +665,14 @@ mod tests {
             Document::from_json_str(json).is_err(),
             "un tipo de elemento desconocido no puede leerse en silencio"
         );
+    }
+
+    #[test]
+    fn units_convert_to_millimeters() {
+        assert_eq!(Unit::Mm.to_millimeters(10.0), 10.0);
+        assert_eq!(Unit::Cm.to_millimeters(10.0), 100.0);
+        assert_eq!(Unit::In.to_millimeters(1.0), 25.4);
+        assert_eq!(Unit::Pt.to_millimeters(72.0), 25.4);
     }
 
     #[test]
