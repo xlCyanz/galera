@@ -36,7 +36,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F0-06** — Generar rect, ellipse y line | [#6](https://github.com/xlCyanz/galera/issues/6) | #5 |
 | ✅ | **F0-07** — Generar texto sin formato | [#7](https://github.com/xlCyanz/galera/issues/7) | #5 |
 | 🟡 | **F0-08** — Generar imagen desde los assets del proyecto | [#8](https://github.com/xlCyanz/galera/issues/8) | #5, #11 |
-| ⬜ | **F0-09** — Generar el bloque de código personalizado | [#9](https://github.com/xlCyanz/galera/issues/9) | #5 |
+| 🟡 | **F0-09** — Generar el bloque de código personalizado | [#9](https://github.com/xlCyanz/galera/issues/9) | #5 |
 | ⬜ | **F0-10** — Implementar typst::World con las fuentes del proyecto | [#10](https://github.com/xlCyanz/galera/issues/10) | #1 |
 | ⬜ | **F0-11** — Resolver assets y rutas del proyecto en World | [#11](https://github.com/xlCyanz/galera/issues/11) | #10 |
 | ⬜ | **F0-12** — Compilar a PDF | [#12](https://github.com/xlCyanz/galera/issues/12) | #5, #10 |

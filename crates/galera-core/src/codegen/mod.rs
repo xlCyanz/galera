@@ -2,8 +2,8 @@
 //!
 //! El sentido de este módulo es de ida y solo de ida: el documento entra,
 //! el código `.typ` sale. Galera no lee Typst ni lo interpreta, con la única
-//! excepción del elemento [`Element::Code`], que se copia tal cual sin
-//! mirarlo (principio 1 del README).
+//! excepción del elemento [`Element::Code`], cuyo código se evalúa tal cual
+//! sin mirarlo (principio 1 del README).
 //!
 //! # Forma del archivo generado
 //!
@@ -35,9 +35,8 @@
 //! - `shapes`: el cuerpo de los rectángulos, las elipses y las líneas.
 //! - `text`: el cuerpo de los bloques de texto.
 //! - `image`: el cuerpo de las imágenes, resolviendo la clave del recurso.
-//! - El cuerpo de los bloques de código llega en F0-09. Hasta entonces se
-//!   emite la envoltura con el cuerpo vacío y una nota en el propio archivo
-//!   generado.
+//! - `code`: el cuerpo de los bloques de código personalizado, evaluados con
+//!   `eval` para que un error en ellos no rompa el resto del documento.
 //!
 //! # Pendiente de comprobar contra el compilador
 //!
@@ -50,6 +49,7 @@
 //! - que una etiqueta puesta detrás de un `place` se pueda localizar después
 //!   y devuelva la posición del contenido colocado.
 
+mod code;
 pub mod escape;
 mod image;
 mod shapes;
@@ -202,7 +202,7 @@ fn emit_element(
     }
 
     let mut body = String::new();
-    let pending = emit_body(element, document, &mut body)?;
+    emit_body(element, document, &mut body)?;
 
     // La rotación envuelve al cuerpo, dentro del `place`: así el elemento
     // gira sobre su propio centro y su esquina sigue anclada donde dice el
@@ -227,39 +227,21 @@ fn emit_element(
         millimeters(y),
     ));
 
-    if let Some(task) = pending {
-        out.push_str(&format!(
-            "  // {}: cuerpo pendiente ({task})",
-            element.type_name()
-        ));
-    }
-
     out.push('\n');
     Ok(())
 }
 
-/// Escribe el cuerpo del elemento.
-///
-/// Devuelve la tarea que queda pendiente cuando ese tipo todavía no sabe
-/// dibujarse, para dejarlo anotado en el propio archivo generado.
-fn emit_body(
-    element: &Element,
-    document: &Document,
-    out: &mut String,
-) -> Result<Option<&'static str>, CodegenError> {
+/// Escribe el cuerpo del elemento, según su tipo.
+fn emit_body(element: &Element, document: &Document, out: &mut String) -> Result<(), CodegenError> {
     match element {
         Element::Rect {
             base,
             fill,
             stroke,
             radius,
-        } => {
-            shapes::emit_rect(base, fill.as_deref(), stroke.as_ref(), *radius, out)?;
-            Ok(None)
-        }
+        } => shapes::emit_rect(base, fill.as_deref(), stroke.as_ref(), *radius, out),
         Element::Ellipse { base, fill, stroke } => {
-            shapes::emit_ellipse(base, fill.as_deref(), stroke.as_ref(), out)?;
-            Ok(None)
+            shapes::emit_ellipse(base, fill.as_deref(), stroke.as_ref(), out)
         }
         Element::Line {
             x,
@@ -268,23 +250,17 @@ fn emit_body(
             y2,
             stroke,
             ..
-        } => {
-            shapes::emit_line(*x, *y, *x2, *y2, stroke, out)?;
-            Ok(None)
-        }
+        } => shapes::emit_line(*x, *y, *x2, *y2, stroke, out),
         Element::Text {
             base,
             content,
             style,
-        } => {
-            text::emit_text(base, content, style, out)?;
-            Ok(None)
+        } => text::emit_text(base, content, style, out),
+        Element::Image { base, asset } => image::emit_image(base, asset, document, out),
+        Element::Code { base, source } => {
+            code::emit_code(base, source, out);
+            Ok(())
         }
-        Element::Image { base, asset } => {
-            image::emit_image(base, asset, document, out)?;
-            Ok(None)
-        }
-        Element::Code { .. } => Ok(Some("F0-09")),
     }
 }
 
