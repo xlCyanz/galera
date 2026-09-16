@@ -33,9 +33,10 @@
 //!   Es la pieza de la que depende la seguridad de todo lo demás.
 //! - [`generate`]: la cabecera, las páginas y la envoltura de cada elemento.
 //! - `shapes`: el cuerpo de los rectángulos, las elipses y las líneas.
-//! - El cuerpo del texto, las imágenes y los bloques de código llega en las
-//!   tareas F0-07 a F0-09. Hasta entonces se emite la envoltura con el
-//!   cuerpo vacío y una nota en el propio archivo generado.
+//! - `text`: el cuerpo de los bloques de texto.
+//! - El cuerpo de las imágenes y los bloques de código llega en las tareas
+//!   F0-08 y F0-09. Hasta entonces se emite la envoltura con el cuerpo
+//!   vacío y una nota en el propio archivo generado.
 //!
 //! # Pendiente de comprobar contra el compilador
 //!
@@ -50,6 +51,7 @@
 
 pub mod escape;
 mod shapes;
+mod text;
 
 pub use escape::{escape, escape_into};
 
@@ -247,7 +249,14 @@ fn emit_body(element: &Element, out: &mut String) -> Result<Option<&'static str>
             shapes::emit_line(*x, *y, *x2, *y2, stroke, out)?;
             Ok(None)
         }
-        Element::Text { .. } => Ok(Some("F0-07")),
+        Element::Text {
+            base,
+            content,
+            style,
+        } => {
+            text::emit_text(base, content, style, out)?;
+            Ok(None)
+        }
         Element::Image { .. } => Ok(Some("F0-08")),
         Element::Code { .. } => Ok(Some("F0-09")),
     }
