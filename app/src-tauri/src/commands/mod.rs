@@ -10,6 +10,7 @@
 
 mod error;
 pub mod project;
+pub mod render;
 pub mod session;
 
 pub use error::CommandError;

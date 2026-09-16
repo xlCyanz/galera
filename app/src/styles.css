@@ -31,3 +31,20 @@ body {
   color: #b91c1c;
   white-space: pre-line;
 }
+
+.pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* Cada página se ve entera, sobre blanco como el papel. */
+.pages img {
+  width: 16rem;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+}
+
+.warnings {
+  color: #a16207;
+}

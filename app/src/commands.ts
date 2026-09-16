@@ -114,3 +114,43 @@ export function errorMessage(reason: unknown): string {
   }
   return String(reason);
 }
+
+/**
+ * Un diagnóstico de Typst, con la forma de `Diagnostic` de `galera-core`.
+ *
+ * Sus campos vienen del núcleo, que los escribe en `snake_case`.
+ */
+export interface Diagnostic {
+  severity: "error" | "warning";
+  message: string;
+  hints: string[];
+  /** El elemento del documento en el que ocurre, si se sabe. */
+  element_id: string | null;
+}
+
+/** Una página compilada, tal como la devuelve `render_page`. */
+export interface RenderedPage {
+  /** El SVG de la página, o `null` si el documento no compila. */
+  svg: string | null;
+  /** Los avisos si compiló; los errores de Typst si no. */
+  diagnostics: Diagnostic[];
+  /** Por qué no compila, o `null` si compiló. */
+  error: CommandError | null;
+  /** Lo que tardó la compilación de la que sale, en milisegundos. */
+  ms: number;
+  /** Si sale de una compilación anterior, sin compilar ahora. */
+  reused: boolean;
+  /** La revisión del documento que se compiló. */
+  revision: number;
+}
+
+/**
+ * Pide el SVG de una página del documento abierto, contando desde 0.
+ *
+ * Un documento que no compila **no** rechaza la promesa: llega como datos,
+ * con `svg: null` y el `error`. Solo se rechaza si no hay nada abierto o la
+ * página no existe.
+ */
+export function renderPage(page: number): Promise<RenderedPage> {
+  return invoke<RenderedPage>("render_page", { page });
+}
