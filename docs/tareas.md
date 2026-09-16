@@ -6,7 +6,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 
 | Fase | Tareas | Hechas |
 |---|---|---|
-| [Fase 0 — Núcleo por terminal](https://github.com/xlCyanz/galera/milestone/1) | 16 | 1 |
+| [Fase 0 — Núcleo por terminal](https://github.com/xlCyanz/galera/milestone/1) | 16 | 2 |
 | [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 0 |
 | [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 0 |
 | [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 0 |
@@ -15,7 +15,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **1** |
+| **Total** | **95** | **2** |
 
 
 ---
@@ -29,7 +29,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | Estado | Tarea | Issue | Depende de |
 |:--:|---|:--:|---|
 | ✅ | **F0-01** — Crear el workspace de Cargo con galera-core y galera-cli | [#1](https://github.com/xlCyanz/galera/issues/1) | ninguna |
-| ⬜ | **F0-02** — Definir el modelo de documento con serde | [#2](https://github.com/xlCyanz/galera/issues/2) | #1 |
+| ✅ | **F0-02** — Definir el modelo de documento con serde | [#2](https://github.com/xlCyanz/galera/issues/2) | #1 |
 | ⬜ | **F0-03** — Validar el documento al cargarlo | [#3](https://github.com/xlCyanz/galera/issues/3) | #2 |
 | ⬜ | **F0-04** — Implementar el escape de texto hacia Typst | [#4](https://github.com/xlCyanz/galera/issues/4) | #1 |
 | ⬜ | **F0-05** — Emitir el esqueleto del documento y las páginas en Typst | [#5](https://github.com/xlCyanz/galera/issues/5) | #2, #4 |
