@@ -20,7 +20,7 @@
 //!
 //! Compilar tarda. Si un comando compilara con el cerrojo cogido, cualquier
 //! otro comando —abrir, mover un elemento— esperaría a que terminase, y la
-//! interfaz se quedaría congelada. Por eso [`AppState::compile_with`] hace
+//! interfaz se quedaría congelada. Por eso [`AppState::compilation_with`] hace
 //! tres pasos y el cerrojo solo se coge en el primero y el último:
 //!
 //! 1. **copia** el proyecto y el documento, con el cerrojo;
@@ -32,6 +32,18 @@
 //! Para saber si cambió, cada cambio del documento incrementa una
 //! **revisión**.
 //!
+//! # Compilar una vez por revisión
+//!
+//! El resultado se guarda **salga bien o mal**, y mientras la revisión no
+//! cambie se reutiliza: pedir las diez páginas de un documento compila una
+//! vez, no diez, y un documento con errores tampoco se recompila en cada
+//! petición.
+//!
+//! Si llegan varias peticiones a la vez y no hay nada guardado, solo una
+//! compila. Las demás esperan en un segundo cerrojo, `compiling`, que no es
+//! el del estado: mientras esperan, el resto de comandos sigue funcionando.
+//! Cuando les toca, encuentran el resultado ya guardado.
+//!
 //! # Carpetas elegidas
 //!
 //! El estado también recuerda qué carpetas ha elegido quien usa la app en el
@@ -41,6 +53,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::time::{Duration, Instant};
 
 use galera_core::{Compiled, Document, GaleraError, Project};
 
@@ -48,6 +61,9 @@ use galera_core::{Compiled, Document, GaleraError, Project};
 #[derive(Default)]
 pub struct AppState {
     session: RwLock<Session>,
+    /// Lo coge quien compila, para que dos peticiones a la vez no compilen
+    /// lo mismo dos veces. Ver el módulo.
+    compiling: Mutex<()>,
     /// Las carpetas elegidas en el diálogo de abrir, con su ruta real.
     chosen_folders: Mutex<HashSet<PathBuf>>,
 }
@@ -59,9 +75,22 @@ struct Session {
     open: Option<OpenDocument>,
     /// Se incrementa con cada cambio del documento abierto.
     revision: u64,
-    /// La última compilación guardada y la revisión de la que sale.
-    compiled: Option<(u64, Arc<Compiled>)>,
+    /// La última compilación guardada.
+    compiled: Option<Stored>,
 }
+
+/// Una compilación guardada.
+struct Stored {
+    revision: u64,
+    result: CompileResult,
+    duration: Duration,
+}
+
+/// Lo que produce compilar: el documento compilado o por qué no se pudo.
+///
+/// Los dos lados van en `Arc` para poder guardarlos y devolverlos a la vez
+/// sin copiarlos: ni `Compiled` ni `GaleraError` se pueden clonar.
+pub type CompileResult = Result<Arc<Compiled>, Arc<GaleraError>>;
 
 /// Un proyecto abierto con su documento.
 #[derive(Clone)]
@@ -83,12 +112,16 @@ pub struct Summary {
     pub compiled_is_current: bool,
 }
 
-/// El resultado de compilar la revisión que estaba abierta.
+/// El resultado de compilar una revisión del documento abierto.
 pub struct Compilation {
     /// De qué revisión sale.
     pub revision: u64,
-    /// El documento compilado.
-    pub compiled: Arc<Compiled>,
+    /// El documento compilado, o por qué no se pudo compilar.
+    pub result: CompileResult,
+    /// Lo que tardó en compilar.
+    pub duration: Duration,
+    /// `true` si sale de una compilación guardada, sin compilar ahora.
+    pub reused: bool,
     /// `false` si el documento cambió mientras se compilaba: el resultado es
     /// correcto para aquella revisión, pero ya no se ha guardado.
     pub is_current: bool,
@@ -127,60 +160,92 @@ impl AppState {
             compiled_is_current: session
                 .compiled
                 .as_ref()
-                .is_some_and(|(revision, _)| *revision == session.revision),
+                .is_some_and(|stored| stored.revision == session.revision),
         }
     }
 
-    /// La última compilación guardada, si corresponde a la revisión actual.
-    pub fn current_compilation(&self) -> Option<Arc<Compiled>> {
-        let session = self.read();
-        session
-            .compiled
-            .as_ref()
-            .filter(|(revision, _)| *revision == session.revision)
-            .map(|(_, compiled)| Arc::clone(compiled))
+    /// La compilación del documento abierto: la guardada si corresponde a la
+    /// revisión actual, o una nueva con `galera-core`.
+    ///
+    /// Devuelve `None` si no hay nada abierto. Ver
+    /// [`AppState::compilation_with`].
+    pub fn compilation(&self) -> Option<Compilation> {
+        self.compilation_with(galera_core::compile)
     }
 
-    /// Compila lo que hay abierto con `galera-core`.
+    /// Como [`AppState::compilation`], con la función de compilar dada.
     ///
-    /// Devuelve `Ok(None)` si no hay nada abierto. Ver [`AppState::compile_with`].
-    pub fn compile_current(&self) -> Result<Option<Compilation>, GaleraError> {
-        self.compile_with(galera_core::compile)
-    }
-
-    /// Compila lo que hay abierto con la función dada, **sin tener el cerrojo
-    /// cogido mientras compila**. Ver el módulo.
+    /// Si hay que compilar, se compila **sin tener cogido el cerrojo del
+    /// estado**, y solo una petición a la vez. Ver el módulo.
     ///
-    /// Recibir la función de compilar permite a las pruebas comprobar que,
-    /// mientras se compila, el estado está libre.
-    pub fn compile_with<F>(&self, compile: F) -> Result<Option<Compilation>, GaleraError>
+    /// Recibir la función permite a las pruebas contar cuántas veces se
+    /// compila y comprobar que, mientras tanto, el estado está libre.
+    pub fn compilation_with<F>(&self, compile: F) -> Option<Compilation>
     where
         F: FnOnce(&Document, &Project) -> Result<Compiled, GaleraError>,
     {
+        if let Some(stored) = self.stored_compilation() {
+            return Some(stored);
+        }
+
+        let _compiling = self
+            .compiling
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+
+        // Mientras se esperaba el turno, quien lo tenía puede haber
+        // compilado esta misma revisión.
+        if let Some(stored) = self.stored_compilation() {
+            return Some(stored);
+        }
+
         // 1. Copiar, con el cerrojo, y soltarlo al salir del bloque.
         let (open, revision) = {
             let session = self.read();
-            match &session.open {
-                Some(open) => (open.clone(), session.revision),
-                None => return Ok(None),
-            }
+            (session.open.clone()?, session.revision)
         };
 
         // 2. Compilar la copia, sin cerrojo.
-        let compiled = Arc::new(compile(&open.document, &open.project)?);
+        let started = Instant::now();
+        let result = compile(&open.document, &open.project)
+            .map(Arc::new)
+            .map_err(Arc::new);
+        let duration = started.elapsed();
 
         // 3. Guardar, con el cerrojo, solo si nada cambió entretanto.
         let mut session = self.write();
         let is_current = session.revision == revision;
         if is_current {
-            session.compiled = Some((revision, Arc::clone(&compiled)));
+            session.compiled = Some(Stored {
+                revision,
+                result: result.clone(),
+                duration,
+            });
         }
 
-        Ok(Some(Compilation {
+        Some(Compilation {
             revision,
-            compiled,
+            result,
+            duration,
+            reused: false,
             is_current,
-        }))
+        })
+    }
+
+    /// La compilación guardada, si corresponde a la revisión actual.
+    fn stored_compilation(&self) -> Option<Compilation> {
+        let session = self.read();
+        session
+            .compiled
+            .as_ref()
+            .filter(|stored| stored.revision == session.revision)
+            .map(|stored| Compilation {
+                revision: stored.revision,
+                result: stored.result.clone(),
+                duration: stored.duration,
+                reused: true,
+                is_current: true,
+            })
     }
 
     /// Anota una carpeta que quien usa la app ha elegido en el diálogo de
@@ -231,6 +296,7 @@ fn real_path(folder: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use tempfile::TempDir;
 
@@ -258,6 +324,16 @@ mod tests {
         (dir, project, document)
     }
 
+    /// Una función de compilar que cuenta las veces que se llama.
+    fn counting(
+        compiles: &AtomicUsize,
+    ) -> impl Fn(&Document, &Project) -> Result<Compiled, GaleraError> + Copy + '_ {
+        move |document, project| {
+            compiles.fetch_add(1, Ordering::SeqCst);
+            galera_core::compile(document, project)
+        }
+    }
+
     #[test]
     fn a_fresh_state_has_nothing_open() {
         let state = AppState::default();
@@ -270,7 +346,7 @@ mod tests {
                 compiled_is_current: false,
             }
         );
-        assert!(matches!(state.compile_current(), Ok(None)));
+        assert!(state.compilation().is_none());
     }
 
     #[test]
@@ -291,25 +367,73 @@ mod tests {
         let (_dir, project, document) = project_and_document("Informe");
         state.open(project, document);
 
-        let compilation = state
-            .compile_current()
-            .expect("compila")
-            .expect("hay documento abierto");
-        assert!(compilation.is_current);
-        assert_eq!(compilation.compiled.page_count(), 1);
-
+        let first = state.compilation().expect("hay documento abierto");
+        assert!(first.is_current);
+        assert!(!first.reused);
+        let compiled = first.result.expect("compila");
+        assert_eq!(compiled.page_count(), 1);
         assert!(state.summary().compiled_is_current);
-        assert!(state.current_compilation().is_some());
+
+        let second = state.compilation().expect("hay documento abierto");
+        assert!(second.reused);
+        assert_eq!(second.duration, first.duration);
+        assert!(Arc::ptr_eq(&second.result.expect("compila"), &compiled));
     }
 
-    /// El criterio de la tarea: mientras se compila, nadie tiene el cerrojo.
+    /// Criterio de F1-04: mientras la revisión no cambie, se compila una vez.
+    #[test]
+    fn a_revision_is_compiled_only_once() {
+        let state = AppState::default();
+        let (_dir, project, document) = project_and_document("Informe");
+        state.open(project.clone(), document.clone());
+
+        let compiles = AtomicUsize::new(0);
+        for _ in 0..3 {
+            state.compilation_with(counting(&compiles));
+        }
+        assert_eq!(compiles.load(Ordering::SeqCst), 1);
+
+        // Una revisión nueva sí se compila.
+        state.open(project, document);
+        state.compilation_with(counting(&compiles));
+        assert_eq!(compiles.load(Ordering::SeqCst), 2);
+    }
+
+    /// Varias peticiones a la vez, sin nada guardado: compila una sola.
+    #[test]
+    fn simultaneous_requests_compile_once() {
+        let state = AppState::default();
+        let (_dir, project, document) = project_and_document("Informe");
+        state.open(project, document);
+
+        let compiles = AtomicUsize::new(0);
+        let slow = |document: &Document, project: &Project| {
+            compiles.fetch_add(1, Ordering::SeqCst);
+            std::thread::sleep(Duration::from_millis(50));
+            galera_core::compile(document, project)
+        };
+
+        std::thread::scope(|scope| {
+            let requests: Vec<_> = (0..4)
+                .map(|_| scope.spawn(|| state.compilation_with(slow)))
+                .collect();
+            for request in requests {
+                let compilation = request.join().expect("el hilo termina");
+                assert!(compilation.is_some_and(|c| c.result.is_ok()));
+            }
+        });
+
+        assert_eq!(compiles.load(Ordering::SeqCst), 1);
+    }
+
+    /// Criterio de F1-02: mientras se compila, nadie tiene el cerrojo.
     #[test]
     fn the_state_is_not_locked_while_compiling() {
         let state = AppState::default();
         let (_dir, project, document) = project_and_document("Informe");
         state.open(project, document);
 
-        let result = state.compile_with(|document, project| {
+        let compilation = state.compilation_with(|document, project| {
             assert!(
                 state.is_unlocked(),
                 "el cerrojo no puede estar cogido mientras se compila"
@@ -317,7 +441,7 @@ mod tests {
             galera_core::compile(document, project)
         });
 
-        assert!(matches!(result, Ok(Some(_))));
+        assert!(compilation.is_some_and(|c| c.result.is_ok()));
     }
 
     /// Si el documento cambia mientras se compila, el resultado viejo no
@@ -330,35 +454,51 @@ mod tests {
         state.open(project, document);
 
         let compilation = state
-            .compile_with(|document, project| {
+            .compilation_with(|document, project| {
                 // Otro comando abre algo mientras tanto. Si el cerrojo
                 // estuviera cogido, esto se quedaría esperando para siempre.
                 state.open(other_project, other_document);
                 galera_core::compile(document, project)
             })
-            .expect("compila")
             .expect("había documento abierto");
 
         assert!(!compilation.is_current);
+        assert_eq!(compilation.revision, 1);
         assert_eq!(state.summary().title.as_deref(), Some("Nuevo"));
         assert!(!state.summary().compiled_is_current);
-        assert!(state.current_compilation().is_none());
+
+        // La siguiente petición compila lo nuevo.
+        let next = state.compilation().expect("hay documento abierto");
+        assert!(!next.reused);
+        assert_eq!(next.revision, 2);
     }
 
-    /// Un error de compilación llega tal cual: el estado no lo reinterpreta.
+    /// Un error de compilación se guarda como resultado, tal como viene del
+    /// núcleo, y tampoco se recompila.
     #[test]
-    fn a_compilation_error_comes_from_the_core_untouched() {
+    fn a_compilation_error_is_stored_as_a_result() {
         let state = AppState::default();
         let (_dir, project, mut document) = project_and_document("Informe");
         document.pages[0].elements.clear();
         document.pages[0].id = "página no válida".to_owned();
         state.open(project, document);
 
+        let compiles = AtomicUsize::new(0);
+        let first = state
+            .compilation_with(counting(&compiles))
+            .expect("hay documento abierto");
         assert!(matches!(
-            state.compile_current(),
+            first.result.as_ref().map_err(|error| &**error),
             Err(GaleraError::Invalid(_))
         ));
-        assert!(!state.summary().compiled_is_current);
+        assert!(state.summary().compiled_is_current);
+
+        let second = state
+            .compilation_with(counting(&compiles))
+            .expect("hay documento abierto");
+        assert!(second.reused);
+        assert!(second.result.is_err());
+        assert_eq!(compiles.load(Ordering::SeqCst), 1);
     }
 
     #[test]
@@ -396,10 +536,11 @@ mod tests {
         let state = AppState::default();
         let (_dir, project, document) = project_and_document("Informe");
         state.open(project, document);
-        state.compile_current().expect("compila");
+        state.compilation().expect("hay documento abierto");
 
         state.close();
         assert_eq!(state.summary().title, None);
-        assert!(state.current_compilation().is_none());
+        assert!(!state.summary().compiled_is_current);
+        assert!(state.compilation().is_none());
     }
 }

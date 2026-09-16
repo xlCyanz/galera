@@ -39,6 +39,7 @@ pub fn run() -> tauri::Result<()> {
             commands::session::session_status,
             commands::project::choose_project_folder,
             commands::project::open_project,
+            commands::render::render_page,
         ])
         .run(tauri::generate_context!())
 }

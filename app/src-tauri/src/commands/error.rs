@@ -28,6 +28,10 @@ pub enum CommandError {
         path: PathBuf,
     },
 
+    /// El comando necesita un proyecto abierto y no hay ninguno.
+    #[error("no hay ningún proyecto abierto")]
+    NothingOpen,
+
     /// El diálogo devolvió algo que no es una ruta del disco.
     ///
     /// En escritorio no pasa: solo en móvil el diálogo puede devolver
@@ -43,6 +47,7 @@ impl CommandError {
         match self {
             CommandError::Core(error) => error.kind(),
             CommandError::FolderNotChosen { .. } => "folder_not_chosen",
+            CommandError::NothingOpen => "nothing_open",
             CommandError::NotALocalFolder => "not_a_local_folder",
         }
     }

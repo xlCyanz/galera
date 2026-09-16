@@ -1,0 +1,255 @@
+//! Compilar el documento abierto y obtener el SVG de una página.
+//!
+//! Es la tubería que alimenta el lienzo: la interfaz pide una página y
+//! recibe su SVG, los diagnósticos de Typst y lo que tardó la compilación.
+//!
+//! # Una compilación, todas las páginas
+//!
+//! El documento se compila una vez por revisión y de ahí salen todas las
+//! páginas que se pidan (ver [`crate::state`]). Pedir las páginas 0, 1 y 2
+//! seguidas, o a la vez, compila una sola vez; las respuestas que no han
+//! compilado lo dicen con `reused: true`.
+//!
+//! # Los errores de compilación son datos
+//!
+//! Un documento que no compila es algo normal mientras se edita, no un fallo
+//! del comando. Así que la respuesta es la misma forma siempre: sin `svg`,
+//! con el `error` y sus `diagnostics`. El comando solo falla —la promesa se
+//! rechaza— cuando la petición no tiene sentido: no hay nada abierto o la
+//! página no existe.
+
+use std::sync::Arc;
+
+use galera_core::{Diagnostic, GaleraError};
+use serde::{Serialize, Serializer};
+use tauri::State;
+
+use crate::commands::CommandError;
+use crate::state::AppState;
+
+/// Una página compilada, tal como la ve la interfaz.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RenderedPage {
+    /// El SVG de la página, o `null` si el documento no compila.
+    pub svg: Option<String>,
+    /// Los diagnósticos de Typst: los avisos si compiló, los errores si no.
+    pub diagnostics: Vec<Diagnostic>,
+    /// Por qué no compila, con la forma de cualquier error: `{ kind,
+    /// message, … }`. `null` si compiló.
+    pub error: Option<SharedError>,
+    /// Lo que tardó la compilación de la que sale la página, en
+    /// milisegundos.
+    pub ms: f64,
+    /// Si la página sale de una compilación anterior, sin compilar ahora.
+    pub reused: bool,
+    /// La revisión del documento que se compiló. Si no es la última que
+    /// conoce la interfaz, la respuesta llega tarde y se puede ignorar.
+    pub revision: u64,
+}
+
+/// Un error del núcleo compartido con el estado, que lo guarda.
+#[derive(Debug)]
+pub struct SharedError(Arc<GaleraError>);
+
+impl Serialize for SharedError {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.0.serialize(serializer)
+    }
+}
+
+/// Devuelve el SVG de una página del documento abierto, compilándolo si
+/// hace falta. Las páginas se cuentan desde 0.
+///
+/// # Errores
+///
+/// Solo si la petición no tiene sentido: [`CommandError::NothingOpen`] si no
+/// hay proyecto abierto, o la página no existe. Un documento que no compila
+/// **no** es un error del comando: ver el módulo.
+#[tauri::command]
+pub async fn render_page(
+    page: usize,
+    state: State<'_, AppState>,
+) -> Result<RenderedPage, CommandError> {
+    render(&state, page)
+}
+
+/// La parte de [`render_page`] que no depende de Tauri, para poder probarla.
+fn render(state: &AppState, page: usize) -> Result<RenderedPage, CommandError> {
+    let compilation = state.compilation().ok_or(CommandError::NothingOpen)?;
+    let ms = compilation.duration.as_secs_f64() * 1000.0;
+
+    Ok(match compilation.result {
+        Ok(compiled) => RenderedPage {
+            svg: Some(compiled.to_svg(page)?),
+            diagnostics: compiled.warnings().to_vec(),
+            error: None,
+            ms,
+            reused: compilation.reused,
+            revision: compilation.revision,
+        },
+        Err(error) => RenderedPage {
+            svg: None,
+            diagnostics: match &*error {
+                GaleraError::Typst(diagnostics) => diagnostics.clone(),
+                _ => Vec::new(),
+            },
+            error: Some(SharedError(error)),
+            ms,
+            reused: compilation.reused,
+            revision: compilation.revision,
+        },
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use galera_core::{Document, Project};
+    use serde_json::json;
+
+    use super::*;
+
+    fn fixtures_dir() -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures")
+    }
+
+    /// Abre un fixture de `fixtures/` como documento del estado.
+    fn state_with(fixture: &str) -> AppState {
+        let project = Project::open(&fixtures_dir()).expect("fixtures/ es un proyecto");
+        let json = std::fs::read_to_string(fixtures_dir().join(format!("{fixture}.json")))
+            .expect("el fixture existe");
+        let document = Document::from_json_str(&json).expect("es un documento");
+        let state = AppState::default();
+        state.open(project, document);
+        state
+    }
+
+    /// El criterio de la tarea: `{ svg, diagnostics, ms }`, con el tiempo
+    /// medido.
+    #[test]
+    fn a_page_comes_back_as_svg_with_its_diagnostics_and_time() {
+        let state = state_with("informe");
+
+        let page = render(&state, 0).expect("la página existe");
+        let svg = page.svg.as_deref().expect("compila");
+        assert!(svg.starts_with("<svg"), "{}", &svg[..svg.len().min(80)]);
+        assert!(page.diagnostics.is_empty(), "{:?}", page.diagnostics);
+        assert!(page.error.is_none());
+        assert!(page.ms > 0.0, "el tiempo se mide: {}", page.ms);
+        assert!(!page.reused);
+        assert_eq!(page.revision, 1);
+    }
+
+    /// El criterio de la tarea: se compila una vez y de ahí salen todas las
+    /// páginas, con el tiempo de aquella compilación.
+    #[test]
+    fn every_page_comes_from_the_same_compilation() {
+        let state = state_with("multipagina");
+        let count = state.summary().page_count;
+        assert!(count >= 3);
+
+        let pages: Vec<RenderedPage> = (0..count)
+            .map(|index| render(&state, index).expect("la página existe"))
+            .collect();
+
+        assert!(!pages[0].reused);
+        assert!(pages[1..].iter().all(|page| page.reused));
+        assert!(pages.iter().all(|page| page.ms == pages[0].ms));
+        assert!(pages.iter().all(|page| page.svg.is_some()));
+
+        let distinct: std::collections::HashSet<_> =
+            pages.iter().map(|page| page.svg.as_deref()).collect();
+        assert_eq!(distinct.len(), count, "cada página tiene su SVG");
+    }
+
+    /// El criterio de la tarea: un error de Typst llega como datos, con sus
+    /// diagnósticos atribuidos al elemento.
+    #[test]
+    fn a_typst_error_comes_back_as_data() {
+        let state = state_with("informe");
+        let mut document = Document::from_json_str(
+            &std::fs::read_to_string(fixtures_dir().join("codigo.json")).expect("existe"),
+        )
+        .expect("es un documento");
+        let Some(galera_core::Element::Code { source, .. }) =
+            document.pages[0].elements.first_mut()
+        else {
+            panic!("codigo.json empieza con un bloque de código");
+        };
+        *source = "#table(".to_owned();
+        let project = Project::open(&fixtures_dir()).expect("fixtures/ es un proyecto");
+        state.open(project, document);
+
+        let page = render(&state, 0).expect("no es un error del comando");
+        assert!(page.svg.is_none());
+        assert!(!page.diagnostics.is_empty());
+        assert!(page.diagnostics.iter().all(|d| d.element_id.is_some()));
+
+        let json = serde_json::to_value(&page).expect("serializa");
+        assert_eq!(json["svg"], json!(null));
+        assert_eq!(json["error"]["kind"], "typst");
+        assert_eq!(json["error"]["diagnostics"], json["diagnostics"]);
+    }
+
+    /// Un documento inválido tampoco es un error del comando.
+    #[test]
+    fn a_validation_error_comes_back_as_data() {
+        let state = state_with("informe");
+        let project = Project::open(&fixtures_dir()).expect("fixtures/ es un proyecto");
+        let mut document = Document::from_json_str(
+            &std::fs::read_to_string(fixtures_dir().join("informe.json")).expect("existe"),
+        )
+        .expect("es un documento");
+        document.pages[0].id = "no vale".to_owned();
+        state.open(project, document);
+
+        let page = render(&state, 0).expect("no es un error del comando");
+        let json = serde_json::to_value(&page).expect("serializa");
+        assert_eq!(json["svg"], json!(null));
+        assert_eq!(json["diagnostics"], json!([]));
+        assert_eq!(json["error"]["kind"], "invalid");
+        assert!(json["error"]["problems"].is_array());
+    }
+
+    #[test]
+    fn without_an_open_project_the_command_fails() {
+        assert!(matches!(
+            render(&AppState::default(), 0),
+            Err(CommandError::NothingOpen)
+        ));
+    }
+
+    /// Pedir una página que no existe sí es un error del comando, y no
+    /// estropea la compilación guardada.
+    #[test]
+    fn a_page_that_does_not_exist_fails_the_command() {
+        let state = state_with("informe");
+        let count = state.summary().page_count;
+
+        assert!(matches!(
+            render(&state, count),
+            Err(CommandError::Core(GaleraError::PageOutOfRange { .. }))
+        ));
+        assert!(render(&state, 0).expect("la primera sí").reused);
+    }
+
+    /// La interfaz lee `camelCase`.
+    #[test]
+    fn it_serializes_in_camel_case() {
+        let state = state_with("rectangulo");
+        let json = serde_json::to_value(render(&state, 0).expect("existe")).expect("serializa");
+        let mut keys: Vec<&str> = json
+            .as_object()
+            .expect("es un objeto")
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        assert_eq!(
+            keys,
+            ["diagnostics", "error", "ms", "reused", "revision", "svg"]
+        );
+    }
+}

@@ -3,11 +3,13 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   type OpenedProject,
+  type RenderedPage,
   type SessionStatus,
   chooseProjectFolder,
   errorMessage,
   isCommandError,
   openProject,
+  renderPage,
   sessionStatus,
 } from "./commands";
 
@@ -111,5 +113,45 @@ describe("errorMessage", () => {
   it("convierte a texto cualquier otra cosa", () => {
     expect(errorMessage("texto suelto")).toBe("texto suelto");
     expect(errorMessage({ kind: 3 })).toBe("[object Object]");
+  });
+});
+
+describe("renderPage", () => {
+  it("llama a `render_page` con el índice de la página", async () => {
+    const rendered: RenderedPage = {
+      svg: "<svg/>",
+      diagnostics: [],
+      error: null,
+      ms: 4.2,
+      reused: false,
+      revision: 1,
+    };
+    const calls: Array<{ command: string; args: unknown }> = [];
+    mockIPC((command, args) => {
+      calls.push({ command, args });
+      return rendered;
+    });
+
+    await expect(renderPage(2)).resolves.toEqual(rendered);
+    expect(calls).toEqual([{ command: "render_page", args: { page: 2 } }]);
+  });
+
+  it("un documento que no compila llega resuelto, como datos", async () => {
+    const failed: RenderedPage = {
+      svg: null,
+      diagnostics: [
+        { severity: "error", message: "unclosed delimiter", hints: [], element_id: "c1" },
+      ],
+      error: { kind: "typst", message: "Typst encontró 1 error" },
+      ms: 3,
+      reused: false,
+      revision: 2,
+    };
+    mockIPC(() => failed);
+
+    const page = await renderPage(0);
+    expect(page.svg).toBeNull();
+    expect(page.error?.kind).toBe("typst");
+    expect(page.diagnostics[0]?.element_id).toBe("c1");
   });
 });
