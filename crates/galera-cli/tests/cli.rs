@@ -338,9 +338,10 @@ fn a_galera_file_is_not_supported_yet() {
     assert!(stderr(&output).contains("F3-11"), "{}", stderr(&output));
 }
 
-/// Una fuente desconocida no es un error para Typst, pero tiene que verse.
+/// Una familia que ninguna fuente declarada proporciona es un error que
+/// nombra el elemento y la familia.
 #[test]
-fn warnings_are_printed() {
+fn an_unknown_font_family_is_an_error() {
     let dir = project();
     let json = fs::read_to_string(dir.path().join("document.json"))
         .expect("leer")
@@ -348,11 +349,34 @@ fn warnings_are_printed() {
     fs::write(dir.path().join("otra.json"), json).expect("escribir");
 
     let output = galera(dir.path(), &["otra.json", "-o", "salida.pdf"]);
+    assert!(!output.status.success());
+    let message = stderr(&output);
+    assert!(message.contains(r#"elemento "t1""#), "{message}");
+    assert!(message.contains(r#"familia "Inter""#), "{message}");
+    assert!(!dir.path().join("salida.pdf").exists());
+}
+
+/// Los avisos de Typst se imprimen. Una fuente desconocida dentro de un
+/// bloque de código no la ve la validación, así que Typst avisa.
+#[test]
+fn warnings_are_printed() {
+    let dir = project();
+    let json = fs::read_to_string(dir.path().join("document.json"))
+        .expect("leer")
+        .replace(
+            r#""asset": "logo" }"#,
+            r##""asset": "logo" },
+                { "id": "c1", "type": "code", "x": 0, "y": 200, "w": 50, "h": null,
+                  "source": "#text(font: \"Desconocida\")[x]" }"##,
+        );
+    fs::write(dir.path().join("otra.json"), json).expect("escribir");
+
+    let output = galera(dir.path(), &["otra.json", "-o", "salida.pdf"]);
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(
         stderr(&output)
             .to_lowercase()
-            .contains("aviso: unknown font family: inter"),
+            .contains("aviso: unknown font family: desconocida"),
         "{}",
         stderr(&output)
     );

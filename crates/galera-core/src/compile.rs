@@ -36,7 +36,7 @@ use typst_pdf::PdfOptions;
 use typst_svg::SvgOptions;
 
 use crate::codegen::{self, CodegenError};
-use crate::model::Document;
+use crate::model::{Document, ValidationErrors};
 use crate::project::Project;
 use crate::world::{GaleraWorld, WorldError};
 
@@ -100,6 +100,9 @@ impl From<&SourceDiagnostic> for Diagnostic {
 /// En F0-16 este enum se absorbe dentro del error único del núcleo.
 #[derive(Debug)]
 pub enum CompileError {
+    /// El documento no es válido: ids repetidos, recursos o familias que no
+    /// existen, medidas imposibles. Se detecta antes de compilar.
+    Invalid(ValidationErrors),
     /// El documento no se pudo traducir a Typst.
     Codegen(CodegenError),
     /// El entorno de compilación no se pudo preparar: una fuente que falta,
@@ -119,6 +122,7 @@ pub enum CompileError {
 impl fmt::Display for CompileError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            CompileError::Invalid(errors) => write!(f, "{errors}"),
             CompileError::Codegen(error) => write!(f, "{error}"),
             CompileError::World(error) => write!(f, "{error}"),
             CompileError::Typst(diagnostics) => {
@@ -144,6 +148,7 @@ impl fmt::Display for CompileError {
 impl std::error::Error for CompileError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            CompileError::Invalid(errors) => Some(errors),
             CompileError::Codegen(error) => Some(error),
             CompileError::World(error) => Some(error),
             CompileError::Typst(_) | CompileError::PageOutOfRange { .. } => None,
@@ -226,16 +231,26 @@ impl Compiled {
 ///
 /// # Errores
 ///
+/// - [`CompileError::Invalid`] si el documento no pasa la validación.
 /// - [`CompileError::Codegen`] si el documento no se puede traducir.
 /// - [`CompileError::World`] si falta una fuente o no se puede leer.
 /// - [`CompileError::Typst`] con los diagnósticos de Typst si la compilación
 ///   falla. Nunca un `panic!`.
 pub fn compile(document: &Document, project: &Project) -> Result<Compiled, CompileError> {
+    document.validate().map_err(CompileError::Invalid)?;
+
     let source = codegen::generate(document)?;
 
     // Se prepara un entorno nuevo en cada compilación, fuentes incluidas.
     // Es correcto pero no rápido; reutilizarlo es F4-04.
     let world = GaleraWorld::new(project.clone(), &document.fonts, source)?;
+
+    // Las familias solo se conocen con las fuentes ya leídas. Sin esto, una
+    // familia que no está sería un aviso de Typst y el texto saldría con
+    // otra fuente, sin que nadie se enterase (principio 4).
+    document
+        .validate_font_families(&world.font_families())
+        .map_err(CompileError::Invalid)?;
 
     let Warned { output, warnings } = typst::compile::<PagedDocument>(&world);
     let warnings = warnings.iter().map(Diagnostic::from).collect();
@@ -466,24 +481,28 @@ mod tests {
         ));
     }
 
+    /// Un recurso que no existe se detecta al validar, antes de generar
+    /// código, y el error nombra el elemento.
     #[test]
-    fn a_codegen_error_is_a_codegen_error() {
+    fn an_invalid_document_is_rejected_before_compiling() {
         let dir = project_dir();
         let mut document = guide_example(&dir);
         document.assets.clear();
 
-        assert!(matches!(
-            compile_pdf(&document, &open(&dir)),
-            Err(CompileError::Codegen(CodegenError::UnknownAsset { .. }))
-        ));
+        match compile_pdf(&document, &open(&dir)) {
+            Err(CompileError::Invalid(errors)) => {
+                assert_eq!(errors.len(), 1, "{errors}");
+                assert!(errors.to_string().contains("\"i1\""), "{errors}");
+            }
+            Err(other) => panic!("se esperaba Invalid: {other}"),
+            Ok(_) => panic!("un recurso inexistente no puede compilar"),
+        }
     }
 
-    /// Una fuente que el documento pide pero no declara no es un error para
-    /// Typst sino un aviso, y el texto sale con otra fuente. Tiene que llegar
-    /// a quien llama: es justo el tipo de cambio silencioso que el principio 4
-    /// quiere evitar.
+    /// Una familia que ninguna fuente cargada proporciona es un error, no el
+    /// aviso de Typst que dejaría el texto con otra fuente (principio 4).
     #[test]
-    fn an_unknown_font_family_is_reported_as_a_warning() {
+    fn an_unknown_font_family_in_a_style_is_an_error() {
         let dir = project_dir();
         let mut document = guide_example(&dir);
         for page in &mut document.pages {
@@ -498,14 +517,40 @@ mod tests {
             }
         }
 
+        match compile(&document, &open(&dir)) {
+            Err(CompileError::Invalid(errors)) => {
+                let message = errors.to_string();
+                assert!(message.contains("\"Inter\""), "{message}");
+                assert!(message.contains("\"t1\""), "{message}");
+            }
+            Err(other) => panic!("se esperaba Invalid: {other}"),
+            Ok(_) => panic!("una familia que no está no puede compilar"),
+        }
+    }
+
+    /// Los avisos de Typst siguen llegando a quien llama. Una fuente
+    /// desconocida dentro de un bloque de código no la ve la validación
+    /// —el código es opaco—, así que sigue siendo un aviso.
+    #[test]
+    fn typst_warnings_reach_the_caller() {
+        let dir = project_dir();
+        let mut document = guide_example(&dir);
+        for page in &mut document.pages {
+            for element in &mut page.elements {
+                if let Element::Code { source, .. } = element {
+                    *source = "#text(font: \"Desconocida\")[x]".to_owned();
+                }
+            }
+        }
+
         let compiled = compile(&document, &open(&dir)).expect("compila, con avisos");
         assert!(
             compiled
                 .warnings()
                 .iter()
                 .any(|warning| warning.severity == Severity::Warning
-                    && warning.message.to_lowercase().contains("inter")),
-            "debe avisar de la familia desconocida: {:#?}",
+                    && warning.message.to_lowercase().contains("desconocida")),
+            "{:#?}",
             compiled.warnings()
         );
     }

@@ -28,6 +28,12 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::DOCUMENT_VERSION;
 
+pub mod validate;
+
+pub use validate::{
+    Location, Problem, ValidationError, ValidationErrors, is_valid_color, is_valid_id,
+};
+
 /// Un documento completo de Galera.
 ///
 /// Es lo que se guarda como `document.json` dentro de un proyecto `.galera`.
