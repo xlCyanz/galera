@@ -7,7 +7,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | Fase | Tareas | Hechas |
 |---|---|---|
 | [Fase 0 — Núcleo por terminal](https://github.com/xlCyanz/galera/milestone/1) | 16 | 16 |
-| [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 5 |
+| [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 6 |
 | [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 0 |
 | [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 0 |
 | [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 0 |
@@ -15,7 +15,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **21** |
+| **Total** | **95** | **22** |
 
 
 ---
@@ -60,7 +60,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F1-03** — Comando abrir_proyecto | [#19](https://github.com/xlCyanz/galera/issues/19) | #18, #11 |
 | ✅ | **F1-04** — Comando compilar y obtener el SVG de una página | [#20](https://github.com/xlCyanz/galera/issues/20) | #19, #13 |
 | ✅ | **F1-05** — Comando exportar a PDF | [#21](https://github.com/xlCyanz/galera/issues/21) | #19, #12 |
-| ⬜ | **F1-06** — Generar los tipos TypeScript del modelo | [#22](https://github.com/xlCyanz/galera/issues/22) | #2, #17 |
+| ✅ | **F1-06** — Generar los tipos TypeScript del modelo | [#22](https://github.com/xlCyanz/galera/issues/22) | #2, #17 |
 | ⬜ | **F1-07** — Store de Zustand con documento y estado de compilación | [#23](https://github.com/xlCyanz/galera/issues/23) | #22 |
 | ⬜ | **F1-08** — Lienzo con la página centrada y el SVG de Typst | [#24](https://github.com/xlCyanz/galera/issues/24) | #20, #23 |
 | ⬜ | **F1-09** — Zoom del 25 % al 800 % y desplazamiento | [#25](https://github.com/xlCyanz/galera/issues/25) | #24 |

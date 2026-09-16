@@ -1,0 +1,6 @@
+# Configuración de Cargo para todo el repositorio.
+
+[env]
+# Dónde escribe ts-rs los tipos TypeScript que genera desde galera-core al
+# ejecutar sus pruebas. Ver «Tipos TypeScript del modelo» en CONTRIBUTING.md.
+TS_RS_EXPORT_DIR = { value = "app/src/types", relative = true }

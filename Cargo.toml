@@ -35,6 +35,8 @@ tauri-build = "=2.6.3"
 # igual para que suba a la vez que Tauri y no por su cuenta.
 tauri-plugin-dialog = "=2.7.3"
 insta = "1.43"
+# Genera los tipos TypeScript del modelo desde las pruebas de galera-core.
+ts-rs = "12.0"
 
 # Typst se fija con `=`: su API cambia entre versiones menores, así que
 # subirla es una decisión deliberada con su propio PR, nunca un efecto

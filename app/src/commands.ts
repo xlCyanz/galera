@@ -1,6 +1,11 @@
 /**
  * Llamadas al backend de Tauri.
  *
+ * Los tipos del modelo (`Document`, `Diagnostic`…) se importan de `./types`,
+ * que se genera desde Rust. Los de las respuestas de los comandos son de la
+ * app y se escriben aquí; cada uno tiene en Rust una prueba que fija su
+ * forma en JSON.
+ *
  * Toda comunicación con Rust pasa por aquí, con tipos, en vez de repartir
  * `invoke("nombre")` con cadenas sueltas por los componentes. Si un comando
  * cambia de nombre o de argumentos, se arregla en un solo sitio.
@@ -12,13 +17,15 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 
+import type { Diagnostic } from "./types/diagnostic";
+import type { Document } from "./types/model";
+
 /**
  * El estado de la sesión, tal como lo devuelve `session_status`.
  *
  * Tiene que coincidir con `SessionStatus` de
  * `src-tauri/src/commands/session.rs`. Una prueba en Rust fija los nombres de
- * los campos; a partir de F1-06 este tipo se generará desde Rust en vez de
- * escribirse a mano.
+ * los campos.
  */
 export interface SessionStatus {
   /** La versión de `galera-core` con la que está compilada la app. */
@@ -41,24 +48,11 @@ export function sessionStatus(): Promise<SessionStatus> {
  *
  * Todos los errores del backend llegan con esta forma: `kind` dice qué pasó,
  * con una palabra estable, y `message` es el texto listo para enseñar. Los de
- * validación y los de Typst traen además el detalle por elemento, que se
- * tipará con F1-06.
+ * validación y los de Typst traen además el detalle por elemento.
  */
 export interface CommandError {
   kind: string;
   message: string;
-}
-
-/**
- * El documento de un proyecto.
- *
- * Provisional: solo lo que la interfaz usa hoy. F1-06 lo sustituye por los
- * tipos generados desde el modelo de `galera-core`.
- */
-export interface GaleraDocument {
-  version: number;
-  meta: { title: string };
-  pages: readonly unknown[];
 }
 
 /** Un proyecto recién abierto, tal como lo devuelve `open_project`. */
@@ -66,7 +60,7 @@ export interface OpenedProject {
   /** La carpeta del proyecto, con su ruta real. */
   root: string;
   /** El documento, ya validado. */
-  document: GaleraDocument;
+  document: Document;
 }
 
 /**
@@ -113,19 +107,6 @@ export function errorMessage(reason: unknown): string {
     return reason.message;
   }
   return String(reason);
-}
-
-/**
- * Un diagnóstico de Typst, con la forma de `Diagnostic` de `galera-core`.
- *
- * Sus campos vienen del núcleo, que los escribe en `snake_case`.
- */
-export interface Diagnostic {
-  severity: "error" | "warning";
-  message: string;
-  hints: string[];
-  /** El elemento del documento en el que ocurre, si se sabe. */
-  element_id: string | null;
 }
 
 /** Una página compilada, tal como la devuelve `render_page`. */

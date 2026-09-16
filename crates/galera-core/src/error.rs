@@ -126,6 +126,7 @@ impl Serialize for GaleraError {
 
 /// Gravedad de un diagnóstico de Typst.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "diagnostic.ts"))]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
     /// Impide producir el documento.
@@ -136,6 +137,7 @@ pub enum Severity {
 
 /// Un mensaje de Typst sobre el documento.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "diagnostic.ts"))]
 pub struct Diagnostic {
     /// Si es un error o un aviso.
     pub severity: Severity,

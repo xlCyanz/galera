@@ -149,6 +149,19 @@ Reglas:
 - La interfaz **nunca** renderiza texto del documento: solo controles, manejadores y guías.
 - Las tareas de interfaz citan la sección de `docs/galera-design-brief.md` que implementan.
 
+### Tipos TypeScript del modelo
+
+El modelo vive en Rust. La interfaz **no define a mano** ningún tipo del modelo: los importa de `app/src/types/`, que se genera desde los structs de `galera-core` con [`ts-rs`](https://github.com/Aleph-Alpha/ts-rs).
+
+```bash
+cargo test -p galera-core export_bindings
+```
+
+- Se genera al ejecutar las pruebas del núcleo, así que `cargo test` también lo regenera. La carpeta de destino la fija `.cargo/config.toml`.
+- Cada tipo exportado lleva `#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "…"))]`. `ts-rs` es solo dependencia de desarrollo: el núcleo que se distribuye no la usa.
+- Si cambias el modelo, regenera y **sube los archivos generados en el mismo PR**. CI ejecuta las pruebas y falla si `app/src/types/` no coincide con lo que hay en el repositorio.
+- No edites esos archivos: se sobrescriben. Una prueba de Vitest falla si un archivo escrito a mano vuelve a declarar un tipo generado.
+
 ### Pruebas
 
 - Núcleo: `cargo test`, con instantáneas `insta` para el código Typst generado.
