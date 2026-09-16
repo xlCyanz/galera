@@ -1404,8 +1404,12 @@ dependencies = [
 name = "galera-app"
 version = "0.1.0"
 dependencies = [
+ "galera-core",
+ "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
+ "tempfile",
 ]
 
 [[package]]

@@ -1,22 +1,29 @@
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { ping } from "./commands";
+import { type SessionStatus, sessionStatus } from "./commands";
 
 afterEach(() => {
   clearMocks();
 });
 
-describe("ping", () => {
-  it("llama al comando `ping` con el mensaje y devuelve su respuesta", async () => {
+const closed: SessionStatus = {
+  coreVersion: "0.1.0",
+  title: null,
+  pageCount: 0,
+  compiledIsCurrent: false,
+};
+
+describe("sessionStatus", () => {
+  it("llama a `session_status` sin argumentos y devuelve su respuesta", async () => {
     const calls: Array<{ command: string; args: unknown }> = [];
     mockIPC((command, args) => {
       calls.push({ command, args });
-      return `pong: ${(args as { message: string }).message}`;
+      return closed;
     });
 
-    await expect(ping("hola")).resolves.toBe("pong: hola");
-    expect(calls).toEqual([{ command: "ping", args: { message: "hola" } }]);
+    await expect(sessionStatus()).resolves.toEqual(closed);
+    expect(calls).toEqual([{ command: "session_status", args: {} }]);
   });
 
   it("propaga el error si el backend falla", async () => {
@@ -24,6 +31,6 @@ describe("ping", () => {
       throw new Error("backend caído");
     });
 
-    await expect(ping("hola")).rejects.toThrow("backend caído");
+    await expect(sessionStatus()).rejects.toThrow("backend caído");
   });
 });

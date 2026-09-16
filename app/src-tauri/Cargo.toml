@@ -12,4 +12,10 @@ authors.workspace = true
 tauri-build.workspace = true
 
 [dependencies]
+galera-core.workspace = true
+serde.workspace = true
 tauri.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
