@@ -1,0 +1,10 @@
+---
+source: crates/galera-core/src/codegen/image.rs
+expression: "generate_with(LOGO, IMAGE)"
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 20mm, dy: 60mm)[#image("assets/logo.png", width: 80mm)] <el-i1>

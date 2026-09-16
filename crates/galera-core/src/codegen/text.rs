@@ -47,7 +47,7 @@
 
 use crate::model::{Align, ElementBox, Run, TextStyle};
 
-use super::{CodegenError, color, escape_into, millimeters, number};
+use super::{CodegenError, color, escape_into, millimeters, number, typst_string};
 
 /// Escribe un bloque de texto.
 pub(super) fn emit_text(
@@ -128,37 +128,6 @@ fn horizontal_alignment(align: Align) -> &'static str {
 /// Un tamaño tipográfico en puntos, tal como lo entiende Typst.
 fn points(value: f64) -> String {
     format!("{}pt", number(value))
-}
-
-/// Escribe una cadena como literal de cadena de Typst, entre comillas.
-///
-/// Sirve para valores que van en posición de argumento, como el nombre de
-/// la fuente. **No** sirve para contenido de marcado: para eso está
-/// [`escape_into`]. Son dos sintaxis distintas con dos escapes distintos.
-///
-/// Dentro de una cadena de Typst solo son especiales la barra invertida y la
-/// comilla doble, más los caracteres de control, que se escriben con su
-/// secuencia para que el literal quepa siempre en una línea.
-fn typst_string(value: &str) -> String {
-    let mut out = String::with_capacity(value.len() + 2);
-    out.push('"');
-
-    for character in value.chars() {
-        match character {
-            '\\' => out.push_str("\\\\"),
-            '"' => out.push_str("\\\""),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            control if control.is_control() => {
-                out.push_str(&format!("\\u{{{:x}}}", control as u32));
-            }
-            other => out.push(other),
-        }
-    }
-
-    out.push('"');
-    out
 }
 
 #[cfg(test)]
@@ -356,24 +325,23 @@ mod tests {
     }
 
     /// El nombre de la fuente va en una cadena de Typst. Tercera puerta del
-    /// mismo tipo, después de los ids y los colores: aquí sí basta con
-    /// escapar, porque dentro de una cadena solo hay dos caracteres
-    /// especiales y los nombres de fuente reales son muy variados.
+    /// mismo tipo, después de los ids y los colores: aquí basta con escapar,
+    /// porque dentro de una cadena solo hay dos caracteres especiales y los
+    /// nombres de fuente reales son demasiado variados para una lista blanca.
     #[test]
     fn a_font_name_cannot_break_out_of_its_string() {
-        assert_eq!(typst_string("Inter"), r#""Inter""#);
-        assert_eq!(typst_string("Source Sans 3"), r#""Source Sans 3""#);
-        assert_eq!(
-            typst_string("Noto Sans CJK 日本語"),
-            r#""Noto Sans CJK 日本語""#
+        let font = serde_json::to_string(r#"Inter") #import "evil.typ" #text(""#)
+            .expect("un str siempre serializa");
+        let typst = generate_with(&format!(
+            r##"{{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                   "content": [{{ "text": "x" }}],
+                   "style": {{ "font": {font}, "size": 12, "color": "#000000" }} }}"##
+        ));
+        assert!(
+            typst
+                .contains(r#"set text(font: "Inter\") #import \"evil.typ\" #text(\"", size: 12pt"#),
+            "{typst}"
         );
-        assert_eq!(
-            typst_string(r#"Inter") #import "evil.typ" #text(""#),
-            r#""Inter\") #import \"evil.typ\" #text(\"""#
-        );
-        assert_eq!(typst_string(r"C:\fuentes"), r#""C:\\fuentes""#);
-        assert_eq!(typst_string("dos\nlíneas"), r#""dos\nlíneas""#);
-        assert_eq!(typst_string("\u{7}"), r#""\u{7}""#);
     }
 
     #[test]

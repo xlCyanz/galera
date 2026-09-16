@@ -34,9 +34,10 @@
 //! - [`generate`]: la cabecera, las páginas y la envoltura de cada elemento.
 //! - `shapes`: el cuerpo de los rectángulos, las elipses y las líneas.
 //! - `text`: el cuerpo de los bloques de texto.
-//! - El cuerpo de las imágenes y los bloques de código llega en las tareas
-//!   F0-08 y F0-09. Hasta entonces se emite la envoltura con el cuerpo
-//!   vacío y una nota en el propio archivo generado.
+//! - `image`: el cuerpo de las imágenes, resolviendo la clave del recurso.
+//! - El cuerpo de los bloques de código llega en F0-09. Hasta entonces se
+//!   emite la envoltura con el cuerpo vacío y una nota en el propio archivo
+//!   generado.
 //!
 //! # Pendiente de comprobar contra el compilador
 //!
@@ -50,6 +51,7 @@
 //!   y devuelva la posición del contenido colocado.
 
 pub mod escape;
+mod image;
 mod shapes;
 mod text;
 
@@ -84,6 +86,14 @@ pub enum CodegenError {
         /// El color tal como venía en el documento.
         value: String,
     },
+
+    /// Una imagen se refiere a una clave que no está en `assets`.
+    UnknownAsset {
+        /// El id de la imagen que la usa.
+        element_id: String,
+        /// La clave que no se encontró.
+        key: String,
+    },
 }
 
 impl fmt::Display for CodegenError {
@@ -96,6 +106,10 @@ impl fmt::Display for CodegenError {
             CodegenError::InvalidColor { value } => write!(
                 f,
                 "el color {value:?} no es válido: se espera #RGB, #RGBA, #RRGGBB o #RRGGBBAA"
+            ),
+            CodegenError::UnknownAsset { element_id, key } => write!(
+                f,
+                "la imagen {element_id:?} usa el recurso {key:?}, que no está declarado en assets"
             ),
         }
     }
@@ -133,7 +147,7 @@ pub fn generate(document: &Document) -> Result<String, CodegenError> {
 
     let mut previous_size: Option<&PageSize> = None;
     for (index, page) in document.pages.iter().enumerate() {
-        emit_page(page, index, previous_size, &mut out)?;
+        emit_page(page, index, previous_size, document, &mut out)?;
         previous_size = Some(&page.size);
     }
 
@@ -145,6 +159,7 @@ fn emit_page(
     page: &Page,
     index: usize,
     previous_size: Option<&PageSize>,
+    document: &Document,
     out: &mut String,
 ) -> Result<(), CodegenError> {
     let size_changed = previous_size != Some(&page.size);
@@ -169,21 +184,25 @@ fn emit_page(
     out.push_str(&format!("\n// {}\n", page.id));
 
     for element in &page.elements {
-        emit_element(element, out)?;
+        emit_element(element, document, out)?;
     }
 
     Ok(())
 }
 
 /// Emite un elemento: su cuerpo, su rotación, su posición y su etiqueta.
-fn emit_element(element: &Element, out: &mut String) -> Result<(), CodegenError> {
+fn emit_element(
+    element: &Element,
+    document: &Document,
+    out: &mut String,
+) -> Result<(), CodegenError> {
     let id = element.id();
     if !is_label_safe(id) {
         return Err(CodegenError::UnsafeElementId { id: id.to_owned() });
     }
 
     let mut body = String::new();
-    let pending = emit_body(element, &mut body)?;
+    let pending = emit_body(element, document, &mut body)?;
 
     // La rotación envuelve al cuerpo, dentro del `place`: así el elemento
     // gira sobre su propio centro y su esquina sigue anclada donde dice el
@@ -223,7 +242,11 @@ fn emit_element(element: &Element, out: &mut String) -> Result<(), CodegenError>
 ///
 /// Devuelve la tarea que queda pendiente cuando ese tipo todavía no sabe
 /// dibujarse, para dejarlo anotado en el propio archivo generado.
-fn emit_body(element: &Element, out: &mut String) -> Result<Option<&'static str>, CodegenError> {
+fn emit_body(
+    element: &Element,
+    document: &Document,
+    out: &mut String,
+) -> Result<Option<&'static str>, CodegenError> {
     match element {
         Element::Rect {
             base,
@@ -257,7 +280,10 @@ fn emit_body(element: &Element, out: &mut String) -> Result<Option<&'static str>
             text::emit_text(base, content, style, out)?;
             Ok(None)
         }
-        Element::Image { .. } => Ok(Some("F0-08")),
+        Element::Image { base, asset } => {
+            image::emit_image(base, asset, document, out)?;
+            Ok(None)
+        }
         Element::Code { .. } => Ok(Some("F0-09")),
     }
 }
@@ -286,6 +312,37 @@ fn is_hex_colour(value: &str) -> bool {
     };
 
     matches!(digits.len(), 3 | 4 | 6 | 8) && digits.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// Escribe una cadena como literal de cadena de Typst, entre comillas.
+///
+/// Sirve para valores que van en posición de argumento, como el nombre de
+/// una fuente o la ruta de una imagen. **No** sirve para contenido de marcado: para eso está
+/// [`escape_into`]. Son dos sintaxis distintas con dos escapes distintos.
+///
+/// Dentro de una cadena de Typst solo son especiales la barra invertida y la
+/// comilla doble, más los caracteres de control, que se escriben con su
+/// secuencia para que el literal quepa siempre en una línea.
+pub(crate) fn typst_string(value: &str) -> String {
+    let mut out = String::with_capacity(value.len() + 2);
+    out.push('"');
+
+    for character in value.chars() {
+        match character {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            control if control.is_control() => {
+                out.push_str(&format!("\\u{{{:x}}}", control as u32));
+            }
+            other => out.push(other),
+        }
+    }
+
+    out.push('"');
+    out
 }
 
 /// ¿Puede este id escribirse dentro de una etiqueta de Typst sin salirse?
@@ -518,6 +575,25 @@ mod tests {
         for id in ["r1", "el_2", "bloque-principal", "A1", "0"] {
             assert!(is_label_safe(id), "{id:?} debería valer");
         }
+    }
+
+    /// Dentro de una cadena de Typst solo son especiales `\` y `"`, más los
+    /// caracteres de control. Lo demás, incluido lo que no es ASCII, pasa.
+    #[test]
+    fn a_typst_string_cannot_be_broken_out_of() {
+        assert_eq!(typst_string("Inter"), r#""Inter""#);
+        assert_eq!(typst_string("Source Sans 3"), r#""Source Sans 3""#);
+        assert_eq!(
+            typst_string("Noto Sans CJK 日本語"),
+            r#""Noto Sans CJK 日本語""#
+        );
+        assert_eq!(
+            typst_string(r#"Inter") #import "evil.typ" #text(""#),
+            r#""Inter\") #import \"evil.typ\" #text(\"""#
+        );
+        assert_eq!(typst_string(r"C:\fuentes"), r#""C:\\fuentes""#);
+        assert_eq!(typst_string("dos\nlíneas"), r#""dos\nlíneas""#);
+        assert_eq!(typst_string("\u{7}"), r#""\u{7}""#);
     }
 
     #[test]
