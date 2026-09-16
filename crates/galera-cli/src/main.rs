@@ -7,13 +7,14 @@
 //! Por ahora solo existe el esqueleto de la línea de órdenes: la conversión
 //! real se implementa en la tarea F0-14, cuando el núcleo ya sepa compilar.
 
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Parser, ValueEnum};
 
 /// Formato de salida.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
-enum Formato {
+enum Format {
     /// Documento PDF (el formato de entrega).
     Pdf,
     /// SVG de una sola página (el mismo que muestra el lienzo del editor).
@@ -25,15 +26,16 @@ enum Formato {
 #[command(name = "galera-cli", version, about, long_about = None)]
 struct Args {
     /// Documento de entrada (`document.json` o un `.galera`).
-    entrada: std::path::PathBuf,
+    #[arg(value_name = "ENTRADA")]
+    input: PathBuf,
 
     /// Archivo de salida.
     #[arg(short, long, value_name = "ARCHIVO")]
-    output: Option<std::path::PathBuf>,
+    output: Option<PathBuf>,
 
     /// Formato de salida.
-    #[arg(short, long, value_enum, default_value_t = Formato::Pdf)]
-    format: Formato,
+    #[arg(short, long, value_enum, default_value_t = Format::Pdf)]
+    format: Format,
 }
 
 fn main() -> ExitCode {
@@ -45,7 +47,7 @@ fn main() -> ExitCode {
     );
     eprintln!(
         "Entrada: {}, formato: {:?}, salida: {}",
-        args.entrada.display(),
+        args.input.display(),
         args.format,
         args.output
             .as_deref()

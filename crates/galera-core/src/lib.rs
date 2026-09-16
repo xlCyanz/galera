@@ -40,12 +40,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn la_version_del_formato_es_la_uno() {
+    fn document_version_is_one() {
         assert_eq!(DOCUMENT_VERSION, 1);
     }
 
     #[test]
-    fn la_version_del_crate_no_esta_vacia() {
+    fn crate_version_is_not_empty() {
         assert!(!version().is_empty());
     }
 }
