@@ -193,6 +193,38 @@ fn emit_typst_writes_to_a_file_when_given_one() {
     assert!(code.contains("<el-r1>"));
 }
 
+/// El criterio de salida de la Fase 0, tal como lo escribe `guide.md`:
+/// `galera-cli fixtures/informe.json -o salida.pdf` genera un PDF correcto.
+#[test]
+fn the_guide_example_compiles_from_the_fixtures_folder() {
+    let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let out = TempDir::new().expect("carpeta temporal");
+    let pdf_path = out.path().join("salida.pdf");
+
+    let output = galera(
+        &repository,
+        &[
+            "fixtures/informe.json",
+            "-o",
+            pdf_path.to_str().expect("ruta UTF-8"),
+        ],
+    );
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(
+        !stderr(&output).contains("aviso"),
+        "sin avisos: {}",
+        stderr(&output)
+    );
+    let pdf = fs::read(&pdf_path).expect("el PDF debe existir");
+    assert!(pdf.starts_with(b"%PDF-"));
+    assert!(
+        pdf.windows(b"Inter-Regular".len())
+            .any(|window| window == b"Inter-Regular"),
+        "con Inter incrustada"
+    );
+}
+
 // ── Errores ─────────────────────────────────────────────────────────────
 
 /// El criterio de la tarea: los errores salen por stderr con contexto y un

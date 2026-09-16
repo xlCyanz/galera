@@ -7,7 +7,7 @@
 
 use std::path::{Path, PathBuf};
 
-use galera_core::{Document, codegen};
+use galera_core::{Document, Project, Severity, codegen, compile};
 
 /// Los fixtures con instantánea. Si se añade un `.json` a `fixtures/` y no se
 /// añade aquí, `every_fixture_has_a_snapshot` falla.
@@ -143,4 +143,35 @@ fn the_multipage_fixture_has_several_page_sizes() {
         .collect();
     sizes.dedup();
     assert!(sizes.len() >= 3, "y varios tamaños distintos: {sizes:?}");
+}
+
+/// Con las fuentes y las imágenes de `fixtures/`, todos los fixtures
+/// compilan de verdad a PDF, no solo generan código.
+///
+/// `escape.json` puede dar avisos: usa a propósito un nombre de fuente con
+/// comillas que no existe, para probar su escape. Lo que no puede dar ningún
+/// fixture es un error.
+#[test]
+fn every_fixture_compiles_to_pdf() {
+    let project = Project::open(&fixtures_dir()).expect("fixtures/ es un proyecto");
+
+    for name in FIXTURES {
+        let compiled = compile(&load(name), &project)
+            .unwrap_or_else(|error| panic!("{name}.json debe compilar: {error}"));
+        let pdf = compiled
+            .to_pdf()
+            .unwrap_or_else(|error| panic!("{name}.json debe exportarse: {error}"));
+        assert!(pdf.starts_with(b"%PDF-"), "{name}.json");
+
+        if *name != "escape" {
+            assert!(
+                compiled
+                    .warnings()
+                    .iter()
+                    .all(|w| w.severity != Severity::Warning),
+                "{name}.json no debería dar avisos: {:#?}",
+                compiled.warnings()
+            );
+        }
+    }
 }

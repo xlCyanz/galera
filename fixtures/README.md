@@ -44,11 +44,22 @@ Sin `cargo-insta`, `cargo test` deja los cambios en archivos `.snap.new` junto a
 
 ## Fuentes
 
-`informe.json`, `texto.json` y `escape.json` declaran la fuente **Inter** en `fonts/`, que el repositorio todavía no incluye. Las instantáneas no la necesitan —son código generado, no compilación—, pero compilar esos fixtures a PDF sí:
+`fonts/` contiene **Inter 4.1**, las dos caras que declaran los fixtures:
+
+| Archivo | Tamaño |
+|---|---|
+| `Inter-Regular.ttf` | 411 640 B |
+| `Inter-Bold.ttf` | 420 428 B |
+| `Inter-LICENSE.txt` | 4 380 B |
+
+Procedencia: `extras/ttf/` del archivo `Inter-4.1.zip` de la publicación oficial [v4.1 de rsms/inter](https://github.com/rsms/inter/releases/tag/v4.1) (SHA-256 del zip `9883fdd4a49d4fb66bd8177ba6625ef9a64aa45899767dde3d36aa425756b11e`). Licencia: SIL Open Font License 1.1, que permite redistribuirla junto con su licencia.
+
+Con ellas, todos los fixtures compilan a PDF:
 
 ```bash
 cargo run -p galera-cli -- fixtures/informe.json -o salida.pdf
-# error: … el documento declara la fuente "fonts/Inter-Regular.ttf", pero no está en la carpeta del proyecto
 ```
 
-Resolverlo es el criterio de salida de la Fase 0 y está pendiente de decidir.
+Inter no tiene glifos de emoji ni de escrituras CJK. Galera nunca recurre a fuentes del sistema (principio 4), así que en `escape.json` esos caracteres salen como cuadrados vacíos. Es lo esperado: un documento que los necesite tiene que traer una fuente que los tenga.
+
+`assets/logo.png` es un logotipo de ejemplo de 400×400 px generado para `informe.json`.
