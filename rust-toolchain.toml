@@ -1,0 +1,5 @@
+# Fija el toolchain para que todas las máquinas y la CI compilen igual.
+# rustup lo lee solo: al entrar en el repo instala lo que falte.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]

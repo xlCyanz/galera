@@ -80,7 +80,7 @@ galera/
 
 | Herramienta | Versión mínima |
 |---|---|
-| Rust (stable) | 1.80 |
+| Rust (stable) | 1.85 (edición 2024) |
 | Node.js | 20 LTS |
 | pnpm | 9 |
 | Xcode Command Line Tools (macOS) | — |
