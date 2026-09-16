@@ -25,12 +25,14 @@
 
 pub mod codegen;
 pub mod model;
+pub mod project;
 pub mod world;
 
 pub use codegen::{escape, escape_into};
 pub use model::{
     Align, Document, Element, ElementBox, Meta, Page, PageSize, Run, Stroke, TextStyle, Unit,
 };
+pub use project::{AccessError, Project, ProjectError};
 pub use world::{GaleraWorld, WorldError};
 
 /// Versión del formato de documento que entiende este núcleo.
