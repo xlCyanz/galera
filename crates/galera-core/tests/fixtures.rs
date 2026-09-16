@@ -148,9 +148,7 @@ fn the_multipage_fixture_has_several_page_sizes() {
 /// Con las fuentes y las imágenes de `fixtures/`, todos los fixtures
 /// compilan de verdad a PDF, no solo generan código.
 ///
-/// `escape.json` puede dar avisos: usa a propósito un nombre de fuente con
-/// comillas que no existe, para probar su escape. Lo que no puede dar ningún
-/// fixture es un error.
+/// Ninguno da errores ni avisos.
 #[test]
 fn every_fixture_compiles_to_pdf() {
     let project = Project::open(&fixtures_dir()).expect("fixtures/ es un proyecto");
@@ -163,15 +161,23 @@ fn every_fixture_compiles_to_pdf() {
             .unwrap_or_else(|error| panic!("{name}.json debe exportarse: {error}"));
         assert!(pdf.starts_with(b"%PDF-"), "{name}.json");
 
-        if *name != "escape" {
-            assert!(
-                compiled
-                    .warnings()
-                    .iter()
-                    .all(|w| w.severity != Severity::Warning),
-                "{name}.json no debería dar avisos: {:#?}",
-                compiled.warnings()
-            );
+        assert!(
+            compiled
+                .warnings()
+                .iter()
+                .all(|w| w.severity != Severity::Warning),
+            "{name}.json no debería dar avisos: {:#?}",
+            compiled.warnings()
+        );
+    }
+}
+
+/// Todos los fixtures son documentos válidos.
+#[test]
+fn every_fixture_is_valid() {
+    for name in FIXTURES {
+        if let Err(errors) = load(name).validate() {
+            panic!("{name}.json no es válido: {errors}");
         }
     }
 }

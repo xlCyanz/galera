@@ -11,7 +11,7 @@ Documentos de ejemplo que sirven de banco de pruebas para todo el proyecto. Comp
 | `texto.json` | Las cuatro alineaciones, alto fijo, saltos de línea y de párrafo, varios tramos. |
 | `imagen.json` | PNG, JPEG y SVG; proporción original, alto fijo, rotación. |
 | `codigo.json` | Tabla en varias líneas con comillas, alto fijo, bloque vacío. |
-| `escape.json` | Todo lo que tiene que escaparse: caracteres de marcado, marcadores de línea, comentarios, enlaces, y comillas en el título y en el nombre de fuente. |
+| `escape.json` | Todo lo que tiene que escaparse: caracteres de marcado, marcadores de línea, comentarios, enlaces y comillas en el título. Las comillas en nombres de fuente se prueban en las pruebas unitarias de `codegen`: una familia que no existe ya no pasa la validación. |
 | `multipagina.json` | Cinco páginas: mismo tamaño seguido, apaisada, en pulgadas, vacía. |
 
 `assets/` tiene imágenes de 1×1 px en los tres formatos. `fonts/` todavía no existe: ver más abajo.

@@ -18,7 +18,7 @@
           "style": { "font": "Inter", "size": 12, "color": "#1F2733", "align": "left", "leading": 0.65 } },
         { "id": "tipografia-fina", "type": "text", "x": 20, "y": 130, "w": 170, "h": null,
           "content": [ { "text": "Esto sí se compone: \"comillas\", 10--20, y puntos suspensivos..." } ],
-          "style": { "font": "Inter Tight \"Display\"", "size": 12, "color": "#1F2733", "align": "left", "leading": 0.65 } },
+          "style": { "font": "Inter", "size": 12, "color": "#1F2733", "align": "left", "leading": 0.65 } },
         { "id": "acentos-emoji-cjk", "type": "text", "x": 20, "y": 160, "w": 170, "h": null,
           "content": [ { "text": "Cooperativa Agrícola del Este · ñandú · 🌾📊 · 日本語" } ],
           "style": { "font": "Inter", "size": 12, "color": "#1F2733", "align": "left", "leading": 0.65 } }

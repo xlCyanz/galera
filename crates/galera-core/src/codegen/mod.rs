@@ -65,7 +65,7 @@ pub use escape::{escape, escape_into};
 
 use std::fmt;
 
-use crate::model::{Document, Element, Page, PageSize};
+use crate::model::{Document, Element, Page, PageSize, is_valid_color, is_valid_id};
 
 /// Algo del documento impide generar código Typst.
 ///
@@ -210,7 +210,7 @@ fn emit_page(
 
     // El id acaba dentro de un comentario, y un salto de línea lo cerraría:
     // la misma regla que para los ids de elemento.
-    if !is_label_safe(&page.id) {
+    if !is_valid_id(&page.id) {
         return Err(CodegenError::UnsafePageId {
             id: page.id.clone(),
         });
@@ -231,7 +231,7 @@ fn emit_element(
     out: &mut String,
 ) -> Result<(), CodegenError> {
     let id = element.id();
-    if !is_label_safe(id) {
+    if !is_valid_id(id) {
         return Err(CodegenError::UnsafeElementId { id: id.to_owned() });
     }
 
@@ -306,22 +306,13 @@ fn emit_body(element: &Element, document: &Document, out: &mut String) -> Result
 /// color acaba dentro de una cadena de Typst y aceptar cualquier texto
 /// dejaría cerrarla y escribir código detrás.
 pub(crate) fn color(value: &str) -> Result<String, CodegenError> {
-    if !is_hex_colour(value) {
+    if !is_valid_color(value) {
         return Err(CodegenError::InvalidColor {
             value: value.to_owned(),
         });
     }
 
     Ok(format!("rgb(\"{value}\")"))
-}
-
-/// Las cuatro formas hexadecimales que entiende `rgb()` de Typst.
-fn is_hex_colour(value: &str) -> bool {
-    let Some(digits) = value.strip_prefix('#') else {
-        return false;
-    };
-
-    matches!(digits.len(), 3 | 4 | 6 | 8) && digits.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 /// Escribe una cadena como literal de cadena de Typst, entre comillas.
@@ -353,18 +344,6 @@ pub(crate) fn typst_string(value: &str) -> String {
 
     out.push('"');
     out
-}
-
-/// ¿Puede este id escribirse dentro de una etiqueta de Typst sin salirse?
-///
-/// Se aceptan solo letras y dígitos ASCII, guion y guion bajo. La app genera
-/// ids de esa forma; uno que no la cumpla viene de un archivo editado a mano
-/// y se rechaza en vez de escaparse, porque una etiqueta no admite escapes.
-fn is_label_safe(id: &str) -> bool {
-    !id.is_empty()
-        && id
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 /// Escribe un número en forma estable.
@@ -631,7 +610,7 @@ mod tests {
     #[test]
     fn ordinary_ids_are_accepted() {
         for id in ["r1", "el_2", "bloque-principal", "A1", "0"] {
-            assert!(is_label_safe(id), "{id:?} debería valer");
+            assert!(is_valid_id(id), "{id:?} debería valer");
         }
     }
 

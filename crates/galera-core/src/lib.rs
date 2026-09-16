@@ -33,6 +33,7 @@ pub use codegen::{escape, escape_into};
 pub use compile::{CompileError, Compiled, Diagnostic, Severity, compile, compile_pdf};
 pub use model::{
     Align, Document, Element, ElementBox, Meta, Page, PageSize, Run, Stroke, TextStyle, Unit,
+    ValidationError, ValidationErrors,
 };
 pub use project::{AccessError, Project, ProjectError};
 pub use world::{GaleraWorld, WorldError};

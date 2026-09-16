@@ -196,6 +196,16 @@ impl GaleraWorld {
         &self.project
     }
 
+    /// Las familias tipográficas de las fuentes cargadas, una vez cada una,
+    /// con el nombre que traen dentro. La validación las compara sin
+    /// distinguir mayúsculas, como Typst.
+    pub fn font_families(&self) -> Vec<String> {
+        self.book
+            .families()
+            .map(|(family, _)| family.to_owned())
+            .collect()
+    }
+
     /// Olvida los archivos ya leídos, para que la próxima compilación los
     /// vuelva a leer del disco.
     ///
@@ -445,6 +455,13 @@ mod tests {
 
         assert!(world.book().contains_family("libertinus serif"));
         assert!(world.font(0).is_some());
+    }
+
+    #[test]
+    fn it_lists_the_families_of_the_loaded_fonts() {
+        let dir = project_dir();
+        let world = world(&dir, &["fonts/LibertinusSerif-Regular.otf"], "");
+        assert_eq!(world.font_families(), ["Libertinus Serif"]);
     }
 
     /// Principio 4: sin fuentes declaradas, Typst no ve ninguna. Ni las del
