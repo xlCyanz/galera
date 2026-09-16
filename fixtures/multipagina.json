@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "meta": { "title": "Varias páginas" },
+  "pages": [
+    {
+      "id": "portada",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "banda", "type": "rect", "x": 0, "y": 0, "w": 210, "h": 30, "fill": "#1e40af", "stroke": null }
+      ]
+    },
+    {
+      "id": "mismo-tamano",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "separador", "type": "line", "x": 20, "y": 148.5, "x2": 190, "y2": 148.5,
+          "stroke": { "color": "#94a3b8", "width": 0.25 } }
+      ]
+    },
+    {
+      "id": "apaisada-a5",
+      "size": { "width": 210, "height": 148, "unit": "mm" },
+      "elements": [
+        { "id": "marco", "type": "rect", "x": 10, "y": 10, "w": 190, "h": 128,
+          "fill": null, "stroke": { "color": "#0f172a", "width": 0.5 } }
+      ]
+    },
+    {
+      "id": "carta-en-pulgadas",
+      "size": { "width": 8.5, "height": 11, "unit": "in" },
+      "elements": []
+    },
+    {
+      "id": "vacia",
+      "size": { "width": 210, "height": 297, "unit": "mm" }
+    }
+  ]
+}

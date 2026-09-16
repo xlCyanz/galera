@@ -631,13 +631,4 @@ mod tests {
         assert!(!typst.contains("#set page("));
         assert!(!typst.contains("#place("));
     }
-
-    /// La instantánea del ejemplo de `guide.md`. Cualquier cambio en el
-    /// código generado aparece aquí como un diff que hay que aprobar a mano,
-    /// en vez de colarse sin que nadie lo vea.
-    #[test]
-    fn guide_example_snapshot() {
-        let typst = generate(&example()).expect("debe generar");
-        insta::assert_snapshot!(typst);
-    }
 }

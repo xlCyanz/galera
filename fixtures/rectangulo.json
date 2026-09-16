@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "meta": { "title": "Rectángulos" },
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "relleno-y-borde", "type": "rect", "x": 20, "y": 20, "w": 80, "h": 40,
+          "fill": "#1e40af", "stroke": { "color": "#0f172a", "width": 0.5 }, "radius": 4 },
+        { "id": "sin-relleno-ni-borde", "type": "rect", "x": 110, "y": 20, "w": 80, "h": 40,
+          "fill": null, "stroke": null },
+        { "id": "solo-borde", "type": "rect", "x": 20, "y": 80, "w": 80, "h": 40,
+          "fill": null, "stroke": { "color": "#dc2626", "width": 1.25 } },
+        { "id": "girado", "type": "rect", "x": 110, "y": 80, "w": 80, "h": 40,
+          "rotation": 15, "fill": "#16a34a80", "stroke": null },
+        { "id": "alto-automatico", "type": "rect", "x": 20, "y": 140, "w": 80, "h": null,
+          "fill": "#f59e0b", "stroke": null }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "meta": { "title": "Elipses" },
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "circulo", "type": "ellipse", "x": 20, "y": 20, "w": 50, "h": 50,
+          "fill": "#1e40af", "stroke": null },
+        { "id": "solo-borde", "type": "ellipse", "x": 90, "y": 20, "w": 100, "h": 50,
+          "fill": null, "stroke": { "color": "#0f172a", "width": 0.75 } },
+        { "id": "girada", "type": "ellipse", "x": 20, "y": 100, "w": 100, "h": 40,
+          "rotation": -30, "fill": "#abc", "stroke": null }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+---
+source: crates/galera-core/tests/fixtures.rs
+expression: code
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set document(title: "Elipses")
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 20mm, dy: 20mm)[#ellipse(width: 50mm, height: 50mm, fill: rgb("#1e40af"), stroke: none)] <el-circulo>
+#place(top + left, dx: 90mm, dy: 20mm)[#ellipse(width: 100mm, height: 50mm, fill: none, stroke: (paint: rgb("#0f172a"), thickness: 0.75mm))] <el-solo-borde>
+#place(top + left, dx: 20mm, dy: 100mm)[#rotate(-30deg, origin: center + horizon)[#ellipse(width: 100mm, height: 40mm, fill: rgb("#abc"), stroke: none)]] <el-girada>

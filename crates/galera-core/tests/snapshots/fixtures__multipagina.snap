@@ -1,0 +1,32 @@
+---
+source: crates/galera-core/tests/fixtures.rs
+expression: code
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set document(title: "Varias páginas")
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// portada
+#place(top + left, dx: 0mm, dy: 0mm)[#rect(width: 210mm, height: 30mm, fill: rgb("#1e40af"), stroke: none)] <el-banda>
+
+#pagebreak()
+
+// mismo-tamano
+#place(top + left, dx: 20mm, dy: 148.5mm)[#line(start: (0mm, 0mm), end: (170mm, 0mm), stroke: (paint: rgb("#94a3b8"), thickness: 0.25mm))] <el-separador>
+
+#pagebreak()
+#set page(width: 210mm, height: 148mm, margin: 0pt)
+
+// apaisada-a5
+#place(top + left, dx: 10mm, dy: 10mm)[#rect(width: 190mm, height: 128mm, fill: none, stroke: (paint: rgb("#0f172a"), thickness: 0.5mm))] <el-marco>
+
+#pagebreak()
+#set page(width: 215.9mm, height: 279.4mm, margin: 0pt)
+
+// carta-en-pulgadas
+
+#pagebreak()
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// vacia

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "meta": { "title": "Bloques de código" },
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "tabla", "type": "code", "x": 20, "y": 20, "w": 170, "h": null,
+          "source": "#table(\n  columns: 2,\n  [*Concepto*], [*Importe*],\n  [Cuota \"anual\"], [120 €],\n)" },
+        { "id": "alto-fijo", "type": "code", "x": 20, "y": 80, "w": 170, "h": 40,
+          "source": "#lorem(40)" },
+        { "id": "vacio", "type": "code", "x": 20, "y": 140, "w": 50, "h": null,
+          "source": "" }
+      ]
+    }
+  ]
+}

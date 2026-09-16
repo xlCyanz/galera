@@ -1,0 +1,13 @@
+---
+source: crates/galera-core/tests/fixtures.rs
+expression: code
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set document(title: "Imágenes")
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 20mm, dy: 20mm)[#image("assets/pixel.png", width: 50mm)] <el-proporcion-original>
+#place(top + left, dx: 80mm, dy: 20mm)[#image("assets/pixel.jpg", width: 50mm, height: 25mm)] <el-alto-fijo>
+#place(top + left, dx: 140mm, dy: 20mm)[#rotate(90deg, origin: center + horizon)[#image("assets/pixel.svg", width: 50mm)]] <el-girada>
