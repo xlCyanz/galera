@@ -23,7 +23,10 @@ export const MIN_ZOOM = 0.25;
 /** El zoom máximo: 800 %. */
 export const MAX_ZOOM = 8;
 
-/** Un desplazamiento del lienzo, en píxeles CSS. */
+/**
+ * Un desplazamiento del lienzo, en píxeles CSS: cuánto se ha movido la
+ * página desde su posición centrada.
+ */
 export interface Scroll {
   x: number;
   y: number;
@@ -38,7 +41,7 @@ export interface DocumentState {
   currentPage: number;
   /** El zoom: 1 es el 100 %. Siempre entre `MIN_ZOOM` y `MAX_ZOOM`. */
   zoom: number;
-  /** Cuánto se ha desplazado el lienzo, en píxeles CSS. */
+  /** Cuánto se ha movido la página desde el centro, en píxeles CSS. */
   scroll: Scroll;
 
   /**
@@ -57,6 +60,11 @@ export interface DocumentState {
   setScroll: (scroll: Scroll) => void;
   /** Desplaza el lienzo desde donde está. */
   scrollBy: (dx: number, dy: number) => void;
+  /**
+   * Cambia zoom y desplazamiento a la vez, en un solo render: es lo que
+   * hace el zoom hacia el puntero.
+   */
+  setView: (zoom: number, scroll: Scroll) => void;
 }
 
 const origin: Scroll = { x: 0, y: 0 };
@@ -94,6 +102,15 @@ export const useDocumentStore = create<DocumentState>()((set) => ({
         ? { scroll: { x: state.scroll.x + dx, y: state.scroll.y + dy } }
         : { scroll: state.scroll },
     ),
+
+  setView: (zoom, scroll) =>
+    set((state) => ({
+      zoom: Number.isFinite(zoom) ? clampZoom(zoom) : state.zoom,
+      scroll:
+        Number.isFinite(scroll.x) && Number.isFinite(scroll.y)
+          ? { x: scroll.x, y: scroll.y }
+          : state.scroll,
+    })),
 }));
 
 /** Un zoom dentro de los límites. */
