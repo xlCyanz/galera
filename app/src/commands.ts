@@ -154,3 +154,23 @@ export interface RenderedPage {
 export function renderPage(page: number): Promise<RenderedPage> {
   return invoke<RenderedPage>("render_page", { page });
 }
+
+/** Un PDF recién guardado, tal como lo devuelve `export_pdf`. */
+export interface ExportedPdf {
+  /** Dónde se guardó. */
+  path: string;
+  /** Cuánto ocupa, en bytes. */
+  bytes: number;
+}
+
+/**
+ * Exporta el documento abierto a PDF. El backend pregunta dónde guardarlo
+ * con el diálogo nativo, proponiendo el título del documento como nombre.
+ *
+ * Devuelve `null` si se cancela el diálogo. Se rechaza con un
+ * `CommandError` si no hay nada abierto, si el documento no compila o si el
+ * archivo no se puede escribir.
+ */
+export function exportPdf(): Promise<ExportedPdf | null> {
+  return invoke<ExportedPdf | null>("export_pdf");
+}

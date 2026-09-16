@@ -5,7 +5,9 @@
 //! elegido en el diálogo— se serializa con la misma forma, `{ kind, message }`,
 //! para que la interfaz trate todos los errores igual.
 
+use std::io;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use galera_core::GaleraError;
 use serde::ser::SerializeStruct;
@@ -17,6 +19,11 @@ pub enum CommandError {
     /// Un error del núcleo, tal cual.
     #[error(transparent)]
     Core(#[from] GaleraError),
+
+    /// El documento abierto no compila. Es el error guardado en el estado,
+    /// compartido: se serializa igual que [`CommandError::Core`].
+    #[error(transparent)]
+    DoesNotCompile(Arc<GaleraError>),
 
     /// Se pidió abrir una carpeta que no se ha elegido en el diálogo de abrir.
     #[error(
@@ -36,8 +43,17 @@ pub enum CommandError {
     ///
     /// En escritorio no pasa: solo en móvil el diálogo puede devolver
     /// direcciones `content://`.
-    #[error("lo elegido no es una carpeta del disco")]
-    NotALocalFolder,
+    #[error("lo elegido no es una ruta del disco")]
+    NotALocalPath,
+
+    /// No se pudo escribir un archivo.
+    #[error("no se pudo guardar {}: {source}", path.display())]
+    Write {
+        /// El archivo que se quería escribir.
+        path: PathBuf,
+        /// El error del sistema de archivos.
+        source: io::Error,
+    },
 }
 
 impl CommandError {
@@ -46,9 +62,11 @@ impl CommandError {
     pub fn kind(&self) -> &'static str {
         match self {
             CommandError::Core(error) => error.kind(),
+            CommandError::DoesNotCompile(error) => error.kind(),
             CommandError::FolderNotChosen { .. } => "folder_not_chosen",
             CommandError::NothingOpen => "nothing_open",
-            CommandError::NotALocalFolder => "not_a_local_folder",
+            CommandError::NotALocalPath => "not_a_local_path",
+            CommandError::Write { .. } => "write",
         }
     }
 }
@@ -58,6 +76,7 @@ impl Serialize for CommandError {
         match self {
             // Con sus `problems` o `diagnostics`, si los tiene.
             CommandError::Core(error) => error.serialize(serializer),
+            CommandError::DoesNotCompile(error) => error.serialize(serializer),
             _ => {
                 let mut error = serializer.serialize_struct("CommandError", 2)?;
                 error.serialize_field("kind", self.kind())?;
@@ -88,14 +107,36 @@ mod tests {
         );
     }
 
-    /// Un error del núcleo no se envuelve: llega con la forma del núcleo.
+    /// Un error del núcleo no se envuelve: llega con la forma del núcleo,
+    /// sea propio o compartido con el estado.
     #[test]
     fn a_core_error_serializes_untouched() {
-        let core = GaleraError::PageOutOfRange { page: 3, count: 1 };
-        let expected = serde_json::to_value(&core).expect("serializa");
+        let core = || GaleraError::PageOutOfRange { page: 3, count: 1 };
+        let expected = serde_json::to_value(core()).expect("serializa");
         assert_eq!(
-            serde_json::to_value(CommandError::from(core)).expect("serializa"),
+            serde_json::to_value(CommandError::from(core())).expect("serializa"),
             expected
+        );
+        assert_eq!(
+            serde_json::to_value(CommandError::DoesNotCompile(Arc::new(core())))
+                .expect("serializa"),
+            expected
+        );
+    }
+
+    #[test]
+    fn a_write_error_says_which_file() {
+        let error = CommandError::Write {
+            path: PathBuf::from("/solo-lectura/informe.pdf"),
+            source: io::Error::from(io::ErrorKind::PermissionDenied),
+        };
+        let json = serde_json::to_value(&error).expect("serializa");
+        assert_eq!(json["kind"], "write");
+        assert!(
+            json["message"].as_str().is_some_and(
+                |message| message.starts_with("no se pudo guardar /solo-lectura/informe.pdf: ")
+            ),
+            "{json}"
         );
     }
 }

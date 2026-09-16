@@ -9,6 +9,7 @@
 //! [`CommandError`], que llega a la interfaz como `{ kind, message }`.
 
 mod error;
+pub mod export;
 pub mod project;
 pub mod render;
 pub mod session;

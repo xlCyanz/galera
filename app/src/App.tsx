@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 import {
   type OpenedProject,
@@ -6,11 +6,15 @@ import {
   type SessionStatus,
   chooseProjectFolder,
   errorMessage,
+  exportPdf,
   openProject,
   renderPage,
   sessionStatus,
 } from "./commands";
 import { compilationSummary, svgDataUrl } from "./preview";
+import { exportPdfShortcutLabel, isExportPdfShortcut, isMac } from "./shortcuts";
+
+const mac = isMac();
 
 /**
  * Pantalla provisional. Abre un proyecto, enseña sus páginas tal como las
@@ -23,10 +27,46 @@ export function App() {
   const [pages, setPages] = useState<RenderedPage[]>([]);
   const [status, setStatus] = useState<SessionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  async function exportToPdf() {
+    setError(null);
+    setNotice(null);
+    setExporting(true);
+    try {
+      const exported = await exportPdf();
+      if (exported !== null) {
+        setNotice(`PDF guardado en ${exported.path}`);
+      }
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const canExport = project !== null && !exporting;
+
+  // Un evento de efecto ve siempre el estado actual, así que el atajo se
+  // registra una sola vez y no en cada render.
+  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (canExport && isExportPdfShortcut(event, mac)) {
+      event.preventDefault();
+      void exportToPdf();
+    }
+  });
+
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => onKeyDown(event);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
 
   async function open() {
     setError(null);
+    setNotice(null);
     setOpening(true);
     try {
       const folder = await chooseProjectFolder();
@@ -64,6 +104,15 @@ export function App() {
         <button type="button" onClick={open} disabled={opening}>
           Abrir proyecto…
         </button>
+        <button
+          type="button"
+          onClick={exportToPdf}
+          disabled={!canExport}
+          aria-keyshortcuts={mac ? "Meta+Shift+E" : "Control+Shift+E"}
+          title={exportPdfShortcutLabel(mac)}
+        >
+          Exportar a PDF… <kbd>{exportPdfShortcutLabel(mac)}</kbd>
+        </button>
         <button type="button" onClick={check}>
           Comprobar conexión con el núcleo
         </button>
@@ -86,6 +135,11 @@ export function App() {
           <dt>Abierto en el backend</dt>
           <dd>{status.title ?? "nada"}</dd>
         </dl>
+      )}
+      {notice !== null && (
+        <p role="status" className="ok">
+          {notice}
+        </p>
       )}
       {error !== null && (
         <p role="alert" className="error">

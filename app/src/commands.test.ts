@@ -7,6 +7,7 @@ import {
   type SessionStatus,
   chooseProjectFolder,
   errorMessage,
+  exportPdf,
   isCommandError,
   openProject,
   renderPage,
@@ -153,5 +154,32 @@ describe("renderPage", () => {
     expect(page.svg).toBeNull();
     expect(page.error?.kind).toBe("typst");
     expect(page.diagnostics[0]?.element_id).toBe("c1");
+  });
+});
+
+describe("exportPdf", () => {
+  it("llama a `export_pdf` sin argumentos y devuelve dónde se guardó", async () => {
+    const calls: Array<{ command: string; args: unknown }> = [];
+    mockIPC((command, args) => {
+      calls.push({ command, args });
+      return { path: "/Informe anual 2026.pdf", bytes: 15215 };
+    });
+
+    await expect(exportPdf()).resolves.toEqual({ path: "/Informe anual 2026.pdf", bytes: 15215 });
+    expect(calls).toEqual([{ command: "export_pdf", args: {} }]);
+  });
+
+  it("devuelve `null` si se cancela el diálogo", async () => {
+    mockIPC(() => null);
+    await expect(exportPdf()).resolves.toBeNull();
+  });
+
+  it("un error de escritura rechaza con su mensaje", async () => {
+    mockIPC(() => {
+      throw { kind: "write", message: "no se pudo guardar /x.pdf: permiso denegado" };
+    });
+
+    const reason: unknown = await exportPdf().catch((error: unknown) => error);
+    expect(errorMessage(reason)).toBe("no se pudo guardar /x.pdf: permiso denegado");
   });
 });

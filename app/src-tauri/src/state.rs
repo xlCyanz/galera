@@ -104,6 +104,8 @@ struct OpenDocument {
 pub struct Summary {
     /// El título del documento abierto, si hay uno.
     pub title: Option<String>,
+    /// La carpeta del proyecto abierto, si hay uno.
+    pub root: Option<PathBuf>,
     /// Cuántas páginas tiene el documento abierto.
     pub page_count: usize,
     /// La revisión actual.
@@ -152,6 +154,10 @@ impl AppState {
                 .open
                 .as_ref()
                 .map(|open| open.document.meta.title.clone()),
+            root: session
+                .open
+                .as_ref()
+                .map(|open| open.project.root().to_owned()),
             page_count: session
                 .open
                 .as_ref()
@@ -341,6 +347,7 @@ mod tests {
             state.summary(),
             Summary {
                 title: None,
+                root: None,
                 page_count: 0,
                 revision: 0,
                 compiled_is_current: false,
@@ -353,10 +360,12 @@ mod tests {
     fn opening_a_document_is_visible_in_the_summary() {
         let state = AppState::default();
         let (_dir, project, document) = project_and_document("Informe");
+        let root = project.root().to_owned();
         state.open(project, document);
 
         let summary = state.summary();
         assert_eq!(summary.title.as_deref(), Some("Informe"));
+        assert_eq!(summary.root, Some(root));
         assert_eq!(summary.page_count, 1);
         assert_eq!(summary.revision, 1);
     }
