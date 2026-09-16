@@ -133,6 +133,22 @@ describe("setView", () => {
   });
 });
 
+describe("reglas", () => {
+  it("se ven al empezar, se ocultan y se vuelven a enseñar", () => {
+    expect(store().rulersVisible).toBe(true);
+    store().toggleRulers();
+    expect(store().rulersVisible).toBe(false);
+    store().toggleRulers();
+    expect(store().rulersVisible).toBe(true);
+  });
+
+  it("abrir otro documento no las cambia", () => {
+    store().toggleRulers();
+    store().open(project("Carta", 1));
+    expect(store().rulersVisible).toBe(false);
+  });
+});
+
 describe("límites", () => {
   it("clampZoom", () => {
     expect(clampZoom(0.25)).toBe(0.25);

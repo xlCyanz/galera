@@ -53,11 +53,17 @@ body {
   white-space: pre-line;
 }
 
-/* El área de trabajo. El área que se desplaza ocupa todo el lienzo, y los
-   controles de zoom flotan encima. */
+/* El área de trabajo: las reglas arriba y a la izquierda, y el área con la
+   página en el resto. Sin reglas, sus columnas miden 0. Los controles de
+   zoom flotan sobre el área. */
 .canvas {
   --workspace: #e5e7eb;
-  position: relative;
+  --ruler: #f4f4f5;
+  --ruler-ink: #71717a;
+  --ruler-pointer: #2563eb;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -68,7 +74,61 @@ body {
 @media (prefers-color-scheme: dark) {
   .canvas {
     --workspace: #27272a;
+    --ruler: #18181b;
+    --ruler-ink: #a1a1aa;
+    --ruler-pointer: #60a5fa;
   }
+}
+
+.canvas-area {
+  position: relative;
+  grid-row: 2;
+  grid-column: 2;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ruler-corner,
+.ruler {
+  background: var(--ruler);
+}
+
+.ruler-corner {
+  grid-row: 1;
+  grid-column: 1;
+  border-right: 1px solid var(--ruler-ink);
+  border-bottom: 1px solid var(--ruler-ink);
+  box-sizing: border-box;
+}
+
+.ruler {
+  display: block;
+  stroke: var(--ruler-ink);
+  stroke-width: 1;
+  fill: var(--ruler-ink);
+  font: 9px/1 system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.ruler-horizontal {
+  grid-row: 1;
+  grid-column: 2;
+  border-bottom: 1px solid var(--ruler-ink);
+}
+
+.ruler-vertical {
+  grid-row: 2;
+  grid-column: 1;
+  border-right: 1px solid var(--ruler-ink);
+}
+
+.ruler text {
+  stroke: none;
+}
+
+.ruler-pointer {
+  stroke: var(--ruler-pointer);
 }
 
 /* El área no se desplaza con barras: la página se coloca con `transform`
