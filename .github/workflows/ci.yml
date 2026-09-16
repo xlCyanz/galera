@@ -66,6 +66,19 @@ jobs:
       - name: Pruebas
         run: cargo test --workspace --all-features
 
+      # Las pruebas de galera-core regeneran los tipos TypeScript del modelo
+      # en app/src/types. Si cambian, alguien tocó el modelo sin regenerarlos.
+      - name: Tipos TypeScript al día
+        shell: bash
+        run: |
+          changes=$(git status --porcelain -- app/src/types)
+          if [ -n "$changes" ]; then
+            echo "$changes"
+            git diff -- app/src/types
+            echo "::error::app/src/types no coincide con el modelo de Rust. Ejecuta 'cargo test -p galera-core export_bindings' y sube los cambios."
+            exit 1
+          fi
+
   frontend:
     name: Interfaz
     needs: detect

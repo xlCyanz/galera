@@ -48,7 +48,33 @@ describe("sessionStatus", () => {
 
 const informe: OpenedProject = {
   root: "/proyectos/informe",
-  document: { version: 1, meta: { title: "Informe anual 2026" }, pages: [{}] },
+  document: {
+    version: 1,
+    meta: { title: "Informe anual 2026" },
+    fonts: [],
+    assets: {},
+    variables: {},
+    pages: [
+      {
+        id: "p1",
+        size: { width: 210, height: 297, unit: "mm" },
+        elements: [
+          {
+            type: "rect",
+            id: "r1",
+            x: 0,
+            y: 0,
+            w: 210,
+            h: 15,
+            rotation: 0,
+            fill: "#1e40af",
+            stroke: null,
+            radius: 0,
+          },
+        ],
+      },
+    ],
+  },
 };
 
 describe("chooseProjectFolder", () => {

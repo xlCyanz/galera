@@ -15,6 +15,13 @@
 //! `rotation` se lee como `0.0`, y un documento sin `variables` como un
 //! mapa vacío.
 //!
+//! # Tipos TypeScript
+//!
+//! La interfaz usa estos mismos tipos, generados en `app/src/types/model.ts`
+//! por `ts-rs` al ejecutar `cargo test -p galera-core export_bindings`. Si
+//! cambia un tipo de aquí, se regeneran y se suben en el mismo PR; CI lo
+//! comprueba. Ver CONTRIBUTING.md.
+//!
 //! # Sistema de coordenadas
 //!
 //! El origen está en la esquina superior izquierda de la página y las
@@ -23,10 +30,7 @@
 
 use std::collections::BTreeMap;
 
-use serde::de::Error as _;
-use serde::{Deserialize, Deserializer, Serialize};
-
-use crate::DOCUMENT_VERSION;
+use serde::{Deserialize, Serialize};
 
 pub mod validate;
 
@@ -38,13 +42,15 @@ pub use validate::{
 ///
 /// Es lo que se guarda como `document.json` dentro de un proyecto `.galera`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
 pub struct Document {
-    /// Versión del formato. Solo se acepta [`DOCUMENT_VERSION`].
+    /// Versión del formato. Solo se acepta [`DOCUMENT_VERSION`](crate::DOCUMENT_VERSION).
     ///
     /// Se valida al deserializar en vez de dejarlo para más tarde: un
     /// documento de una versión futura se rechaza entero antes de que nadie
     /// lo interprete a medias.
-    #[serde(deserialize_with = "deserialize_version")]
+    #[serde(with = "version")]
+    #[cfg_attr(test, ts(as = "u32"))]
     pub version: u32,
 
     /// Metadatos del documento.
@@ -104,6 +110,7 @@ impl Document {
 
 /// Metadatos del documento.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
 pub struct Meta {
     /// Título, que también da el nombre por defecto al exportar.
     pub title: String,
@@ -111,6 +118,7 @@ pub struct Meta {
 
 /// Una página del documento.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
 pub struct Page {
     /// Identificador único dentro del documento.
     pub id: String,
@@ -126,6 +134,7 @@ pub struct Page {
 
 /// Tamaño de una página.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
 pub struct PageSize {
     /// Ancho, en [`PageSize::unit`].
     pub width: f64,
@@ -138,6 +147,7 @@ pub struct PageSize {
 
 /// Unidad de medida.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
 #[serde(rename_all = "lowercase")]
 pub enum Unit {
     /// Milímetros. Es la unidad de trabajo de Galera.
@@ -171,6 +181,7 @@ impl Unit {
 /// Se aplana dentro de cada variante de [`Element`], así que en el JSON
 /// estos campos aparecen al mismo nivel que los propios del tipo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
 pub struct ElementBox {
     /// Identificador único dentro del documento.
     ///
@@ -203,6 +214,7 @@ pub struct ElementBox {
 /// En el JSON, el campo `type` elige la variante y el resto de campos
 /// aparecen todos al mismo nivel.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum Element {
     /// Un bloque de texto con formato.
@@ -357,6 +369,7 @@ impl Element {
 /// El contenido de un bloque de texto es una lista de tramos: "Informe" en
 /// negrita seguido de " anual" en redonda son dos tramos.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
 pub struct Run {
     /// El texto, en claro.
     ///
@@ -391,6 +404,7 @@ impl Run {
 
 /// Estilo de un bloque de texto completo.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
 pub struct TextStyle {
     /// Familia tipográfica, entre las que el proyecto empaqueta.
     pub font: String,
@@ -412,6 +426,7 @@ pub struct TextStyle {
 
 /// Alineación horizontal del texto.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
 #[serde(rename_all = "lowercase")]
 pub enum Align {
     /// Alineado a la izquierda.
@@ -427,6 +442,7 @@ pub enum Align {
 
 /// Trazo de un borde o de una línea.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
 pub struct Stroke {
     /// Color, `#RRGGBB` o `#RRGGBBAA`.
     pub color: String,
@@ -439,18 +455,27 @@ fn default_leading() -> f64 {
     0.65
 }
 
-/// Acepta la versión del formato solo si es la que este núcleo entiende.
-fn deserialize_version<'de, D>(deserializer: D) -> Result<u32, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let version = u32::deserialize(deserializer)?;
-    if version != DOCUMENT_VERSION {
-        return Err(D::Error::custom(format!(
-            "versión de documento no soportada: {version}; este núcleo entiende la {DOCUMENT_VERSION}"
-        )));
+/// El campo `version` del documento: se escribe tal cual y solo se lee si
+/// es la versión que este núcleo entiende.
+mod version {
+    use serde::de::Error as _;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    use crate::DOCUMENT_VERSION;
+
+    pub fn serialize<S: Serializer>(version: &u32, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_u32(*version)
     }
-    Ok(version)
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<u32, D::Error> {
+        let version = u32::deserialize(deserializer)?;
+        if version != DOCUMENT_VERSION {
+            return Err(D::Error::custom(format!(
+                "versión de documento no soportada: {version}; este núcleo entiende la {DOCUMENT_VERSION}"
+            )));
+        }
+        Ok(version)
+    }
 }
 
 #[cfg(test)]
