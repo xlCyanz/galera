@@ -13,7 +13,7 @@
 //! - [`model`]: el documento, sus páginas y sus elementos (serde).
 //! - [`codegen`]: traducción del documento a código Typst.
 //! - [`world`]: implementación de `typst::World` con las fuentes del proyecto.
-//! - `compile`: compilación a PDF, SVG y PNG. *(pendiente)*
+//! - [`compile`](mod@compile): compilación a PDF; SVG y PNG llegan después.
 //! - `layout`:  cajas, posiciones de glifos y detección de clics. *(pendiente)*
 //! - `ops`:     comandos de edición e historial de deshacer y rehacer. *(pendiente)*
 //! - `snap`:    guías de alineación. *(pendiente)*
@@ -24,11 +24,13 @@
 //! genera código Typst, nunca lo lee ni lo modifica.
 
 pub mod codegen;
+pub mod compile;
 pub mod model;
 pub mod project;
 pub mod world;
 
 pub use codegen::{escape, escape_into};
+pub use compile::{CompileError, Compiled, Diagnostic, Severity, compile, compile_pdf};
 pub use model::{
     Align, Document, Element, ElementBox, Meta, Page, PageSize, Run, Stroke, TextStyle, Unit,
 };
