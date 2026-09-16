@@ -83,6 +83,15 @@ pub enum CodegenError {
         id: String,
     },
 
+    /// El id de una página no puede escribirse en el código generado.
+    ///
+    /// Va dentro de un comentario (`// p1`). Un id con un salto de línea
+    /// cerraría el comentario y escribiría código detrás.
+    UnsafePageId {
+        /// El id tal como venía en el documento.
+        id: String,
+    },
+
     /// Un color no tiene forma de color hexadecimal.
     ///
     /// Los colores se escriben dentro de una cadena de Typst, como
@@ -108,6 +117,10 @@ impl fmt::Display for CodegenError {
             CodegenError::UnsafeElementId { id } => write!(
                 f,
                 "el id de elemento {id:?} no es válido: solo se admiten letras y dígitos ASCII, guion y guion bajo"
+            ),
+            CodegenError::UnsafePageId { id } => write!(
+                f,
+                "el id de página {id:?} no es válido: solo se admiten letras y dígitos ASCII, guion y guion bajo"
             ),
             CodegenError::InvalidColor { value } => write!(
                 f,
@@ -195,6 +208,13 @@ fn emit_page(
         ));
     }
 
+    // El id acaba dentro de un comentario, y un salto de línea lo cerraría:
+    // la misma regla que para los ids de elemento.
+    if !is_label_safe(&page.id) {
+        return Err(CodegenError::UnsafePageId {
+            id: page.id.clone(),
+        });
+    }
     out.push_str(&format!("\n// {}\n", page.id));
 
     for element in &page.elements {
@@ -586,6 +606,28 @@ mod tests {
         }
     }
 
+    /// Encontrado revisando las instantáneas de F0-15: el id de página va en
+    /// un comentario, y un salto de línea lo cerraba.
+    #[test]
+    fn a_page_id_that_would_break_out_of_its_comment_is_rejected() {
+        for id in ["p1\n#import \"evil.typ\"", "p1\r#x", "página 1", ""] {
+            let id_json = serde_json::to_string(id).expect("un str siempre serializa");
+            let json = format!(
+                r#"{{
+                  "version": 1,
+                  "meta": {{ "title": "x" }},
+                  "pages": [{{ "id": {id_json}, "size": {{ "width": 210, "height": 297, "unit": "mm" }} }}]
+                }}"#
+            );
+            let document = Document::from_json_str(&json).expect("el JSON debe deserializar");
+            assert_eq!(
+                generate(&document),
+                Err(CodegenError::UnsafePageId { id: id.to_owned() }),
+                "el id de página {id:?} debe rechazarse"
+            );
+        }
+    }
+
     #[test]
     fn ordinary_ids_are_accepted() {
         for id in ["r1", "el_2", "bloque-principal", "A1", "0"] {
@@ -630,14 +672,5 @@ mod tests {
         let typst = generate_str(r#"{ "version": 1, "meta": { "title": "Vacío" }, "pages": [] }"#);
         assert!(!typst.contains("#set page("));
         assert!(!typst.contains("#place("));
-    }
-
-    /// La instantánea del ejemplo de `guide.md`. Cualquier cambio en el
-    /// código generado aparece aquí como un diff que hay que aprobar a mano,
-    /// en vez de colarse sin que nadie lo vea.
-    #[test]
-    fn guide_example_snapshot() {
-        let typst = generate(&example()).expect("debe generar");
-        insta::assert_snapshot!(typst);
     }
 }

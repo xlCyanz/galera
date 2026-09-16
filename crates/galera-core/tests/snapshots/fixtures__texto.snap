@@ -1,0 +1,15 @@
+---
+source: crates/galera-core/tests/fixtures.rs
+expression: code
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set document(title: "Textos")
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 20mm, dy: 20mm)[#block(width: 170mm, { set text(font: "Inter", size: 12pt, fill: rgb("#1F2733")); set par(leading: 0.65em); align(left)[Alineado a la izquierda.] })] <el-izquierda>
+#place(top + left, dx: 20mm, dy: 40mm)[#block(width: 170mm, { set text(font: "Inter", size: 12pt, fill: rgb("#1F2733")); set par(leading: 0.65em); align(center)[Centrado.] })] <el-centro>
+#place(top + left, dx: 20mm, dy: 60mm)[#block(width: 170mm, { set text(font: "Inter", size: 12pt, fill: rgb("#1F2733")); set par(leading: 0.65em); align(right)[Alineado a la derecha.] })] <el-derecha>
+#place(top + left, dx: 20mm, dy: 80mm)[#block(width: 80mm, { set text(font: "Inter", size: 10pt, fill: rgb("#1F2733")); set par(leading: 0.8em, justify: true); align(left)[Un párrafo justificado lo bastante largo como para ocupar varias líneas dentro de su marco.] })] <el-justificado>
+#place(top + left, dx: 110mm, dy: 80mm)[#block(width: 80mm, height: 30mm, { set text(font: "Inter", size: 10pt, fill: rgb("#1F2733")); set par(leading: 0.65em); align(left)[Primera línea#linebreak();segunda línea#parbreak();Otro párrafo, en dos tramos.] })] <el-alto-fijo-y-saltos>

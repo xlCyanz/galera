@@ -1,6 +1,6 @@
 ---
-source: crates/galera-core/src/codegen/mod.rs
-expression: typst
+source: crates/galera-core/tests/fixtures.rs
+expression: code
 ---
 // Generado por Galera a partir de document.json.
 // No editar a mano: este archivo se reescribe entero en cada compilación.

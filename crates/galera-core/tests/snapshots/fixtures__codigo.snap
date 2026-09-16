@@ -1,0 +1,13 @@
+---
+source: crates/galera-core/tests/fixtures.rs
+expression: code
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set document(title: "Bloques de código")
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 20mm, dy: 20mm)[#block(width: 170mm, eval("#table(\n  columns: 2,\n  [*Concepto*], [*Importe*],\n  [Cuota \"anual\"], [120 €],\n)", mode: "markup"))] <el-tabla>
+#place(top + left, dx: 20mm, dy: 80mm)[#block(width: 170mm, height: 40mm, eval("#lorem(40)", mode: "markup"))] <el-alto-fijo>
+#place(top + left, dx: 20mm, dy: 140mm)[#block(width: 50mm, eval("", mode: "markup"))] <el-vacio>

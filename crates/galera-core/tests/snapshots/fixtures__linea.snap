@@ -1,0 +1,13 @@
+---
+source: crates/galera-core/tests/fixtures.rs
+expression: code
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set document(title: "Líneas")
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 20mm, dy: 20mm)[#line(start: (0mm, 0mm), end: (170mm, 0mm), stroke: (paint: rgb("#000000"), thickness: 0.5mm))] <el-horizontal>
+#place(top + left, dx: 190mm, dy: 120mm)[#line(start: (0mm, 0mm), end: (-170mm, -80mm), stroke: (paint: rgb("#dc2626"), thickness: 2mm))] <el-hacia-atras>
+#place(top + left, dx: 20mm, dy: 150mm)[#rotate(45deg, origin: center + horizon)[#line(start: (0mm, 0mm), end: (100mm, 0mm), stroke: (paint: rgb("#1e40af"), thickness: 1mm))]] <el-girada>

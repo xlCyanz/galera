@@ -52,11 +52,14 @@
 //! recorre el texto una sola vez, decidiendo por carácter, así que el
 //! problema no puede darse: lo que se emite nunca se vuelve a mirar.
 //!
-//! # Pendiente de comprobar contra el compilador
+//! # Comprobado contra el compilador
 //!
-//! Esta función está escrita contra la documentación de Typst. La
-//! comprobación empírica —compilar de verdad y mirar el PDF— llega con
-//! F0-12, y las instantáneas que la congelan, con F0-15.
+//! `fixtures/escape.json` lleva cada regla de este módulo a un texto real.
+//! Compilado con Typst 0.15.1 y renderizado, todos los caracteres salen
+//! literales, los marcadores de bloque no crean encabezados ni listas, `//`
+//! no se come el resto de la línea, y la tipografía fina (comillas curvas,
+//! rayas) sí se aplica. Su instantánea en `tests/snapshots/` congela el
+//! código generado.
 
 /// Caracteres que se escapan siempre, aparezcan donde aparezcan.
 ///

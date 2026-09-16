@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "meta": { "title": "Imágenes" },
+  "assets": {
+    "png": "assets/pixel.png",
+    "jpg": "assets/pixel.jpg",
+    "svg": "assets/pixel.svg"
+  },
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "proporcion-original", "type": "image", "x": 20, "y": 20, "w": 50, "h": null, "asset": "png" },
+        { "id": "alto-fijo", "type": "image", "x": 80, "y": 20, "w": 50, "h": 25, "asset": "jpg" },
+        { "id": "girada", "type": "image", "x": 140, "y": 20, "w": 50, "h": null, "rotation": 90, "asset": "svg" }
+      ]
+    }
+  ]
+}

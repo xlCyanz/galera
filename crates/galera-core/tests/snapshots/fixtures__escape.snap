@@ -1,0 +1,15 @@
+---
+source: crates/galera-core/tests/fixtures.rs
+expression: code
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set document(title: "Título con \"comillas\" y \\barra")
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 20mm, dy: 20mm)[#block(width: 170mm, { set text(font: "Inter", size: 12pt, fill: rgb("#1F2733")); set par(leading: 0.65em); align(left)[\#let x = 1 · \*negrita\* · \_cursiva\_ · \$50 · \@ref · \<etiqueta\> · \[corchetes\] · \`raw\` · \~ · \\barra] })] <el-especiales>
+#place(top + left, dx: 20mm, dy: 50mm)[#block(width: 170mm, { set text(font: "Inter", size: 12pt, fill: rgb("#1F2733")); set par(leading: 0.65em); align(left)[\= No es un título#linebreak();\- no es una viñeta#linebreak();\+ ni un elemento#linebreak();1\. ni una lista numerada#linebreak();(ni una llamada)] })] <el-marcadores-de-linea>
+#place(top + left, dx: 20mm, dy: 100mm)[#block(width: 170mm, { set text(font: "Inter", size: 12pt, fill: rgb("#1F2733")); set par(leading: 0.65em); align(left)[20\/\/30 no abre un comentario, \/\* ni este \*\/, y https:\/\/typst.app no se enlaza solo.] })] <el-comentarios-y-enlaces>
+#place(top + left, dx: 20mm, dy: 130mm)[#block(width: 170mm, { set text(font: "Inter Tight \"Display\"", size: 12pt, fill: rgb("#1F2733")); set par(leading: 0.65em); align(left)[Esto sí se compone: "comillas", 10--20, y puntos suspensivos...] })] <el-tipografia-fina>
+#place(top + left, dx: 20mm, dy: 160mm)[#block(width: 170mm, { set text(font: "Inter", size: 12pt, fill: rgb("#1F2733")); set par(leading: 0.65em); align(left)[Cooperativa Agrícola del Este · ñandú · 🌾📊 · 日本語] })] <el-acentos-emoji-cjk>

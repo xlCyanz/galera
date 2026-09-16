@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "meta": { "title": "Textos" },
+  "fonts": ["fonts/Inter-Regular.ttf"],
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "izquierda", "type": "text", "x": 20, "y": 20, "w": 170, "h": null,
+          "content": [ { "text": "Alineado a la izquierda." } ],
+          "style": { "font": "Inter", "size": 12, "color": "#1F2733", "align": "left", "leading": 0.65 } },
+        { "id": "centro", "type": "text", "x": 20, "y": 40, "w": 170, "h": null,
+          "content": [ { "text": "Centrado." } ],
+          "style": { "font": "Inter", "size": 12, "color": "#1F2733", "align": "center", "leading": 0.65 } },
+        { "id": "derecha", "type": "text", "x": 20, "y": 60, "w": 170, "h": null,
+          "content": [ { "text": "Alineado a la derecha." } ],
+          "style": { "font": "Inter", "size": 12, "color": "#1F2733", "align": "right", "leading": 0.65 } },
+        { "id": "justificado", "type": "text", "x": 20, "y": 80, "w": 80, "h": null,
+          "content": [ { "text": "Un párrafo justificado lo bastante largo como para ocupar varias líneas dentro de su marco." } ],
+          "style": { "font": "Inter", "size": 10, "color": "#1F2733", "align": "justify", "leading": 0.8 } },
+        { "id": "alto-fijo-y-saltos", "type": "text", "x": 110, "y": 80, "w": 80, "h": 30,
+          "content": [ { "text": "Primera línea\nsegunda línea\n\nOtro párrafo, " }, { "text": "en dos tramos.", "bold": true } ],
+          "style": { "font": "Inter", "size": 10, "color": "#1F2733", "align": "left", "leading": 0.65 } }
+      ]
+    }
+  ]
+}

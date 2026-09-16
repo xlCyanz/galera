@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "meta": { "title": "Título con \"comillas\" y \\barra" },
+  "fonts": ["fonts/Inter-Regular.ttf"],
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "especiales", "type": "text", "x": 20, "y": 20, "w": 170, "h": null,
+          "content": [ { "text": "#let x = 1 · *negrita* · _cursiva_ · $50 · @ref · <etiqueta> · [corchetes] · `raw` · ~ · \\barra" } ],
+          "style": { "font": "Inter", "size": 12, "color": "#1F2733", "align": "left", "leading": 0.65 } },
+        { "id": "marcadores-de-linea", "type": "text", "x": 20, "y": 50, "w": 170, "h": null,
+          "content": [ { "text": "= No es un título\n- no es una viñeta\n+ ni un elemento\n1. ni una lista numerada\n(ni una llamada)" } ],
+          "style": { "font": "Inter", "size": 12, "color": "#1F2733", "align": "left", "leading": 0.65 } },
+        { "id": "comentarios-y-enlaces", "type": "text", "x": 20, "y": 100, "w": 170, "h": null,
+          "content": [ { "text": "20//30 no abre un comentario, /* ni este */, y https://typst.app no se enlaza solo." } ],
+          "style": { "font": "Inter", "size": 12, "color": "#1F2733", "align": "left", "leading": 0.65 } },
+        { "id": "tipografia-fina", "type": "text", "x": 20, "y": 130, "w": 170, "h": null,
+          "content": [ { "text": "Esto sí se compone: \"comillas\", 10--20, y puntos suspensivos..." } ],
+          "style": { "font": "Inter Tight \"Display\"", "size": 12, "color": "#1F2733", "align": "left", "leading": 0.65 } },
+        { "id": "acentos-emoji-cjk", "type": "text", "x": 20, "y": 160, "w": 170, "h": null,
+          "content": [ { "text": "Cooperativa Agrícola del Este · ñandú · 🌾📊 · 日本語" } ],
+          "style": { "font": "Inter", "size": 12, "color": "#1F2733", "align": "left", "leading": 0.65 } }
+      ]
+    }
+  ]
+}
