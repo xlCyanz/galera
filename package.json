@@ -1,0 +1,16 @@
+{
+  "name": "galera",
+  "private": true,
+  "description": "Raíz del workspace de pnpm. La app vive en app/.",
+  "packageManager": "pnpm@12.4.1",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "pnpm --filter galera-app dev",
+    "tauri": "pnpm --filter galera-app tauri",
+    "build": "pnpm --filter galera-app build",
+    "typecheck": "pnpm --filter galera-app typecheck",
+    "test": "pnpm --filter galera-app test"
+  }
+}

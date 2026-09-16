@@ -78,22 +78,27 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
+          # Vite 8 exige Node 20.19 o 22.12+. La versión de pnpm la fija el
+          # campo `packageManager` de package.json.
+          node-version: 24
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
+      # `--if-present` va antes del nombre del script: lo que va detrás se
+      # pasa al propio script, y acabaría como argumento de tsc o vitest.
+
       - name: Comprobación de tipos
-        run: pnpm run -s typecheck --if-present
+        run: pnpm run --if-present -s typecheck
 
       - name: Lint
-        run: pnpm run -s lint --if-present
+        run: pnpm run --if-present -s lint
 
       - name: Pruebas
-        run: pnpm run -s test --if-present
+        run: pnpm run --if-present -s test
 
       - name: Build
-        run: pnpm run -s build --if-present
+        run: pnpm run --if-present -s build
 
   # Check único al que apunta la protección de la rama main.
   ci:

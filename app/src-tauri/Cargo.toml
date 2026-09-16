@@ -1,0 +1,15 @@
+[package]
+name = "galera-app"
+description = "App de escritorio de Galera: el backend Tauri que conecta la interfaz con galera-core."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[dependencies]
+tauri.workspace = true
