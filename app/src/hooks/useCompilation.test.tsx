@@ -32,8 +32,11 @@ beforeEach(async () => {
   await settle();
 });
 
-afterEach(() => {
+afterEach(async () => {
   act(() => root.unmount());
+  // Dejar de escuchar es asíncrono: tiene que terminar antes de quitar los
+  // mocks, o falla fuera de la prueba.
+  await settle();
   clearMocks();
 });
 
