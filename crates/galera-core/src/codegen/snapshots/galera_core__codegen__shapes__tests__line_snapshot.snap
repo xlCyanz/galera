@@ -1,0 +1,10 @@
+---
+source: crates/galera-core/src/codegen/shapes.rs
+expression: generate_with(LINE)
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 10mm, dy: 20mm)[#line(start: (0mm, 0mm), end: (90mm, 0mm), stroke: (paint: rgb("#000000"), thickness: 0.5mm))] <el-l1>

@@ -321,6 +321,18 @@ impl Element {
         }
     }
 
+    /// Rotación del elemento en grados, sea cual sea su tipo.
+    pub fn rotation(&self) -> f64 {
+        match self {
+            Element::Text { base, .. }
+            | Element::Rect { base, .. }
+            | Element::Ellipse { base, .. }
+            | Element::Image { base, .. }
+            | Element::Code { base, .. } => base.rotation,
+            Element::Line { rotation, .. } => *rotation,
+        }
+    }
+
     /// Caja del elemento, o `None` si es una línea.
     pub fn base(&self) -> Option<&ElementBox> {
         match self {

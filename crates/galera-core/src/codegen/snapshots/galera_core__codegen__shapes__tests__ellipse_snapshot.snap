@@ -1,0 +1,10 @@
+---
+source: crates/galera-core/src/codegen/shapes.rs
+expression: generate_with(ELLIPSE)
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 10mm, dy: 20mm)[#ellipse(width: 40mm, height: 40mm, fill: rgb("#ff0000"), stroke: none)] <el-e1>
