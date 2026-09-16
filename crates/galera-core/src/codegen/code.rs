@@ -21,28 +21,32 @@
 //! ```
 //!
 //! La forma obvia sería copiar el código dentro de un bloque de contenido:
-//! `#block(...)[#table(columns: 2)[A][B]]`. Tiene un fallo grave: el código
-//! puede traer corchetes sin cerrar. Un `]` de más cierra la envoltura del
-//! elemento antes de tiempo, y a partir de ahí **el resto del documento
-//! entero** se analiza mal: las etiquetas `<el-ID>` de los elementos que
-//! vienen detrás dejan de estar donde deben y el error aparece lejos de su
-//! causa.
+//! `#block(...)[#table(columns: 2)[A][B]]`. Con `eval`, en cambio, el código
+//! viaja como **una sola cadena** y Typst lo analiza por separado.
 //!
-//! Eso no es un caso raro sino el caso normal. En F5-09 el bloque se edita
-//! en vivo y se recompila con cada tecla, así que el código está a medio
-//! escribir casi todo el tiempo: `#table(columns: 2)[A` es un estado por el
-//! que pasa cualquiera. Con el código insertado a pelo, cada una de esas
-//! pulsaciones dejaría el lienzo entero en error.
+//! Lo que eso aporta, **comprobado con Typst 0.15.1** comparando las dos
+//! formas con el mismo código roto:
 //!
-//! Con `eval`, el código viaja como **una sola cadena** y Typst lo analiza
-//! por separado:
+//! - **Un error, no varios.** Con corchetes de cierre de más (`A]] ]`), el
+//!   código pegado a pelo produce tres errores; con `eval`, uno. En F5-09 el
+//!   bloque se edita en vivo y el código está a medio escribir casi siempre,
+//!   así que esa diferencia se ve en cada pulsación.
+//! - **Posiciones relativas al bloque**, que es lo que el editor de código
+//!   de F5-09 quiere enseñar, en vez de posiciones dentro del archivo
+//!   generado.
+//! - **Una garantía estructural**: el código no puede tocar la sintaxis de
+//!   la envoltura del elemento, porque va entero dentro de una cadena.
 //!
-//! - un error de sintaxis se queda dentro de este elemento y el resto del
-//!   documento sigue componiéndose;
-//! - el error se produce en la línea de este elemento, que es lo que F0-16
-//!   necesita para atribuirlo;
-//! - las posiciones del error son relativas al propio bloque, que es lo que
-//!   el editor de código de F5-09 quiere enseñar.
+//! Lo que **no** aporta, y durante un tiempo este comentario afirmó por
+//! error:
+//!
+//! - **No salva el resto del documento.** Con cualquier error, sea con
+//!   `eval` o sin él, Typst no produce documento: la compilación falla
+//!   entera. Seguir enseñando el resto del lienzo mientras un bloque está
+//!   roto es trabajo del lienzo (F1-12: mostrar el último render válido).
+//! - **No cambia a qué línea se atribuye el error.** Con las dos formas cae
+//!   en la línea del elemento, porque el analizador de Typst se recupera en
+//!   cada salto de línea.
 //!
 //! # Lo que `eval` no aísla: las etiquetas
 //!
@@ -52,22 +56,18 @@
 //! confundiría una búsqueda ingenua de cajas por etiqueta. F2-01 tiene que
 //! fiarse solo de la etiqueta que va pegada al `place` de cada elemento.
 //!
-//! # El precio
+//! # Lo que `eval` tampoco aísla: el disco
 //!
-//! **El código evaluado no tiene acceso a disco.** Dentro de un bloque de
-//! código no funcionan `image("...")`, `read("...")` ni `import "..."` de
-//! archivos del proyecto. Para imágenes está el elemento de imagen.
+//! **El código evaluado puede leer archivos del proyecto.** `image("...")` y
+//! `read("...")` funcionan dentro de un bloque de código. Es una capacidad
+//! útil —una tabla con logos, por ejemplo— y no un agujero, porque esas
+//! lecturas pasan por `World` y `Project` como cualquier otra, y ahí está la
+//! frontera: nada fuera de la carpeta del proyecto. Las pruebas de `world`
+//! lo fijan en los dos sentidos.
 //!
-//! Visto desde `SECURITY.md` es una ventaja: el código que trae un documento
-//! ajeno no puede leer nada del proyecto. Visto desde el producto es un
-//! límite real, y si algún día pesa más que lo de arriba, el cambio está
-//! entero en [`emit_code`].
-//!
-//! # Pendiente de comprobar contra el compilador
-//!
-//! Escrito contra la documentación y el comportamiento conocido de `eval`.
-//! Que un error quede contenido y se atribuya a su elemento se comprueba en
-//! F0-12 y F0-16.
+//! Este comentario decía antes lo contrario, apoyado en una búsqueda que no
+//! se comprobó. La seguridad nunca dependió de ello: las comprobaciones de
+//! ruta ya estaban en `Project`.
 
 use crate::model::ElementBox;
 

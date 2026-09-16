@@ -28,8 +28,8 @@ Tiempos objetivo: acuse de recibo en 72 horas, evaluación inicial en 7 días. A
 Galera abre archivos de terceros y los convierte en código que se compila. Los puntos sensibles son:
 
 - **Escape de texto hacia Typst.** Un fallo aquí deja que el contenido de un documento inyecte código Typst arbitrario. Es el vector más importante del proyecto.
-- **Bloques de código personalizado.** Son código Typst que el documento trae consigo y se ejecuta tal cual. Un `.galera` de origen desconocido debe tratarse como no confiable. Ese código se evalúa aislado con `eval`, que lo contiene dentro de su elemento y no le da acceso a disco: no puede leer archivos del proyecto ni importarlos. Ese aislamiento es una defensa, no una garantía; cualquier forma de salirse de él es una vulnerabilidad.
-- **Carga de fuentes y assets.** Los archivos se leen desde la carpeta del proyecto; las rutas del documento no pueden escapar de ella.
+- **Bloques de código personalizado.** Son código Typst que el documento trae consigo y se ejecuta tal cual. Un `.galera` de origen desconocido debe tratarse como no confiable. Ese código se evalúa con `eval`, que evita que rompa la estructura del resto del documento, pero **no** le quita el acceso a disco: puede leer archivos de la carpeta del proyecto. No puede leer nada fuera de ella, ni descargar paquetes, porque todo acceso pasa por la misma comprobación de rutas. Cualquier forma de salirse de esa carpeta es una vulnerabilidad.
+- **Carga de fuentes y assets.** Los archivos se leen desde la carpeta del proyecto; las rutas del documento no pueden escapar de ella, ni por `..`, ni por ruta absoluta, ni a través de un enlace simbólico. La comprobación vive en un único sitio, `Project`, por el que pasa todo acceso a archivos, venga del documento o del código de un bloque personalizado.
 - **Comandos de Tauri.** Toda entrada que cruce desde el webview hacia Rust se valida en el backend.
 
 ## Fuera de alcance
