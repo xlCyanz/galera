@@ -34,7 +34,9 @@ typst = "=0.15.1"
 typst-assets = "=0.15.1"
 typst-layout = "=0.15.1"
 typst-pdf = "=0.15.1"
+typst-svg = "=0.15.1"
 tempfile = "3"
+miniz_oxide = "0.9"
 
 # Compilar Typst en modo depuración es lento de más para trabajar con él,
 # así que las dependencias se optimizan aunque el código propio no.

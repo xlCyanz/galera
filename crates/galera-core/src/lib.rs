@@ -13,7 +13,7 @@
 //! - [`model`]: el documento, sus páginas y sus elementos (serde).
 //! - [`codegen`]: traducción del documento a código Typst.
 //! - [`world`]: implementación de `typst::World` con las fuentes del proyecto.
-//! - [`compile`](mod@compile): compilación a PDF; SVG y PNG llegan después.
+//! - [`compile`](mod@compile): compilación a PDF y SVG; PNG llega después.
 //! - `layout`:  cajas, posiciones de glifos y detección de clics. *(pendiente)*
 //! - `ops`:     comandos de edición e historial de deshacer y rehacer. *(pendiente)*
 //! - `snap`:    guías de alineación. *(pendiente)*
