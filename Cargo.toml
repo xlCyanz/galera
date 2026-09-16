@@ -1,0 +1,30 @@
+# Workspace de Galera.
+#
+# Dos crates, deliberadamente separados:
+#   - galera-core: toda la lógica (modelo, codegen, compilación, layout).
+#     No conoce ni Tauri ni ninguna interfaz, para poder reutilizarlo
+#     después desde Swift o WASM (principio 5 del README).
+#   - galera-cli:  herramienta de terminal que usa el núcleo sin interfaz.
+#
+# Más adelante `app/src-tauri` se añade aquí como tercer miembro.
+
+[workspace]
+resolver = "3"
+members = ["crates/galera-core", "crates/galera-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+repository = "https://github.com/xlCyanz/galera"
+authors = ["Johan Sierra"]
+
+[workspace.dependencies]
+galera-core = { path = "crates/galera-core" }
+clap = { version = "4.5", features = ["derive"] }
+
+# Compilar Typst en modo depuración es lento de más para trabajar con él,
+# así que las dependencias se optimizan aunque el código propio no.
+[profile.dev.package."*"]
+opt-level = 2

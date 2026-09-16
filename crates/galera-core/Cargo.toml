@@ -1,0 +1,11 @@
+[package]
+name = "galera-core"
+description = "Núcleo de Galera: modelo de documento, generación de Typst, compilación y layout."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]

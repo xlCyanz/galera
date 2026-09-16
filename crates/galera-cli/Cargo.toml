@@ -1,0 +1,13 @@
+[package]
+name = "galera-cli"
+description = "Herramienta de terminal de Galera: convierte un documento JSON en PDF o SVG."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+galera-core.workspace = true
+clap.workspace = true
