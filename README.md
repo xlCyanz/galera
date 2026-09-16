@@ -1,12 +1,44 @@
+<p align="center">
+  <img src="docs/assets/banner.jpeg" alt="Galera — Design documents visually. Export pixel-perfect Typst." width="100%">
+</p>
+
+<p align="center">
+  <a href="https://github.com/xlCyanz/galera/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xlCyanz/galera/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/xlCyanz/galera/milestone/1"><img alt="Fase" src="https://img.shields.io/badge/fase-0%20%C2%B7%20n%C3%BAcleo%20por%20terminal-0E4429"></a>
+  <a href="https://github.com/xlCyanz/galera/issues"><img alt="Tareas" src="https://img.shields.io/github/issues/xlCyanz/galera?label=tareas%20abiertas"></a>
+  <img alt="Rust" src="https://img.shields.io/badge/rust-1.85%2B-B7410E?logo=rust&logoColor=white">
+  <img alt="Tauri" src="https://img.shields.io/badge/tauri-2-24C8DB?logo=tauri&logoColor=white">
+  <a href="LICENSE"><img alt="Licencia" src="https://img.shields.io/badge/licencia-MIT-1F2733"></a>
+</p>
+
 # Galera
 
-> Editor de documentos de escritorio con fidelidad exacta: diseña sobre el lienzo, exporta con Typst.
+Hay dos maneras de sacar un documento bien hecho, y ninguna es cómoda.
 
-**Galera** es una aplicación de escritorio para diseñar documentos (informes, facturas, certificados, carteles, CVs) colocando elementos sobre una página, como en Canva. El documento se guarda como un modelo JSON propio, se traduce a código [Typst](https://typst.app) y se compila con el compilador oficial de Typst para exportar PDF.
+Puedes abrirlo en una herramienta visual, colocar las cosas con el ratón y aceptar lo que salga: tipografía mediocre, saltos de línea caprichosos y un PDF que nunca termina de parecerse a lo que tenías en pantalla. O puedes escribirlo en LaTeX o en Typst, conseguir una composición impecable y trabajar a ciegas, compilando cada pocos minutos para ver qué has hecho.
 
-**Objetivo central: alta fidelidad.** Lo que se ve en el lienzo es exactamente lo que se exporta. Typst dibuja y mide todo; la interfaz solo dibuja controles encima.
+**Galera es la tercera vía.** Colocas los elementos sobre la página arrastrando, como en Canva, pero lo que ves en el lienzo **es** el render del compilador de Typst. No es una previsualización ni una aproximación del navegador: es el mismo documento compilado que sale al exportar.
 
-> **Estado:** en desarrollo temprano (Fase 0). Todavía no hay binarios publicados.
+```
+  tu documento              galera-core                 salida
+  ┌──────────┐    codegen   ┌──────────┐   compilador   ┌─────┐
+  │  JSON    │ ───────────► │  .typ    │ ─────────────► │ PDF │
+  └──────────┘              └──────────┘    de Typst    │ SVG │
+       ▲                                     │          │ PNG │
+       │  comandos de edición                │          └─────┘
+       │                                     ▼
+  ┌──────────┐    el mismo render que se exporta
+  │  lienzo  │ ◄──────────────────────────────
+  └──────────┘
+```
+
+Sirve para informes, facturas, certificados, carteles y CVs. El documento se guarda como un modelo JSON propio; Typst es únicamente el formato de salida.
+
+**Por qué importa que sea Typst quien dibuja.** Si el editor pintara el texto con el motor del navegador, tendrías dos motores de composición discrepando: el de pantalla y el del PDF. Ahí nacen los saltos de línea que se mueven al exportar y los cuadros que dejan de cuadrar. En Galera solo hay un motor. La interfaz dibuja encima los manejadores, las guías y el cursor, y nada más.
+
+**Y el cursor de texto también.** Su posición sale de las coordenadas de glifos que devuelve Typst, no de una medición aparte. Es más difícil de construir y es justo lo que evita que el editor y el PDF se separen.
+
+> **Estado:** desarrollo temprano, Fase 0 de 8. Todavía no hay binarios publicados. El plan completo está en [`guide.md`](guide.md) y el avance tarea a tarea en [`docs/tareas.md`](docs/tareas.md).
 
 ---
 
