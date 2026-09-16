@@ -32,9 +32,10 @@
 //! - [`escape`]: convierte texto del usuario en texto literal para Typst.
 //!   Es la pieza de la que depende la seguridad de todo lo demás.
 //! - [`generate`]: la cabecera, las páginas y la envoltura de cada elemento.
-//! - El cuerpo de cada tipo de elemento —formas, texto, imágenes y bloques
-//!   de código— llega en las tareas F0-06 a F0-09. Hasta entonces se emite
-//!   la envoltura con el cuerpo vacío.
+//! - `shapes`: el cuerpo de los rectángulos, las elipses y las líneas.
+//! - El cuerpo del texto, las imágenes y los bloques de código llega en las
+//!   tareas F0-07 a F0-09. Hasta entonces se emite la envoltura con el
+//!   cuerpo vacío y una nota en el propio archivo generado.
 //!
 //! # Pendiente de comprobar contra el compilador
 //!
@@ -48,6 +49,7 @@
 //!   y devuelva la posición del contenido colocado.
 
 pub mod escape;
+mod shapes;
 
 pub use escape::{escape, escape_into};
 
@@ -70,6 +72,16 @@ pub enum CodegenError {
         /// El id tal como venía en el documento.
         id: String,
     },
+
+    /// Un color no tiene forma de color hexadecimal.
+    ///
+    /// Los colores se escriben dentro de una cadena de Typst, como
+    /// `rgb("#1e40af")`. Aceptar cualquier texto dejaría cerrar la cadena y
+    /// escribir código detrás.
+    InvalidColor {
+        /// El color tal como venía en el documento.
+        value: String,
+    },
 }
 
 impl fmt::Display for CodegenError {
@@ -78,6 +90,10 @@ impl fmt::Display for CodegenError {
             CodegenError::UnsafeElementId { id } => write!(
                 f,
                 "el id de elemento {id:?} no es válido: solo se admiten letras y dígitos ASCII, guion y guion bajo"
+            ),
+            CodegenError::InvalidColor { value } => write!(
+                f,
+                "el color {value:?} no es válido: se espera #RGB, #RGBA, #RRGGBB o #RRGGBBAA"
             ),
         }
     }
@@ -157,15 +173,25 @@ fn emit_page(
     Ok(())
 }
 
-/// Emite un elemento: su envoltura de posición y su etiqueta.
-///
-/// El cuerpo queda vacío a propósito. Cada tipo lo rellena en su tarea:
-/// formas en F0-06, texto en F0-07, imágenes en F0-08 y bloques de código
-/// en F0-09.
+/// Emite un elemento: su cuerpo, su rotación, su posición y su etiqueta.
 fn emit_element(element: &Element, out: &mut String) -> Result<(), CodegenError> {
     let id = element.id();
     if !is_label_safe(id) {
         return Err(CodegenError::UnsafeElementId { id: id.to_owned() });
+    }
+
+    let mut body = String::new();
+    let pending = emit_body(element, &mut body)?;
+
+    // La rotación envuelve al cuerpo, dentro del `place`: así el elemento
+    // gira sobre su propio centro y su esquina sigue anclada donde dice el
+    // modelo. Girar el `place` movería el elemento además de rotarlo.
+    let rotation = element.rotation();
+    if rotation != 0.0 {
+        body = format!(
+            "#rotate({}, origin: center + horizon)[{body}]",
+            degrees(rotation)
+        );
     }
 
     let (x, y) = element.position();
@@ -175,14 +201,82 @@ fn emit_element(element: &Element, out: &mut String) -> Result<(), CodegenError>
     // F2-01 resulta que conviene que envuelva al cuerpo en vez de al
     // `place`, se cambia aquí y en las instantáneas.
     out.push_str(&format!(
-        "#place(top + left, dx: {}, dy: {})[] <el-{}>  // {}\n",
+        "#place(top + left, dx: {}, dy: {})[{body}] <el-{id}>",
         millimeters(x),
         millimeters(y),
-        id,
-        element.type_name(),
     ));
 
+    if let Some(task) = pending {
+        out.push_str(&format!(
+            "  // {}: cuerpo pendiente ({task})",
+            element.type_name()
+        ));
+    }
+
+    out.push('\n');
     Ok(())
+}
+
+/// Escribe el cuerpo del elemento.
+///
+/// Devuelve la tarea que queda pendiente cuando ese tipo todavía no sabe
+/// dibujarse, para dejarlo anotado en el propio archivo generado.
+fn emit_body(element: &Element, out: &mut String) -> Result<Option<&'static str>, CodegenError> {
+    match element {
+        Element::Rect {
+            base,
+            fill,
+            stroke,
+            radius,
+        } => {
+            shapes::emit_rect(base, fill.as_deref(), stroke.as_ref(), *radius, out)?;
+            Ok(None)
+        }
+        Element::Ellipse { base, fill, stroke } => {
+            shapes::emit_ellipse(base, fill.as_deref(), stroke.as_ref(), out)?;
+            Ok(None)
+        }
+        Element::Line {
+            x,
+            y,
+            x2,
+            y2,
+            stroke,
+            ..
+        } => {
+            shapes::emit_line(*x, *y, *x2, *y2, stroke, out)?;
+            Ok(None)
+        }
+        Element::Text { .. } => Ok(Some("F0-07")),
+        Element::Image { .. } => Ok(Some("F0-08")),
+        Element::Code { .. } => Ok(Some("F0-09")),
+    }
+}
+
+/// Escribe un color del modelo como un color de Typst.
+///
+/// # Errores
+///
+/// Falla si el valor no tiene forma de color hexadecimal. Es deliberado: el
+/// color acaba dentro de una cadena de Typst y aceptar cualquier texto
+/// dejaría cerrarla y escribir código detrás.
+pub(crate) fn color(value: &str) -> Result<String, CodegenError> {
+    if !is_hex_colour(value) {
+        return Err(CodegenError::InvalidColor {
+            value: value.to_owned(),
+        });
+    }
+
+    Ok(format!("rgb(\"{value}\")"))
+}
+
+/// Las cuatro formas hexadecimales que entiende `rgb()` de Typst.
+fn is_hex_colour(value: &str) -> bool {
+    let Some(digits) = value.strip_prefix('#') else {
+        return false;
+    };
+
+    matches!(digits.len(), 3 | 4 | 6 | 8) && digits.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 /// ¿Puede este id escribirse dentro de una etiqueta de Typst sin salirse?
@@ -197,11 +291,12 @@ fn is_label_safe(id: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
-/// Escribe una medida en milímetros, tal como la entiende Typst.
+/// Escribe un número en forma estable.
 ///
-/// El formato es estable a propósito: las instantáneas comparan texto, así
-/// que `20.0` tiene que salir siempre como `20mm` y nunca como `20.0000mm`.
-fn millimeters(value: f64) -> String {
+/// Las instantáneas comparan texto, así que `20.0` tiene que salir siempre
+/// como `20` y nunca como `20.0000`. Cuatro decimales: más precisión que esa
+/// no la imprime ninguna impresora.
+fn number(value: f64) -> String {
     let mut text = format!("{value:.4}");
 
     if text.contains('.') {
@@ -213,8 +308,17 @@ fn millimeters(value: f64) -> String {
         text = "0".to_owned();
     }
 
-    text.push_str("mm");
     text
+}
+
+/// Una medida en milímetros, tal como la entiende Typst.
+fn millimeters(value: f64) -> String {
+    format!("{}mm", number(value))
+}
+
+/// Un ángulo en grados, tal como lo entiende Typst.
+fn degrees(value: f64) -> String {
+    format!("{}deg", number(value))
 }
 
 #[cfg(test)]
@@ -358,9 +462,10 @@ mod tests {
         );
 
         assert!(
-            typst.contains("#place(top + left, dx: 10mm, dy: 20mm)[] <el-l1>"),
+            typst.contains("#place(top + left, dx: 10mm, dy: 20mm)[#line("),
             "{typst}"
         );
+        assert!(typst.contains("<el-l1>"), "{typst}");
     }
 
     /// Un id acaba escrito dentro de `<el-ID>`, donde no hay escapes que

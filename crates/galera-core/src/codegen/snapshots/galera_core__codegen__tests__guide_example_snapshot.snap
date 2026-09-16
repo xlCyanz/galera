@@ -7,7 +7,7 @@ expression: typst
 #set page(width: 210mm, height: 297mm, margin: 0pt)
 
 // p1
-#place(top + left, dx: 0mm, dy: 0mm)[] <el-r1>  // rect
-#place(top + left, dx: 20mm, dy: 30mm)[] <el-t1>  // text
-#place(top + left, dx: 20mm, dy: 60mm)[] <el-i1>  // image
-#place(top + left, dx: 20mm, dy: 200mm)[] <el-c1>  // code
+#place(top + left, dx: 0mm, dy: 0mm)[#rect(width: 210mm, height: 15mm, fill: rgb("#1e40af"), stroke: none)] <el-r1>
+#place(top + left, dx: 20mm, dy: 30mm)[] <el-t1>  // text: cuerpo pendiente (F0-07)
+#place(top + left, dx: 20mm, dy: 60mm)[] <el-i1>  // image: cuerpo pendiente (F0-08)
+#place(top + left, dx: 20mm, dy: 200mm)[] <el-c1>  // code: cuerpo pendiente (F0-09)
