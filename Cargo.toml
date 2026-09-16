@@ -15,7 +15,7 @@ members = ["crates/galera-core", "crates/galera-cli"]
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.92"
 license = "MIT"
 repository = "https://github.com/xlCyanz/galera"
 authors = ["Johan Sierra"]
@@ -26,6 +26,14 @@ clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 insta = "1.43"
+
+# Typst se fija con `=`: su API cambia entre versiones menores, así que
+# subirla es una decisión deliberada con su propio PR, nunca un efecto
+# secundario de `cargo update`. Las cuatro van siempre a la par.
+typst = "=0.15.1"
+typst-assets = "=0.15.1"
+typst-layout = "=0.15.1"
+tempfile = "3"
 
 # Compilar Typst en modo depuración es lento de más para trabajar con él,
 # así que las dependencias se optimizan aunque el código propio no.

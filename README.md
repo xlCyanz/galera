@@ -6,7 +6,7 @@
   <a href="https://github.com/xlCyanz/galera/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xlCyanz/galera/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/xlCyanz/galera/milestone/1"><img alt="Fase" src="https://img.shields.io/badge/fase-0%20%C2%B7%20n%C3%BAcleo%20por%20terminal-0E4429"></a>
   <a href="https://github.com/xlCyanz/galera/issues"><img alt="Tareas" src="https://img.shields.io/github/issues/xlCyanz/galera?label=tareas%20abiertas"></a>
-  <img alt="Rust" src="https://img.shields.io/badge/rust-1.85%2B-B7410E?logo=rust&logoColor=white">
+  <img alt="Rust" src="https://img.shields.io/badge/rust-1.92%2B-B7410E?logo=rust&logoColor=white">
   <img alt="Tauri" src="https://img.shields.io/badge/tauri-2-24C8DB?logo=tauri&logoColor=white">
   <a href="LICENSE"><img alt="Licencia" src="https://img.shields.io/badge/licencia-MIT-1F2733"></a>
 </p>
@@ -112,7 +112,7 @@ galera/
 
 | Herramienta | Versión mínima |
 |---|---|
-| Rust (stable) | 1.85 (edición 2024) |
+| Rust (stable) | 1.92 (edición 2024) |
 | Node.js | 20 LTS |
 | pnpm | 9 |
 | Xcode Command Line Tools (macOS) | — |

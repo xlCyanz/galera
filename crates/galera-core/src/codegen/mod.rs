@@ -29,7 +29,7 @@
 //!
 //! # Piezas
 //!
-//! - [`escape`]: convierte texto del usuario en texto literal para Typst.
+//! - [`escape`](mod@escape): convierte texto del usuario en texto literal para Typst.
 //!   Es la pieza de la que depende la seguridad de todo lo demás.
 //! - [`generate`]: la cabecera, las páginas y la envoltura de cada elemento.
 //! - `shapes`: el cuerpo de los rectángulos, las elipses y las líneas.
@@ -38,16 +38,22 @@
 //! - `code`: el cuerpo de los bloques de código personalizado, evaluados con
 //!   `eval` para que un error en ellos no rompa el resto del documento.
 //!
-//! # Pendiente de comprobar contra el compilador
+//! # Comprobado contra el compilador
 //!
-//! Este módulo está escrito contra la documentación de Typst; todavía no hay
-//! compilador en el proyecto. Dos puntos concretos hay que comprobar en
-//! F0-12, y están marcados en el código:
+//! La prueba `typst_compiles_a_generated_document_with_this_world`, en
+//! `world.rs`, compila con Typst 0.15.1 un documento de dos páginas de
+//! tamaños distintos generado por este módulo. Confirma que:
 //!
-//! - que un `#set page(...)` a media altura del documento empiece página
-//!   nueva sin dejar una en blanco;
-//! - que una etiqueta puesta detrás de un `place` se pueda localizar después
-//!   y devuelva la posición del contenido colocado.
+//! - el código generado compila sin errores ni avisos;
+//! - `#pagebreak()` seguido de `#set page(...)` da exactamente una página
+//!   por página del modelo, sin ninguna en blanco, cada una con su tamaño;
+//! - el texto escapado, con `#linebreak();` delante de una línea que empieza
+//!   por `(`, y el bloque de código evaluado con `eval`, compilan.
+//!
+//! # Pendiente de comprobar
+//!
+//! - Que una etiqueta puesta detrás de un `place` se pueda localizar después
+//!   y devuelva la posición del contenido colocado. Es F2-01.
 
 mod code;
 pub mod escape;
@@ -165,11 +171,10 @@ fn emit_page(
     let size_changed = previous_size != Some(&page.size);
 
     if index > 0 {
-        // Salto explícito antes de tocar el tamaño. Un `set page` solo ya
-        // debería empezar página nueva, pero depender de ese detalle deja el
-        // número de páginas a merced de una sutileza del compilador, y aquí
-        // el número de páginas del PDF tiene que ser exactamente el número
-        // de páginas del modelo. Comprobar en F0-12.
+        // Salto explícito antes de tocar el tamaño. El número de páginas del
+        // PDF tiene que ser exactamente el del modelo, y no depender de si un
+        // `set page` a media altura rompe página por su cuenta. Comprobado
+        // con Typst 0.15.1: no deja ninguna página en blanco.
         out.push_str("\n#pagebreak()\n");
     }
 
