@@ -1,22 +1,22 @@
 import { useState } from "react";
 
-import { ping } from "./commands";
+import { type SessionStatus, sessionStatus } from "./commands";
 
 /**
- * Pantalla provisional. La ventana arranca vacía salvo por una comprobación
- * de que la interfaz y el backend en Rust se hablan. La estructura real de la
- * pantalla llega con F1-13, siguiendo el brief de diseño.
+ * Pantalla provisional. Solo comprueba que la interfaz, el backend en Rust y
+ * `galera-core` están conectados. La estructura real de la pantalla llega con
+ * F1-13, siguiendo el brief de diseño.
  */
 export function App() {
-  const [reply, setReply] = useState<string | null>(null);
+  const [status, setStatus] = useState<SessionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function check() {
     setError(null);
     try {
-      setReply(await ping("hola desde React"));
+      setStatus(await sessionStatus());
     } catch (reason) {
-      setReply(null);
+      setStatus(null);
       setError(String(reason));
     }
   }
@@ -25,12 +25,15 @@ export function App() {
     <main className="galera">
       <h1>Galera</h1>
       <button type="button" onClick={check}>
-        Probar conexión con el backend
+        Comprobar conexión con el núcleo
       </button>
-      {reply !== null && (
-        <p role="status" className="ok">
-          {reply}
-        </p>
+      {status !== null && (
+        <dl role="status" className="ok">
+          <dt>galera-core</dt>
+          <dd>{status.coreVersion}</dd>
+          <dt>Documento</dt>
+          <dd>{status.title ?? "ninguno abierto"}</dd>
+        </dl>
       )}
       {error !== null && (
         <p role="alert" className="error">

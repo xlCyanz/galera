@@ -13,11 +13,24 @@
 import { invoke } from "@tauri-apps/api/core";
 
 /**
- * Comando de prueba: el backend devuelve el mensaje con un prefijo.
+ * El estado de la sesión, tal como lo devuelve `session_status`.
  *
- * Sirve para comprobar que la interfaz y Rust se hablan. Desaparecerá cuando
- * haya comandos de verdad (F1-03).
+ * Tiene que coincidir con `SessionStatus` de `src-tauri/src/commands.rs`. Una
+ * prueba en Rust fija los nombres de los campos; a partir de F1-06 este tipo
+ * se generará desde Rust en vez de escribirse a mano.
  */
-export function ping(message: string): Promise<string> {
-  return invoke<string>("ping", { message });
+export interface SessionStatus {
+  /** La versión de `galera-core` con la que está compilada la app. */
+  coreVersion: string;
+  /** El título del documento abierto, o `null` si no hay ninguno. */
+  title: string | null;
+  /** Cuántas páginas tiene el documento abierto. */
+  pageCount: number;
+  /** Si la última compilación corresponde a lo que hay abierto. */
+  compiledIsCurrent: boolean;
+}
+
+/** Pide al backend el estado de la sesión. */
+export function sessionStatus(): Promise<SessionStatus> {
+  return invoke<SessionStatus>("session_status");
 }
