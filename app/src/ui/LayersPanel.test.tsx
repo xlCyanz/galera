@@ -1,0 +1,148 @@
+import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
+import { act } from "react";
+import { type Root, createRoot } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import type { AppliedOp, OpenedProject } from "../commands";
+import { useDocumentStore } from "../store/document";
+import type { Element } from "../types/model";
+import { LayersPanel } from "./LayersPanel";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const rect = (id: string): Element => ({ type: "rect", id, x: 0, y: 0, w: 1, h: 1, rotation: 0, fill: null, stroke: null, radius: 0 });
+
+const project: OpenedProject = {
+  root: "/p",
+  revision: 1,
+  document: {
+    version: 1,
+    meta: { title: "x" },
+    fonts: [],
+    assets: {},
+    variables: {},
+    pages: [
+      { id: "p1", size: { width: 10, height: 10, unit: "mm" }, elements: [rect("a"), rect("b"), rect("c")] },
+      { id: "p2", size: { width: 10, height: 10, unit: "mm" }, elements: [] },
+    ],
+  },
+};
+
+const ROW = 20;
+
+let container: HTMLDivElement;
+let root: Root;
+let ops: Array<Record<string, unknown>>;
+
+beforeEach(() => {
+  ops = [];
+  mockIPC((command, args) => {
+    if (command === "apply_op") {
+      const op = (args as { op: { id: string; index: number } }).op;
+      ops.push(op);
+      // Aplica el reordenado como el núcleo, para ver la lista nueva.
+      const document = structuredClone(useDocumentStore.getState().document!);
+      const elements = document.pages[0]!.elements;
+      const from = elements.findIndex((e) => e.id === op.id);
+      const [moved] = elements.splice(from, 1);
+      elements.splice(op.index, 0, moved!);
+      const applied: AppliedOp = { revision: 2, document, description: `Reordenar ${op.id}`, undo: `Reordenar ${op.id}`, redo: null };
+      return applied;
+    }
+    return null;
+  });
+  // Cada fila mide ROW píxeles, una debajo de otra, en el orden del DOM.
+  Object.defineProperty(HTMLElement.prototype, "getBoundingClientRect", {
+    configurable: true,
+    value(this: HTMLElement) {
+      const rows = [...(this.parentElement?.children ?? [])];
+      const at = rows.indexOf(this);
+      return { top: at * ROW, bottom: (at + 1) * ROW, left: 0, right: 100, width: 100, height: ROW };
+    },
+  });
+  useDocumentStore.setState(useDocumentStore.getInitialState(), true);
+  useDocumentStore.getState().open(project);
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  act(() => root.render(<LayersPanel />));
+});
+
+afterEach(() => {
+  act(() => root.unmount());
+  container.remove();
+  clearMocks();
+  delete (HTMLElement.prototype as { getBoundingClientRect?: unknown }).getBoundingClientRect;
+});
+
+const rows = () => [...container.querySelectorAll<HTMLElement>("[data-layer]")];
+const order = () => rows().map((row) => row.dataset.layer);
+const row = (id: string) => rows().find((r) => r.dataset.layer === id)!;
+const list = () => container.querySelector<HTMLElement>(".layers")!;
+
+function pointer(target: HTMLElement, type: string, clientY: number) {
+  act(() => {
+    target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientY }));
+  });
+}
+
+async function settle() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+describe("panel de capas", () => {
+  it("lista la página con la capa de arriba (la última del arreglo) primero, con icono y nombre", () => {
+    expect(order()).toEqual(["c", "b", "a"]);
+    expect(row("c").querySelector("svg")).not.toBeNull();
+    expect(row("c").textContent).toContain("Rectángulo");
+  });
+
+  it("pulsar una fila selecciona el elemento, y seleccionar en el lienzo marca su fila", () => {
+    pointer(row("b"), "pointerdown", 30);
+    pointer(list(), "pointerup", 30);
+    expect(useDocumentStore.getState().selectedElement).toBe("b");
+    expect(row("b").getAttribute("aria-selected")).toBe("true");
+    expect(ops).toHaveLength(0);
+
+    act(() => useDocumentStore.getState().select("a"));
+    expect(row("a").className).toContain("is-selected");
+    expect(row("b").className).not.toContain("is-selected");
+  });
+
+  it("arrastrar una fila la cambia de capa con un único Reorder", async () => {
+    // «a» (abajo del todo, índice 0) hasta arriba del todo.
+    pointer(row("a"), "pointerdown", 2 * ROW + 10);
+    pointer(list(), "pointermove", 2);
+    expect(row("c").className).toContain("drop-above");
+    pointer(list(), "pointerup", 2);
+    await settle();
+    expect(ops).toEqual([{ op: "reorder", id: "a", index: 2 }]);
+    expect(order()).toEqual(["a", "c", "b"]);
+    expect(useDocumentStore.getState().history.undo).toBe("Reordenar a");
+  });
+
+  it("soltarla donde estaba no manda nada; Esc cancela", async () => {
+    pointer(row("b"), "pointerdown", ROW + 10);
+    pointer(list(), "pointermove", ROW + 14);
+    pointer(list(), "pointerup", ROW + 14);
+    await settle();
+    expect(ops).toHaveLength(0);
+
+    pointer(row("c"), "pointerdown", 10);
+    pointer(list(), "pointermove", 3 * ROW);
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
+    });
+    pointer(list(), "pointerup", 3 * ROW);
+    await settle();
+    expect(ops).toHaveLength(0);
+  });
+
+  it("enseña la página que se ve", () => {
+    act(() => useDocumentStore.getState().setCurrentPage(1));
+    expect(rows()).toHaveLength(0);
+    expect(container.textContent).toContain("no tiene elementos");
+  });
+});
