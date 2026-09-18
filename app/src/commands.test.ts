@@ -153,6 +153,7 @@ describe("renderPage", () => {
       ms: 4.2,
       reused: false,
       revision: 1,
+      boxes: [],
     };
     const calls: Array<{ command: string; args: unknown }> = [];
     mockIPC((command, args) => {
@@ -174,6 +175,7 @@ describe("renderPage", () => {
       ms: 3,
       reused: false,
       revision: 2,
+      boxes: [],
     };
     mockIPC(() => failed);
 

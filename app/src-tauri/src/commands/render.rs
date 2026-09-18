@@ -18,7 +18,7 @@
 //! rechaza— cuando la petición no tiene sentido: no hay nada abierto o la
 //! página no existe.
 
-use galera_core::{Diagnostic, GaleraError};
+use galera_core::{Diagnostic, GaleraError, LayoutBox};
 use serde::Serialize;
 use tauri::State;
 
@@ -45,6 +45,9 @@ pub struct RenderedPage {
     /// La revisión del documento que se compiló. Si no es la última que
     /// conoce la interfaz, la respuesta llega tarde y se puede ignorar.
     pub revision: u64,
+    /// La caja real de cada elemento de esta página, tal como la compuso
+    /// Typst (ver `galera_core::layout`). Vacía si no compila.
+    pub boxes: Vec<LayoutBox>,
 }
 
 /// Devuelve el SVG de una página del documento abierto, compilándolo si
@@ -83,6 +86,11 @@ fn render(state: &AppState, page: usize) -> Result<RenderedPage, CommandError> {
             ms,
             reused: compilation.reused,
             revision: compilation.revision,
+            boxes: compiled
+                .layout()
+                .into_iter()
+                .filter(|layout_box| layout_box.page == page)
+                .collect(),
         },
         Err(error) => RenderedPage {
             svg: None,
@@ -94,6 +102,7 @@ fn render(state: &AppState, page: usize) -> Result<RenderedPage, CommandError> {
             ms,
             reused: compilation.reused,
             revision: compilation.revision,
+            boxes: Vec::new(),
         },
     })
 }
@@ -248,6 +257,42 @@ mod tests {
         }
     }
 
+    /// El criterio de F2-02: con el SVG llegan las cajas de los elementos de
+    /// esa página, y solo de esa.
+    #[test]
+    fn a_page_comes_with_the_boxes_of_its_elements() {
+        let state = state_with("multipagina");
+        let json =
+            std::fs::read_to_string(fixtures_dir().join("multipagina.json")).expect("existe");
+        let document = Document::from_json_str(&json).expect("es un documento");
+
+        for (index, page) in document.pages.iter().enumerate() {
+            let rendered = render(&state, index).expect("la página existe");
+            let ids: Vec<&str> = rendered.boxes.iter().map(|b| b.id.as_str()).collect();
+            let expected: Vec<&str> = page.elements.iter().map(|e| e.id()).collect();
+            assert_eq!(ids, expected, "página {index}");
+            assert!(rendered.boxes.iter().all(|b| b.page == index));
+        }
+    }
+
+    #[test]
+    fn a_document_that_does_not_compile_has_no_boxes() {
+        let state = state_with("informe");
+        let project = Project::open(&fixtures_dir()).expect("fixtures/ es un proyecto");
+        let mut document = Document::from_json_str(
+            &std::fs::read_to_string(fixtures_dir().join("informe.json")).expect("existe"),
+        )
+        .expect("es un documento");
+        document.pages[0].id = "no vale".to_owned();
+        state.open(project, document);
+        assert!(
+            render(&state, 0)
+                .expect("no es un error del comando")
+                .boxes
+                .is_empty()
+        );
+    }
+
     #[test]
     fn without_an_open_project_the_command_fails() {
         assert!(matches!(
@@ -284,7 +329,15 @@ mod tests {
         keys.sort_unstable();
         assert_eq!(
             keys,
-            ["diagnostics", "error", "ms", "reused", "revision", "svg"]
+            [
+                "boxes",
+                "diagnostics",
+                "error",
+                "ms",
+                "reused",
+                "revision",
+                "svg"
+            ]
         );
     }
 }

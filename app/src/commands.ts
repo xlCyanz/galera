@@ -18,6 +18,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { Diagnostic } from "./types/diagnostic";
+import type { LayoutBox } from "./types/layout";
 import type { Document } from "./types/model";
 
 /**
@@ -146,6 +147,8 @@ export interface RenderedPage {
   reused: boolean;
   /** La revisión del documento que se compiló. */
   revision: number;
+  /** La caja real de cada elemento de esta página. Vacía si no compila. */
+  boxes: LayoutBox[];
 }
 
 /**
@@ -213,6 +216,8 @@ export interface CompilationFinished {
   diagnostics: Diagnostic[];
   /** El SVG de cada página. */
   pages: string[];
+  /** La caja real de cada elemento, de todas las páginas. */
+  boxes: LayoutBox[];
 }
 
 /** `compilation:error`: una compilación ha fallado. */

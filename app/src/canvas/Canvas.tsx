@@ -27,14 +27,16 @@ import {
   useOpenDocument,
   useRulersVisible,
 } from "../store/document";
+import { useElementBox } from "../store/layout";
 import { ElementHighlight } from "./ElementHighlight";
 import { type ImageLoader, PageSvg } from "./PageSvg";
 import { Rulers } from "./Rulers";
 import { ZoomControls } from "./ZoomControls";
-import { PX_PER_MM, pageSizeInPx } from "./geometry";
+import { PX_PER_MM, pageSizeInPx, toMillimeters } from "./geometry";
+import { canvasTransform, rectToCanvas } from "./transform";
 import { findElement } from "./elements";
 import { useCanvasNavigation } from "./useCanvasNavigation";
-import { centerOn, pageOrigin } from "./zoom";
+import { centerOn } from "./zoom";
 
 export interface CanvasProps {
   /** Solo para pruebas. */
@@ -54,17 +56,34 @@ export function Canvas({ loader }: CanvasProps) {
   const { zoom, scroll, viewportSize, run, panReady, panning, viewportHandlers } =
     useCanvasNavigation(viewport, page?.size ?? null);
 
-  const size = page === undefined ? null : pageSizeInPx(page.size, zoom);
-  const origin = size === null ? null : pageOrigin(viewportSize, size, scroll);
+  // Toda conversión de mm a píxeles del área sale de aquí (ver `transform.ts`).
+  const transform =
+    page === undefined ? null : canvasTransform(viewportSize, page.size, zoom, scroll);
+  const sheet =
+    page === undefined || transform === null
+      ? null
+      : rectToCanvas(transform, {
+          x: 0,
+          y: 0,
+          w: toMillimeters(page.size.width, page.size.unit),
+          h: toMillimeters(page.size.height, page.size.unit),
+        });
 
+  // El elemento resaltado: la caja que midió Typst si ya la hay, y si no, la
+  // que declara el documento.
   const found = document === null || highlighted === null ? null : findElement(document, highlighted);
+  const measured = useElementBox(highlighted);
+  const highlight =
+    measured !== null
+      ? { pageIndex: measured.page, box: { ...measured } }
+      : found;
 
   // Centrar el elemento resaltado cada vez que se pide, con el zoom actual.
   const centerHighlighted = useEffectEvent(() => {
-    if (found === null || page === undefined) {
+    if (highlight === null || page === undefined) {
       return;
     }
-    const { box } = found;
+    const { box } = highlight;
     const center = {
       x: (box.x + box.w / 2) * PX_PER_MM,
       y: (box.y + (box.h ?? 0) / 2) * PX_PER_MM,
@@ -106,28 +125,24 @@ export function Canvas({ loader }: CanvasProps) {
 
   return (
     <div className="canvas" style={style}>
-      {rulersVisible && origin !== null && (
-        <Rulers
-          viewport={viewport}
-          origin={origin}
-          pxPerMm={PX_PER_MM * zoom}
-          size={viewportSize}
-        />
+      {rulersVisible && transform !== null && (
+        <Rulers viewport={viewport} transform={transform} size={viewportSize} />
       )}
       <div className="canvas-area">
         <div ref={viewport} className={viewportClass} {...viewportHandlers}>
-          {document !== null && page !== undefined && size !== null && origin !== null && (
+          {document !== null && sheet !== null && (
             <PageSvg
-              {...size}
-              left={origin.x}
-              top={origin.y}
+              width={sheet.width}
+              height={sheet.height}
+              left={sheet.left}
+              top={sheet.top}
               svg={pages[currentPage] ?? null}
               label={`Página ${currentPage + 1} de ${document.pages.length}`}
               {...(loader === undefined ? {} : { loader })}
             />
           )}
-          {found !== null && found.pageIndex === currentPage && origin !== null && (
-            <ElementHighlight box={found.box} origin={origin} pxPerMm={PX_PER_MM * zoom} />
+          {highlight !== null && highlight.pageIndex === currentPage && transform !== null && (
+            <ElementHighlight box={highlight.box} transform={transform} />
           )}
         </div>
         {page !== undefined && (
