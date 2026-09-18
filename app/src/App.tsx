@@ -28,6 +28,7 @@ import {
 } from "./store/document";
 import { Inspector } from "./ui/Inspector";
 import { StatusBar } from "./ui/StatusBar";
+import { ToolRail } from "./ui/ToolRail";
 
 const mac = isMac();
 
@@ -158,6 +159,7 @@ export function App() {
       </div>
       {title !== null && <ProjectInfo title={title} />}
       <div className="workspace">
+        {title !== null && <ToolRail />}
         <Canvas />
         <Inspector />
       </div>

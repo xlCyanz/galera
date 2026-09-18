@@ -74,10 +74,13 @@ const mac = isMac();
 /**
  * @param viewport El área del lienzo.
  * @param pageSize El tamaño de la página visible, o `null` si no hay.
+ * @param hand Si está activa la herramienta mano: el botón principal
+ *   desplaza siempre, sin mantener Espacio.
  */
 export function useCanvasNavigation(
   viewport: RefObject<HTMLElement | null>,
   pageSize: PageSize | null,
+  hand = false,
 ): CanvasNavigation {
   const zoom = useZoom();
   const scroll = useScroll();
@@ -256,7 +259,7 @@ export function useCanvasNavigation(
   const viewportHandlers: CanvasNavigation["viewportHandlers"] = {
     onPointerDown: (event) => {
       const middleButton = event.button === 1;
-      if (pageSize === null || !(middleButton || (panReady && event.button === 0))) {
+      if (pageSize === null || !(middleButton || ((panReady || hand) && event.button === 0))) {
         return;
       }
       event.preventDefault();
@@ -282,5 +285,5 @@ export function useCanvasNavigation(
     },
   };
 
-  return { zoom, scroll, viewportSize, run, panReady, panning, viewportHandlers };
+  return { zoom, scroll, viewportSize, run, panReady: panReady || hand, panning, viewportHandlers };
 }

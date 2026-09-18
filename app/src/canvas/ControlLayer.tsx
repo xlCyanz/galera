@@ -35,6 +35,11 @@ export interface ControlLayerProps {
   showSize?: boolean;
   /** Enseñar el ángulo: durante un giro. */
   showAngle?: boolean;
+  /**
+   * Si responde al puntero. Con otra herramienta que no sea la de
+   * selección, el contorno se ve pero el clic pasa al lienzo.
+   */
+  interactive?: boolean;
 }
 
 export function ControlLayer({
@@ -46,6 +51,7 @@ export function ControlLayer({
   onRotateStart,
   showSize = false,
   showAngle = false,
+  interactive = true,
 }: ControlLayerProps) {
   const rect = rectToCanvas(transform, { ...box, x: box.x + offset.dx, y: box.y + offset.dy });
   const scale = transform.pxPerMm;
@@ -53,7 +59,9 @@ export function ControlLayer({
 
   return (
     <div
-      className={line === null ? "control-layer" : "control-layer is-line"}
+      className={["control-layer", line === null ? "" : "is-line", interactive ? "" : "is-inert"]
+        .filter(Boolean)
+        .join(" ")}
       data-element={box.id}
       onPointerDown={line === null ? onBodyPointerDown : undefined}
       style={{
