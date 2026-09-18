@@ -17,8 +17,8 @@
  *
  * La herramienta activa (`store/tool.ts`) decide qué hace el clic: con la
  * de selección, seleccionar y arrastrar; con la mano, desplazar; con las que
- * crean formas, dibujarlas (`useCreate.ts`); texto e imagen llegan con otras
- * tareas de la Fase 3. Escape vuelve a la de selección.
+ * crean formas y textos, dibujarlos (`useCreate.ts`); la imagen llega con
+ * otra tarea de la Fase 3. Escape vuelve a la de selección.
  */
 import { type CSSProperties, useEffect, useEffectEvent, useRef, useState } from "react";
 
@@ -202,7 +202,7 @@ export function Canvas({ loader }: CanvasProps) {
             viewportHandlers.onPointerDown(event);
             if (selecting) {
               onSelect(event);
-            } else if (tool === "rect" || tool === "ellipse" || tool === "line") {
+            } else if (tool === "rect" || tool === "ellipse" || tool === "line" || tool === "text") {
               create.onPointerDown(tool, event);
             }
           }}
@@ -298,6 +298,20 @@ export function Canvas({ loader }: CanvasProps) {
           )}
           {create.state.phase !== "idle" && transform !== null && (
             <CreatePreview shape={create.state.shape} transform={transform} />
+          )}
+          {create.state.phase === "needsFont" && (
+            <div className="canvas-notice" role="alert" onPointerDown={(event) => event.stopPropagation()}>
+              <p>
+                {create.state.error ??
+                  "El proyecto no tiene ninguna fuente: añade una para poder crear textos."}
+              </p>
+              <button type="button" onClick={() => void create.addFont()}>
+                Añadir fuente…
+              </button>
+              <button type="button" onClick={create.dismiss}>
+                Cancelar
+              </button>
+            </div>
           )}
           {highlight !== null && highlight.pageIndex === currentPage && transform !== null && (
             <ElementHighlight box={highlight.box} transform={transform} />

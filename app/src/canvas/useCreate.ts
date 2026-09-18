@@ -1,6 +1,6 @@
 /**
- * Crear un rectángulo, una elipse o una línea arrastrando sobre el lienzo
- * con su herramienta (`store/tool.ts`).
+ * Crear un rectángulo, una elipse, una línea o un texto arrastrando sobre el
+ * lienzo con su herramienta (`store/tool.ts`).
  *
  * Mientras se arrastra se ve la forma (`CreatePreview.tsx`); al soltar se
  * manda un único `Op::Create` al núcleo, con el estilo por defecto, y el
@@ -12,15 +12,22 @@
  * - Shift fuerza cuadrado, círculo o ángulos de 45° en una línea.
  * - Esc cancela.
  *
+ * Un texto se crea arrastrando su ancho (el alto lo decide Typst: `h:
+ * null`), con un texto de relleno y el estilo que diga el núcleo según el
+ * documento (`textDefaults`). Si el proyecto no tiene ninguna fuente, no se
+ * puede: se queda en `needsFont`, el lienzo lo avisa y ofrece añadir una
+ * (`addFont`), y en cuanto se añade se crea el texto.
+ *
  * Las cuentas están en `createGeometry.ts`.
  */
 import { type PointerEvent, useEffect, useEffectEvent, useRef, useState } from "react";
 
-import { applyOp } from "../commands";
+import { addFont as addFontToProject, applyOp, errorMessage, textDefaults } from "../commands";
 import { useCompilationStore } from "../store/compilation";
 import { useDocumentStore } from "../store/document";
 import { useLayoutStore } from "../store/layout";
 import { useToolStore } from "../store/tool";
+import type { TextStyle } from "../types/model";
 import {
   DRAG_THRESHOLD_PX,
   type Point,
@@ -38,14 +45,23 @@ export type CreateState =
   /** Arrastrando: la forma que saldría si se soltara ahora. */
   | { phase: "drawing"; kind: ShapeKind; shape: ShapeGeometry }
   /** Soltado: esperando al núcleo (`revision` null) y a su compilación. */
-  | { phase: "committing"; kind: ShapeKind; shape: ShapeGeometry; revision: number | null };
+  | { phase: "committing"; kind: ShapeKind; shape: ShapeGeometry; revision: number | null }
+  /**
+   * Un texto que no se puede crear porque el proyecto no tiene fuentes.
+   * `error`: por qué falló el último intento de añadir una.
+   */
+  | { phase: "needsFont"; kind: "text"; shape: ShapeGeometry; error: string | null };
 
 const idle: CreateState = { phase: "idle" };
 
 export interface Create {
   state: CreateState;
-  /** El `pointerdown` del área del lienzo con una herramienta de forma. */
+  /** El `pointerdown` del área del lienzo con una herramienta de forma o de texto. */
   onPointerDown: (kind: ShapeKind, event: PointerEvent<HTMLElement>) => void;
+  /** En `needsFont`: pide una fuente, la añade y crea el texto. */
+  addFont: () => Promise<void>;
+  /** En `needsFont`: renuncia a crear el texto. */
+  dismiss: () => void;
 }
 
 /**
@@ -74,29 +90,86 @@ export function useCreate(transform: CanvasTransform | null, page: number): Crea
     setState({ ...state, shape: shapeFromDrag(state.kind, pressed.start, end, shift.current) });
   });
 
+  /** Crea el elemento: un único `Op::Create`. */
+  const create = useEffectEvent(async (kind: ShapeKind, shape: ShapeGeometry) => {
+    let style: TextStyle | undefined;
+    if (kind === "text") {
+      try {
+        const found = await textDefaults();
+        if (found === null) {
+          setState({ phase: "needsFont", kind, shape, error: null });
+          return;
+        }
+        style = found;
+      } catch {
+        setState(idle);
+        return;
+      }
+    }
+    // Se lee ahora: el documento puede haber cambiado mientras se esperaba.
+    const { document } = useDocumentStore.getState();
+    const target = document?.pages[page];
+    if (document === null || target === undefined) {
+      setState(idle);
+      return;
+    }
+    const id = newElementId(document, kind);
+    setState({ phase: "committing", kind, shape, revision: null });
+    try {
+      const applied = await applyOp({ op: "create", page: target.id, index: null, element: shapeElement(id, shape, style) });
+      useDocumentStore.getState().applyEdit(applied);
+      useDocumentStore.getState().select(id);
+      useToolStore.getState().created();
+      setState((current) => (current.phase === "committing" ? { ...current, revision: applied.revision } : current));
+    } catch {
+      setState(idle);
+    }
+  });
+
   const commit = useEffectEvent(() => {
     const pressed = press.current;
     press.current = null;
-    const { document } = useDocumentStore.getState();
-    const target = document?.pages[page];
-    if (state.phase !== "drawing" || pressed === null || document === null || target === undefined) {
+    if (state.phase !== "drawing" || pressed === null) {
       setState(idle);
       return;
     }
     const shape = moved.current ? state.shape : defaultShape(state.kind, pressed.start);
-    const id = newElementId(document, state.kind);
-    setState({ phase: "committing", kind: state.kind, shape, revision: null });
-    applyOp({ op: "create", page: target.id, index: null, element: shapeElement(id, shape) })
-      .then((applied) => {
-        useDocumentStore.getState().applyEdit(applied);
-        useDocumentStore.getState().select(id);
-        useToolStore.getState().created();
-        setState((current) =>
-          current.phase === "committing" ? { ...current, revision: applied.revision } : current,
-        );
-      })
-      .catch(() => setState(idle));
+    void create(state.kind, shape);
   });
+
+  const addFont = useEffectEvent(async () => {
+    if (state.phase !== "needsFont") {
+      return;
+    }
+    const { kind, shape } = state;
+    try {
+      const added = await addFontToProject();
+      if (added === null) {
+        return;
+      }
+      useDocumentStore.getState().applyEdit(added);
+      await create(kind, shape);
+    } catch (reason) {
+      setState({ phase: "needsFont", kind, shape, error: errorMessage(reason) });
+    }
+  });
+
+  // Con el aviso de la fuente a la vista, Esc lo cierra.
+  const needsFont = state.phase === "needsFont";
+  useEffect(() => {
+    if (!needsFont) {
+      return;
+    }
+    const key = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        setState(idle);
+      }
+    };
+    window.addEventListener("keydown", key, true);
+    return () => window.removeEventListener("keydown", key, true);
+  }, [needsFont]);
 
   // Mientras se dibuja, el puntero y las teclas se escuchan en la ventana.
   const drawing = state.phase === "drawing";
@@ -153,7 +226,13 @@ export function useCreate(transform: CanvasTransform | null, page: number): Crea
   return {
     state,
     onPointerDown: (kind, event) => {
-      if (event.button !== 0 || event.defaultPrevented || transform === null || state.phase === "drawing") {
+      if (
+        event.button !== 0 ||
+        event.defaultPrevented ||
+        transform === null ||
+        state.phase === "drawing" ||
+        state.phase === "needsFont"
+      ) {
         return;
       }
       event.preventDefault();
@@ -167,5 +246,7 @@ export function useCreate(transform: CanvasTransform | null, page: number): Crea
       moved.current = false;
       setState({ phase: "drawing", kind, shape: defaultShape(kind, start) });
     },
+    addFont: () => addFont(),
+    dismiss: () => setState(idle),
   };
 }

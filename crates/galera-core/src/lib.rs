@@ -37,6 +37,7 @@
 pub mod codegen;
 pub mod compile;
 pub mod error;
+pub mod fonts;
 pub mod layout;
 pub mod model;
 pub mod open;
@@ -49,6 +50,7 @@ pub mod world;
 pub use codegen::{escape, escape_into};
 pub use compile::{Compiled, compile, compile_pdf, compile_svg};
 pub use error::{Diagnostic, GaleraError, Result, Severity};
+pub use fonts::{ImportFontError, ImportedFont, default_text_style, import_font};
 pub use layout::{LayoutBox, MmRect, layout};
 pub use model::{
     Align, Document, Element, ElementBox, Meta, Page, PageSize, Run, Stroke, TextStyle, Unit,
