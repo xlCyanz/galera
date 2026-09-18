@@ -51,6 +51,8 @@ export interface DocumentState {
    * error. Hasta que haya selección (Fase 2), es la forma de señalarlo.
    */
   highlightedElement: string | null;
+  /** El elemento seleccionado, o `null` si no hay ninguno. */
+  selectedElement: string | null;
   /**
    * Cuántas veces se ha pedido llevar el lienzo a un elemento. El lienzo
    * mira este número: cada vez que cambia, centra el elemento resaltado.
@@ -87,6 +89,8 @@ export interface DocumentState {
   focusElement: (id: string) => boolean;
   /** Quita el resaltado. */
   clearHighlight: () => void;
+  /** Selecciona un elemento, o ninguno con `null`. */
+  select: (id: string | null) => void;
 }
 
 const origin: Scroll = { x: 0, y: 0 };
@@ -99,6 +103,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   scroll: origin,
   rulersVisible: true,
   highlightedElement: null,
+  selectedElement: null,
   focusRequests: 0,
 
   open: (opened) =>
@@ -108,10 +113,18 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
       currentPage: 0,
       scroll: origin,
       highlightedElement: null,
+      selectedElement: null,
     }),
 
   close: () =>
-    set({ document: null, root: null, currentPage: 0, scroll: origin, highlightedElement: null }),
+    set({
+      document: null,
+      root: null,
+      currentPage: 0,
+      scroll: origin,
+      highlightedElement: null,
+      selectedElement: null,
+    }),
 
   setCurrentPage: (page) =>
     set((state) => ({
@@ -161,6 +174,8 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   },
 
   clearHighlight: () => set({ highlightedElement: null }),
+
+  select: (id) => set({ selectedElement: id }),
 }));
 
 /** Un zoom dentro de los límites. */
@@ -195,6 +210,8 @@ export const useZoom = () => useDocumentStore((state) => state.zoom);
 export const useScroll = () => useDocumentStore((state) => state.scroll);
 /** Si se ven las reglas. */
 export const useRulersVisible = () => useDocumentStore((state) => state.rulersVisible);
+/** El elemento seleccionado. */
+export const useSelectedElement = () => useDocumentStore((state) => state.selectedElement);
 /** El elemento resaltado. */
 export const useHighlightedElement = () => useDocumentStore((state) => state.highlightedElement);
 /** Cuántas veces se ha pedido llevar el lienzo a un elemento. */

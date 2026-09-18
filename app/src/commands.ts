@@ -230,3 +230,20 @@ export interface CompilationFailed {
   /** Por qué falló. */
   error: CommandError;
 }
+
+/**
+ * El id del elemento bajo un punto de la página, en mm, o `null` si no hay
+ * ninguno. Lo decide el núcleo con la última compilación buena, la que se ve.
+ *
+ * `tolerance` ensancha cada elemento, en mm. Con `below` se pide atravesar:
+ * si ese elemento está bajo el punto, devuelve el siguiente hacia abajo.
+ */
+export function elementAt(
+  page: number,
+  x: number,
+  y: number,
+  tolerance: number,
+  below: string | null,
+): Promise<string | null> {
+  return invoke<string | null>("element_at", { page, x, y, tolerance, below });
+}
