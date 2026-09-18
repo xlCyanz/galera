@@ -1,15 +1,15 @@
 /**
- * Las cuentas de crear una forma arrastrando, sin DOM: qué caja o qué línea
- * sale de un arrastre, el tamaño si solo se hace clic, el id nuevo y el
- * elemento con su estilo por defecto.
+ * Las cuentas de crear una forma o un texto arrastrando, sin DOM: qué caja,
+ * qué línea o qué ancho sale de un arrastre, el tamaño si solo se hace clic,
+ * el id nuevo y el elemento con su estilo por defecto.
  *
  * Todo en milímetros de la página.
  */
-import type { Document, Element } from "../types/model";
+import type { Document, Element, TextStyle } from "../types/model";
 import { roundMm } from "./dragGeometry";
 
-/** Las formas que se crean arrastrando. */
-export type ShapeKind = "rect" | "ellipse" | "line";
+/** Lo que se crea arrastrando. */
+export type ShapeKind = "rect" | "ellipse" | "line" | "text";
 
 export interface Point {
   x: number;
@@ -19,7 +19,9 @@ export interface Point {
 /** Lo que se dibuja: una caja o, para una línea, sus dos extremos. */
 export type ShapeGeometry =
   | { kind: "rect" | "ellipse"; x: number; y: number; w: number; h: number }
-  | { kind: "line"; x: number; y: number; x2: number; y2: number };
+  | { kind: "line"; x: number; y: number; x2: number; y2: number }
+  /** Un texto: solo su ancho; el alto lo decide Typst (`h: null`). */
+  | { kind: "text"; x: number; y: number; w: number };
 
 /** Píxeles que hay que mover el puntero para que sea un arrastre y no un clic. */
 export const DRAG_THRESHOLD_PX = 3;
@@ -29,7 +31,17 @@ export const DEFAULT_SIZE: Record<ShapeKind, { w: number; h: number }> = {
   rect: { w: 40, h: 30 },
   ellipse: { w: 30, h: 30 },
   line: { w: 40, h: 0 },
+  text: { w: 60, h: 0 },
 };
+
+/** El alto con que se enseña un texto mientras se crea, en mm: una línea. */
+export const TEXT_PREVIEW_HEIGHT_MM = 6;
+
+/** Lo más estrecho que puede salir un texto, en mm. */
+export const MIN_TEXT_WIDTH_MM = 10;
+
+/** El texto de relleno de un texto nuevo. Editarlo llega con la Fase 4. */
+export const PLACEHOLDER_TEXT = "Texto";
 
 /** El estilo con el que nace cada forma. */
 export const DEFAULT_FILL = "#cbd5e1";
@@ -47,6 +59,12 @@ const MIN_SIZE_MM = 1;
 export function shapeFromDrag(kind: ShapeKind, start: Point, end: Point, constrain: boolean): ShapeGeometry {
   let dx = end.x - start.x;
   let dy = end.y - start.y;
+
+  if (kind === "text") {
+    // Solo cuenta el ancho: el texto empieza a la altura donde se pulsó.
+    const w = Math.max(MIN_TEXT_WIDTH_MM, Math.abs(dx));
+    return { kind, x: roundMm(dx < 0 ? start.x - w : start.x), y: roundMm(start.y), w: roundMm(w) };
+  }
 
   if (kind === "line") {
     if (constrain) {
@@ -107,9 +125,29 @@ export function newElementId(document: Document, kind: string): string {
   }
 }
 
-/** El elemento que se crea, con su estilo por defecto. */
-export function shapeElement(id: string, shape: ShapeGeometry): Element {
+/**
+ * El elemento que se crea, con su estilo por defecto.
+ *
+ * @param textStyle El estilo de un texto nuevo, que decide el núcleo según
+ *   las fuentes del proyecto. Solo hace falta para un texto.
+ */
+export function shapeElement(id: string, shape: ShapeGeometry, textStyle?: TextStyle): Element {
   switch (shape.kind) {
+    case "text":
+      if (textStyle === undefined) {
+        throw new Error("un texto necesita un estilo");
+      }
+      return {
+        type: "text",
+        id,
+        x: shape.x,
+        y: shape.y,
+        w: shape.w,
+        h: null,
+        rotation: 0,
+        content: [{ text: PLACEHOLDER_TEXT, bold: false, italic: false, underline: false }],
+        style: { ...textStyle },
+      };
     case "rect":
       return {
         type: "rect",

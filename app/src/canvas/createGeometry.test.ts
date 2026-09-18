@@ -5,6 +5,8 @@ import {
   DEFAULT_FILL,
   DEFAULT_SIZE,
   DEFAULT_STROKE,
+  MIN_TEXT_WIDTH_MM,
+  PLACEHOLDER_TEXT,
   defaultShape,
   newElementId,
   shapeElement,
@@ -82,5 +84,34 @@ describe("shapeElement", () => {
     expect(shapeElement("line-1", { kind: "line", x: 1, y: 2, x2: 3, y2: 4 })).toEqual({
       type: "line", id: "line-1", x: 1, y: 2, x2: 3, y2: 4, rotation: 0, stroke: DEFAULT_STROKE,
     });
+  });
+});
+
+describe("texto", () => {
+  const style = { font: "Inter", size: 12, color: "#000000", align: "left", leading: 0.65 } as const;
+
+  it("arrastrar define solo el ancho; empieza a la altura donde se pulsó", () => {
+    expect(shapeFromDrag("text", { x: 10, y: 20 }, { x: 70, y: 90 }, false)).toEqual({ kind: "text", x: 10, y: 20, w: 60 });
+    expect(shapeFromDrag("text", { x: 70, y: 20 }, { x: 10, y: 5 }, true)).toEqual({ kind: "text", x: 10, y: 20, w: 60 });
+    expect(shapeFromDrag("text", { x: 10, y: 20 }, { x: 12, y: 20 }, false)).toMatchObject({ w: MIN_TEXT_WIDTH_MM });
+  });
+
+  it("un clic da el ancho por defecto", () => {
+    expect(defaultShape("text", { x: 5, y: 6 })).toEqual({ kind: "text", x: 5, y: 6, w: DEFAULT_SIZE.text.w });
+  });
+
+  it("el elemento deja el alto a Typst y lleva el estilo que se le da", () => {
+    expect(shapeElement("text-1", { kind: "text", x: 1, y: 2, w: 50 }, style)).toEqual({
+      type: "text",
+      id: "text-1",
+      x: 1,
+      y: 2,
+      w: 50,
+      h: null,
+      rotation: 0,
+      content: [{ text: PLACEHOLDER_TEXT, bold: false, italic: false, underline: false }],
+      style,
+    });
+    expect(() => shapeElement("text-1", { kind: "text", x: 1, y: 2, w: 50 })).toThrow();
   });
 });

@@ -8,7 +8,7 @@ import { useCompilationStore } from "../store/compilation";
 import { useDocumentStore } from "../store/document";
 import { useLayoutStore } from "../store/layout";
 import { useToolStore } from "../store/tool";
-import type { Element } from "../types/model";
+import type { Element, TextStyle } from "../types/model";
 import { Canvas } from "./Canvas";
 import type { ImageLoader } from "./PageSvg";
 import { DEFAULT_SIZE } from "./createGeometry";
@@ -34,16 +34,41 @@ const project: OpenedProject = {
 let container: HTMLDivElement;
 let root: Root;
 let ops: Array<{ op: string; page: string; index: number | null; element: Element }>;
+/** Lo que contestan los comandos de fuentes. */
+let style: TextStyle | null;
+let fontDialog: "inter" | "cancel" | "not-a-font";
+let calls: string[];
 
 beforeEach(async () => {
   Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => AREA.width });
   Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => AREA.height });
   ops = [];
+  calls = [];
+  style = { font: "Inter", size: 14, color: "#333333", align: "left", leading: 0.65 };
+  fontDialog = "inter";
   mockIPC((command, args) => {
+    calls.push(command);
+    if (command === "text_defaults") {
+      return style;
+    }
+    if (command === "add_font") {
+      if (fontDialog === "cancel") {
+        return null;
+      }
+      if (fontDialog === "not-a-font") {
+        throw { kind: "font", message: "falsa.ttf no es una fuente que Galera sepa leer" };
+      }
+      style = { font: "Inter", size: 12, color: "#000000", align: "left", leading: 0.65 };
+      const document = structuredClone(project.document);
+      document.fonts = ["fonts/Inter-Regular.ttf"];
+      const added: AppliedOp = { revision: 50, document, description: "Añadir la fuente", undo: null, redo: null };
+      return added;
+    }
     if (command === "apply_op") {
       const op = (args as { op: (typeof ops)[number] }).op;
       ops.push(op);
-      const document = structuredClone(project.document);
+      // El backend aplica sobre lo que tiene: aquí, lo que hay en el store.
+      const document = structuredClone(useDocumentStore.getState().document ?? project.document);
       document.pages[0]!.elements.push(op.element);
       const applied: AppliedOp = { revision: 1 + ops.length, document, description: `Crear ${op.element.id}`, undo: `Crear ${op.element.id}`, redo: null };
       return applied;
@@ -105,7 +130,7 @@ async function up() {
   });
 }
 
-function tool(name: "rect" | "ellipse" | "line") {
+function tool(name: "rect" | "ellipse" | "line" | "text") {
   act(() => useToolStore.getState().setTool(name));
 }
 
@@ -178,5 +203,85 @@ describe("crear formas", () => {
     move(60, 55);
     await up();
     expect(ops).toHaveLength(0);
+  });
+});
+
+describe("crear texto", () => {
+  const notice = () => container.querySelector<HTMLElement>(".canvas-notice");
+  const button = (text: string) => [...(notice()?.querySelectorAll("button") ?? [])].find((b) => b.textContent === text)!;
+
+  it("arrastrar define el ancho, deja h: null y usa el estilo del documento", async () => {
+    tool("text");
+    down(20, 30);
+    move(90, 80);
+    expect(preview()!.dataset.shape).toBe("text");
+    await up();
+    expect(ops).toHaveLength(1);
+    expect(ops[0]!.element).toMatchObject({
+      type: "text",
+      id: "text-1",
+      x: 20,
+      y: 30,
+      w: 70,
+      h: null,
+      style: { font: "Inter", size: 14, color: "#333333" },
+    });
+    expect(useDocumentStore.getState().selectedElement).toBe("text-1");
+    expect(useToolStore.getState().tool).toBe("select");
+  });
+
+  it("sin fuentes avisa y ofrece añadir una; al añadirla se crea el texto", async () => {
+    style = null;
+    tool("text");
+    down(20, 30);
+    await up();
+    expect(ops).toHaveLength(0);
+    expect(notice()!.textContent).toContain("no tiene ninguna fuente");
+
+    // Cancelar el diálogo deja el aviso.
+    fontDialog = "cancel";
+    await act(async () => {
+      button("Añadir fuente…").click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(notice()).not.toBeNull();
+
+    // Un archivo que no es una fuente: lo dice.
+    fontDialog = "not-a-font";
+    await act(async () => {
+      button("Añadir fuente…").click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(notice()!.textContent).toContain("no es una fuente");
+
+    fontDialog = "inter";
+    await act(async () => {
+      button("Añadir fuente…").click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(notice()).toBeNull();
+    expect(useDocumentStore.getState().document?.fonts).toEqual(["fonts/Inter-Regular.ttf"]);
+    expect(ops).toHaveLength(1);
+    expect(ops[0]!.element).toMatchObject({ type: "text", x: 20, y: 30, w: DEFAULT_SIZE.text.w, style: { font: "Inter", size: 12 } });
+    expect(useDocumentStore.getState().selectedElement).toBe("text-1");
+  });
+
+  it("Cancelar o Esc cierran el aviso sin crear nada", async () => {
+    style = null;
+    tool("text");
+    down(20, 30);
+    await up();
+    act(() => button("Cancelar").click());
+    expect(notice()).toBeNull();
+
+    down(20, 30);
+    await up();
+    expect(notice()).not.toBeNull();
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
+    });
+    expect(notice()).toBeNull();
+    expect(ops).toHaveLength(0);
+    expect(calls).not.toContain("add_font");
   });
 });

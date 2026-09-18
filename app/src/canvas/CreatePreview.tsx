@@ -1,11 +1,13 @@
 /**
- * La forma que se está creando, antes de que exista (ver `useCreate.ts`).
+ * La forma o el texto que se está creando, antes de que exista (ver
+ * `useCreate.ts`). Un texto se ve como una caja de una línea con su ancho:
+ * cuánto ocupa de alto lo sabrá Typst al componerlo.
  *
  * Es un dibujo de la interfaz, como el contorno de la selección: una caja,
  * una elipse o una línea con el color de los controles, colocada con
  * `transform.ts`. Lo que se crea de verdad lo dibuja Typst al recompilar.
  */
-import type { ShapeGeometry } from "./createGeometry";
+import { type ShapeGeometry, TEXT_PREVIEW_HEIGHT_MM } from "./createGeometry";
 import { type CanvasTransform, rectToCanvas, toCanvas } from "./transform";
 
 export interface CreatePreviewProps {
@@ -23,7 +25,10 @@ export function CreatePreview({ shape, transform }: CreatePreviewProps) {
       </svg>
     );
   }
-  const rect = rectToCanvas(transform, shape);
+  const rect = rectToCanvas(
+    transform,
+    shape.kind === "text" ? { ...shape, h: TEXT_PREVIEW_HEIGHT_MM } : shape,
+  );
   return (
     <div
       className="create-preview"

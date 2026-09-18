@@ -305,6 +305,23 @@ fn load_fonts(project: &Project, declared: &[String]) -> Result<Vec<Font>, World
     Ok(fonts)
 }
 
+/// Las familias tipográficas que trae un archivo de fuente, una vez cada
+/// una y en el orden en que aparecen. Vacío si no es una fuente que Typst
+/// sepa leer.
+///
+/// Sirve para comprobar un archivo antes de añadirlo al proyecto
+/// ([`crate::fonts::import_font`]).
+pub fn families_in(data: &[u8]) -> Vec<String> {
+    let mut families: Vec<String> = Vec::new();
+    for font in Font::iter(Bytes::new(data.to_vec())) {
+        let family = &font.info().family;
+        if !families.iter().any(|known| known == family) {
+            families.push(family.clone());
+        }
+    }
+    families
+}
+
 /// Convierte días desde el 1 de enero de 1970 en año, mes y día.
 ///
 /// Es el algoritmo `civil_from_days` de Howard Hinnant, exacto para

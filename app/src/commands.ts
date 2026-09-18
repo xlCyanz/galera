@@ -19,7 +19,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { Diagnostic } from "./types/diagnostic";
 import type { LayoutBox } from "./types/layout";
-import type { Document } from "./types/model";
+import type { Document, TextStyle } from "./types/model";
 import type { Op } from "./types/ops";
 
 /**
@@ -288,4 +288,24 @@ export function undo(): Promise<AppliedOp | null> {
 /** Rehace el último paso deshecho. `null` si no había nada que rehacer. */
 export function redo(): Promise<AppliedOp | null> {
   return invoke<AppliedOp | null>("redo");
+}
+
+/**
+ * El estilo con el que nace un texto nuevo en el documento abierto: el del
+ * primer texto que ya hay, o la primera fuente del proyecto a 12 pt. `null`
+ * si el proyecto no tiene ninguna fuente, y entonces no se puede crear un
+ * texto hasta añadir una (`addFont`).
+ */
+export function textDefaults(): Promise<TextStyle | null> {
+  return invoke<TextStyle | null>("text_defaults");
+}
+
+/**
+ * Pide un archivo de fuente con el diálogo nativo, lo copia en la carpeta
+ * `fonts/` del proyecto y lo añade al documento, que se recompila. `null`
+ * si se cancela el diálogo. Se rechaza con `kind: "font"` si el archivo no
+ * es una fuente.
+ */
+export function addFont(): Promise<AppliedOp | null> {
+  return invoke<AppliedOp | null>("add_font");
 }

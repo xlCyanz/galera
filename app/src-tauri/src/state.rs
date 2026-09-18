@@ -230,6 +230,38 @@ impl AppState {
         })))
     }
 
+    /// El proyecto y el documento abiertos, copiados, o `None` si no hay nada.
+    pub fn open_document(&self) -> Option<(Project, Document)> {
+        let session = self.read();
+        let open = session.open.as_ref()?;
+        Some((open.project.clone(), open.document.clone()))
+    }
+
+    /// Añade una fuente, ya copiada en la carpeta del proyecto, a las que
+    /// declara el documento abierto. Si ya estaba, no cambia nada.
+    ///
+    /// No pasa por el historial: declarar una fuente no cambia cómo se ve
+    /// ningún elemento, y deshacerlo dejaría textos sin su tipografía.
+    ///
+    /// `None` si no hay nada abierto.
+    pub fn add_font(&self, path: &str) -> Option<Edited> {
+        let mut session = self.write();
+        let session = &mut *session;
+        let open = session.open.as_mut()?;
+        if !open.document.fonts.iter().any(|font| font == path) {
+            open.document.fonts.push(path.to_owned());
+            session.revision += 1;
+            session.compiled = None;
+        }
+        Some(Edited {
+            revision: session.revision,
+            document: open.document.clone(),
+            description: format!("Añadir la fuente {path}"),
+            undo: session.history.undo_description().map(str::to_owned),
+            redo: session.history.redo_description().map(str::to_owned),
+        })
+    }
+
     /// Cierra lo que haya abierto.
     pub fn close(&self) {
         let mut session = self.write();
