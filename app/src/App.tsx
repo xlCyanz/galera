@@ -9,8 +9,14 @@ import {
   sessionStatus,
 } from "./commands";
 import { Canvas } from "./canvas/Canvas";
-import { exportPdfShortcutLabel, isExportPdfShortcut, isMac } from "./shortcuts";
+import {
+  exportPdfShortcutLabel,
+  historyShortcutLabel,
+  isExportPdfShortcut,
+  isMac,
+} from "./shortcuts";
 import { useCompilation } from "./hooks/useCompilation";
+import { runHistory, useUndoRedo } from "./hooks/useUndoRedo";
 import { useCompilationStore } from "./store/compilation";
 import { useLayoutStore } from "./store/layout";
 import {
@@ -35,6 +41,7 @@ const mac = isMac();
  */
 export function App() {
   useCompilation();
+  const history = useUndoRedo();
   const title = useDocumentTitle();
   const [status, setStatus] = useState<SessionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -123,6 +130,26 @@ export function App() {
           title={exportPdfShortcutLabel(mac)}
         >
           Exportar a PDF… <kbd>{exportPdfShortcutLabel(mac)}</kbd>
+        </button>
+        <button
+          type="button"
+          onClick={() => void runHistory("undo")}
+          disabled={history.undo === null}
+          aria-keyshortcuts={mac ? "Meta+Z" : "Control+Z"}
+          title={historyShortcutLabel("undo", mac)}
+        >
+          {history.undo === null ? "Deshacer" : `Deshacer: ${history.undo}`}{" "}
+          <kbd>{historyShortcutLabel("undo", mac)}</kbd>
+        </button>
+        <button
+          type="button"
+          onClick={() => void runHistory("redo")}
+          disabled={history.redo === null}
+          aria-keyshortcuts={mac ? "Meta+Shift+Z" : "Control+Shift+Z"}
+          title={historyShortcutLabel("redo", mac)}
+        >
+          {history.redo === null ? "Rehacer" : `Rehacer: ${history.redo}`}{" "}
+          <kbd>{historyShortcutLabel("redo", mac)}</kbd>
         </button>
         <button type="button" onClick={check}>
           Comprobar conexión con el núcleo

@@ -255,8 +255,12 @@ export interface AppliedOp {
   revision: number;
   /** El documento con el cambio. */
   document: Document;
-  /** Un nombre legible del cambio: «Mover r1». */
+  /** Un nombre legible de lo que se ha hecho, deshecho o rehecho: «Mover r1». */
   description: string;
+  /** Qué se desharía ahora, o `null` si no hay nada. */
+  undo: string | null;
+  /** Qué se reharía ahora, o `null` si no hay nada. */
+  redo: string | null;
 }
 
 /**
@@ -264,7 +268,24 @@ export interface AppliedOp {
  * pide compilar y devuelve el documento nuevo; la compilación llega por
  * eventos. Se rechaza con un `CommandError` (`kind: "op"`) si no se puede
  * aplicar, y entonces no cambia nada.
+ *
+ * Se apunta en el historial; los comandos seguidos con el mismo `group` son
+ * un único paso (varios empujones con las flechas, por ejemplo).
  */
-export function applyOp(op: Op): Promise<AppliedOp> {
-  return invoke<AppliedOp>("apply_op", { op });
+export function applyOp(op: Op, group?: string): Promise<AppliedOp> {
+  return invoke<AppliedOp>("apply_op", { op, group: group ?? null });
+}
+
+/**
+ * Deshace el último paso del historial. `null` si no había nada que
+ * deshacer. Como `applyOp`, el backend pide compilar y el resultado llega
+ * por eventos.
+ */
+export function undo(): Promise<AppliedOp | null> {
+  return invoke<AppliedOp | null>("undo");
+}
+
+/** Rehace el último paso deshecho. `null` si no había nada que rehacer. */
+export function redo(): Promise<AppliedOp | null> {
+  return invoke<AppliedOp | null>("redo");
 }

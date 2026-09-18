@@ -3,7 +3,7 @@
 //! Nada modifica el documento por su cuenta. Cada cambio es un [`Op`]
 //! explícito y serializable, que se aplica a un documento y devuelve el
 //! documento nuevo **y el comando que lo deshace** ([`Applied`]). Eso es lo
-//! que hace posible el historial de deshacer y rehacer (F2-09) y, más
+//! que hace posible el historial de deshacer y rehacer ([`history`]) y, más
 //! adelante, la colaboración.
 //!
 //! # Deshacer sin perder precisión
@@ -21,6 +21,8 @@
 //! validación, y eso lo dice [`Document::validate`] al compilar, como con
 //! cualquier otro documento. Aquí solo se rechaza lo que no se puede
 //! aplicar: un id que no existe, una propiedad que el elemento no tiene.
+
+pub mod history;
 
 use serde::{Deserialize, Serialize};
 

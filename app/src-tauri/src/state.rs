@@ -55,7 +55,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::{Duration, Instant};
 
-use galera_core::{Compiled, Document, GaleraError, Op, Project};
+use galera_core::{Compiled, Document, GaleraError, History, Op, Project};
 
 /// El estado de la app, compartido entre todos los comandos.
 #[derive(Default)]
@@ -73,6 +73,8 @@ pub struct AppState {
 struct Session {
     /// El proyecto y su documento, si hay uno abierto.
     open: Option<OpenDocument>,
+    /// El historial de deshacer y rehacer del documento abierto.
+    history: History,
     /// Se incrementa con cada cambio del documento abierto.
     revision: u64,
     /// La última compilación guardada.
@@ -100,6 +102,21 @@ pub type CompileResult = Result<Arc<Compiled>, Arc<GaleraError>>;
 struct OpenDocument {
     project: Project,
     document: Document,
+}
+
+/// Un cambio del documento abierto: aplicar un comando, deshacer o rehacer.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Edited {
+    /// La revisión con la que queda el documento.
+    pub revision: u64,
+    /// El documento con el cambio.
+    pub document: Document,
+    /// Qué se ha hecho, deshecho o rehecho: «Mover r1».
+    pub description: String,
+    /// Qué se desharía ahora, si hay algo.
+    pub undo: Option<String>,
+    /// Qué se reharía ahora, si hay algo.
+    pub redo: Option<String>,
 }
 
 /// Lo que se sabe del estado sin compilar nada.
@@ -138,40 +155,86 @@ impl AppState {
     pub fn open(&self, project: Project, document: Document) -> u64 {
         let mut session = self.write();
         session.open = Some(OpenDocument { project, document });
+        session.history.clear();
         session.revision += 1;
         session.compiled = None;
         session.last_good = None;
         session.revision
     }
 
-    /// Aplica un comando de edición al documento abierto.
+    /// Aplica un comando de edición al documento abierto y lo apunta en el
+    /// historial. Con el mismo `group` que el último paso, se junta con él
+    /// (ver `galera_core::ops::history`).
     ///
     /// Si se aplica, el documento cambia, la revisión sube y la compilación
     /// guardada deja de valer; la última buena se conserva, porque es la que
-    /// sigue viéndose hasta que llegue la nueva. Devuelve la revisión nueva,
-    /// el documento resultante y el comando que lo deshace.
+    /// sigue viéndose hasta que llegue la nueva.
     ///
     /// # Errores
     ///
     /// [`GaleraError::Op`] si el comando no se puede aplicar, y entonces no
     /// cambia nada. `None` si no hay nada abierto.
-    pub fn apply(&self, op: &Op) -> Option<Result<(u64, Document, Op), GaleraError>> {
+    pub fn apply(&self, op: &Op, group: Option<&str>) -> Option<Result<Edited, GaleraError>> {
+        self.edit(|history, document| {
+            Some(
+                history
+                    .apply(document, op, group)
+                    .map(|document| (document, op.describe())),
+            )
+        })
+        // Aplicar siempre cambia algo o falla: solo queda el `None` de no
+        // haber nada abierto.
+        .flatten()
+    }
+
+    /// Deshace el último paso del historial.
+    ///
+    /// `None` si no hay nada abierto; `Some(None)` si no hay nada que
+    /// deshacer. Como [`AppState::apply`] en lo demás.
+    pub fn undo(&self) -> Option<Option<Result<Edited, GaleraError>>> {
+        self.edit(|history, document| history.undo(document))
+    }
+
+    /// Rehace el último paso deshecho. Como [`AppState::undo`].
+    pub fn redo(&self) -> Option<Option<Result<Edited, GaleraError>>> {
+        self.edit(|history, document| history.redo(document))
+    }
+
+    /// Lo común de aplicar, deshacer y rehacer: cambia el documento abierto
+    /// con lo que devuelva `change`, si devuelve algo y sale bien.
+    fn edit<F>(&self, change: F) -> Option<Option<Result<Edited, GaleraError>>>
+    where
+        F: FnOnce(
+            &mut History,
+            &Document,
+        ) -> Option<Result<(Document, String), galera_core::OpError>>,
+    {
         let mut session = self.write();
+        let session = &mut *session;
         let open = session.open.as_mut()?;
-        let applied = match op.apply(&open.document) {
-            Ok(applied) => applied,
-            Err(error) => return Some(Err(error.into())),
+        let (document, description) = match change(&mut session.history, &open.document) {
+            // Nada que deshacer o rehacer: hay documento, pero nada cambia.
+            None => return Some(None),
+            Some(Ok(changed)) => changed,
+            Some(Err(error)) => return Some(Some(Err(error.into()))),
         };
-        open.document = applied.document.clone();
+        open.document = document.clone();
         session.revision += 1;
         session.compiled = None;
-        Some(Ok((session.revision, applied.document, applied.undo)))
+        Some(Some(Ok(Edited {
+            revision: session.revision,
+            document,
+            description,
+            undo: session.history.undo_description().map(str::to_owned),
+            redo: session.history.redo_description().map(str::to_owned),
+        })))
     }
 
     /// Cierra lo que haya abierto.
     pub fn close(&self) {
         let mut session = self.write();
         session.open = None;
+        session.history.clear();
         session.revision += 1;
         session.compiled = None;
         session.last_good = None;
@@ -597,14 +660,22 @@ mod tests {
             dx: 5.0,
             dy: 0.0,
         };
-        let (revision, document, undo) =
-            state.apply(&op).expect("hay documento").expect("se aplica");
-        assert_eq!(revision, 2);
+        let edited = state
+            .apply(&op, None)
+            .expect("hay documento")
+            .expect("se aplica");
+        assert_eq!(edited.revision, 2);
         assert_eq!(
-            document.element("r1").and_then(|e| e.base()).map(|b| b.x),
+            edited
+                .document
+                .element("r1")
+                .and_then(|e| e.base())
+                .map(|b| b.x),
             Some(5.0)
         );
-        assert_eq!(undo.describe(), "Restaurar r1");
+        assert_eq!(edited.description, "Mover r1");
+        assert_eq!(edited.undo.as_deref(), Some("Mover r1"));
+        assert_eq!(edited.redo, None);
 
         // La compilación guardada ya no vale, pero la buena se sigue viendo.
         assert!(!state.summary().compiled_is_current);
@@ -628,9 +699,73 @@ mod tests {
         let op = Op::Delete {
             id: "nadie".to_owned(),
         };
-        assert!(matches!(state.apply(&op), Some(Err(GaleraError::Op(_)))));
+        assert!(matches!(
+            state.apply(&op, None),
+            Some(Err(GaleraError::Op(_)))
+        ));
         assert_eq!(state.summary().revision, 1);
-        assert!(AppState::default().apply(&op).is_none(), "sin documento");
+        assert!(
+            AppState::default().apply(&op, None).is_none(),
+            "sin documento"
+        );
+    }
+
+    #[test]
+    fn undo_and_redo_change_the_document_and_the_revision() {
+        let state = AppState::default();
+        let (_dir, project, document) = project_and_document("Informe");
+        state.open(project, document.clone());
+        assert!(
+            matches!(state.undo(), Some(None)),
+            "nada que deshacer todavía"
+        );
+
+        let op = Op::Move {
+            id: "r1".to_owned(),
+            dx: 5.0,
+            dy: 0.0,
+        };
+        let moved = state.apply(&op, None).expect("abierto").expect("se aplica");
+
+        let undone = state
+            .undo()
+            .expect("abierto")
+            .expect("hay algo")
+            .expect("se aplica");
+        assert_eq!(undone.revision, 3);
+        assert_eq!(undone.document, document);
+        assert_eq!(undone.description, "Mover r1");
+        assert_eq!(undone.undo, None);
+        assert_eq!(undone.redo.as_deref(), Some("Mover r1"));
+        assert!(!state.summary().compiled_is_current);
+
+        let redone = state
+            .redo()
+            .expect("abierto")
+            .expect("hay algo")
+            .expect("se aplica");
+        assert_eq!(redone.revision, 4);
+        assert_eq!(redone.document, moved.document);
+        assert!(matches!(state.redo(), Some(None)));
+    }
+
+    #[test]
+    fn opening_or_closing_forgets_the_history() {
+        let state = AppState::default();
+        let (_dir, project, document) = project_and_document("Informe");
+        state.open(project.clone(), document.clone());
+        let op = Op::Move {
+            id: "r1".to_owned(),
+            dx: 5.0,
+            dy: 0.0,
+        };
+        state.apply(&op, None).expect("abierto").expect("se aplica");
+        state.open(project, document);
+        assert!(matches!(state.undo(), Some(None)));
+
+        state.close();
+        assert!(state.undo().is_none(), "sin documento");
+        assert!(state.redo().is_none(), "sin documento");
     }
 
     #[test]

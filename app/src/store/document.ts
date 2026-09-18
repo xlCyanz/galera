@@ -3,8 +3,9 @@
  * desplazamiento.
  *
  * El documento que se guarda aquí es **una copia para leer**: la fuente de
- * verdad es el backend (principio 1). Cuando la edición llegue, los cambios
- * irán al backend y volverán aquí, no al revés.
+ * verdad es el backend (principio 1). Los cambios van al backend como
+ * comandos y vuelven aquí (`applyEdit`), no al revés. Con ellos llega qué se
+ * puede deshacer y rehacer: el historial también vive en el backend.
  *
  * # Suscribirse con selectores
  *
@@ -16,7 +17,7 @@
 import { create } from "zustand";
 
 import { findElement } from "../canvas/elements";
-import type { OpenedProject } from "../commands";
+import type { AppliedOp, OpenedProject } from "../commands";
 import type { Document } from "../types/model";
 
 /** El zoom mínimo: 25 %. */
@@ -53,6 +54,8 @@ export interface DocumentState {
   highlightedElement: string | null;
   /** El elemento seleccionado, o `null` si no hay ninguno. */
   selectedElement: string | null;
+  /** Qué se desharía y rehacería ahora, según el backend: «Mover r1». */
+  history: EditHistory;
   /**
    * Cuántas veces se ha pedido llevar el lienzo a un elemento. El lienzo
    * mira este número: cada vez que cambia, centra el elemento resaltado.
@@ -73,6 +76,11 @@ export interface DocumentState {
    * salvo lo que ya no exista.
    */
   replaceDocument: (document: Document) => void;
+  /**
+   * Guarda lo que devolvió el backend al aplicar, deshacer o rehacer: el
+   * documento nuevo (como `replaceDocument`) y el estado del historial.
+   */
+  applyEdit: (applied: AppliedOp) => void;
   /** Cambia la página visible, sin salirse de las que hay. */
   setCurrentPage: (page: number) => void;
   /** Cambia el zoom, dentro de sus límites. */
@@ -99,7 +107,14 @@ export interface DocumentState {
   select: (id: string | null) => void;
 }
 
+/** Lo que se puede deshacer y rehacer. */
+export interface EditHistory {
+  undo: string | null;
+  redo: string | null;
+}
+
 const origin: Scroll = { x: 0, y: 0 };
+const noHistory: EditHistory = { undo: null, redo: null };
 
 export const useDocumentStore = create<DocumentState>()((set, get) => ({
   document: null,
@@ -110,6 +125,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   rulersVisible: true,
   highlightedElement: null,
   selectedElement: null,
+  history: noHistory,
   focusRequests: 0,
 
   open: (opened) =>
@@ -120,6 +136,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
       scroll: origin,
       highlightedElement: null,
       selectedElement: null,
+      history: noHistory,
     }),
 
   close: () =>
@@ -130,6 +147,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
       scroll: origin,
       highlightedElement: null,
       selectedElement: null,
+      history: noHistory,
     }),
 
   setCurrentPage: (page) =>
@@ -176,6 +194,11 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
         highlightedElement: exists(state.highlightedElement) ? state.highlightedElement : null,
       };
     }),
+
+  applyEdit: (applied) => {
+    get().replaceDocument(applied.document);
+    set({ history: { undo: applied.undo, redo: applied.redo } });
+  },
 
   focusElement: (id) => {
     const { document } = get();
@@ -234,3 +257,5 @@ export const useSelectedElement = () => useDocumentStore((state) => state.select
 export const useHighlightedElement = () => useDocumentStore((state) => state.highlightedElement);
 /** Cuántas veces se ha pedido llevar el lienzo a un elemento. */
 export const useFocusRequests = () => useDocumentStore((state) => state.focusRequests);
+/** Qué se puede deshacer y rehacer. */
+export const useEditHistory = () => useDocumentStore((state) => state.history);

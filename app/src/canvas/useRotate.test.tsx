@@ -60,7 +60,7 @@ beforeEach(async () => {
   mockIPC((command, args) => {
     if (command === "apply_op") {
       ops.push((args as { op: Record<string, unknown> }).op);
-      const applied: AppliedOp = { revision: 1 + ops.length, document: structuredClone(project.document), description: "" };
+      const applied: AppliedOp = { revision: 1 + ops.length, document: structuredClone(project.document), description: "", undo: null, redo: null };
       return applied;
     }
     return null;

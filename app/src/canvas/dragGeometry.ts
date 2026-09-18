@@ -108,3 +108,34 @@ export function rotatedCorners(
     return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos };
   });
 }
+
+/**
+ * Tiempo sin empujar tras el que el siguiente empujón con las flechas es un
+ * paso nuevo del historial, en ms.
+ */
+export const NUDGE_GROUP_MS = 1000;
+
+/** Una ráfaga de empujones con las flechas: un único paso del historial. */
+export interface NudgeBurst {
+  /** El grupo con el que se mandan al backend. */
+  group: string;
+  /** El elemento empujado. */
+  id: string;
+  /** Cuándo fue el último empujón, en ms. */
+  at: number;
+}
+
+let bursts = 0;
+
+/**
+ * La ráfaga a la que pertenece un empujón a `id` en el instante `now`: la
+ * misma que `previous` si es el mismo elemento y no ha pasado
+ * `NUDGE_GROUP_MS` desde el último, y si no, una nueva.
+ */
+export function nudgeBurst(previous: NudgeBurst | null, id: string, now: number): NudgeBurst {
+  if (previous !== null && previous.id === id && now - previous.at <= NUDGE_GROUP_MS) {
+    return { ...previous, at: now };
+  }
+  bursts += 1;
+  return { group: `nudge-${id}-${bursts}`, id, at: now };
+}

@@ -73,7 +73,7 @@ export function useRotate(): Rotate {
     setState({ ...state, phase: "committing", revision: null });
     applyOp({ op: "rotate", id, rotation })
       .then((applied) => {
-        useDocumentStore.getState().replaceDocument(applied.document);
+        useDocumentStore.getState().applyEdit(applied);
         setState((current) =>
           current.phase === "committing" && current.id === id
             ? { ...current, revision: applied.revision }

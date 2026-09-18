@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { PX_PER_MM } from "./geometry";
-import { arrowNudge, dragDelta, isStill, rotatedCorners, roundMm } from "./dragGeometry";
+import {
+  NUDGE_GROUP_MS,
+  arrowNudge,
+  dragDelta,
+  isStill,
+  nudgeBurst,
+  rotatedCorners,
+  roundMm,
+} from "./dragGeometry";
 
 const plain = { shiftKey: false, altKey: false, metaKey: false, ctrlKey: false };
 
@@ -61,5 +69,23 @@ describe("roundMm", () => {
     expect(roundMm(60.000000000000014)).toBe(60);
     expect(roundMm(12.34567)).toBe(12.346);
     expect(Object.is(roundMm(-0.0000001), 0)).toBe(true);
+  });
+});
+
+describe("nudgeBurst", () => {
+  it("junta los empujones seguidos al mismo elemento", () => {
+    const first = nudgeBurst(null, "r1", 1000);
+    const second = nudgeBurst(first, "r1", 1000 + NUDGE_GROUP_MS);
+    expect(second.group).toBe(first.group);
+    expect(second.at).toBe(1000 + NUDGE_GROUP_MS);
+    // Cuenta desde el último empujón, no desde el primero.
+    expect(nudgeBurst(second, "r1", 1000 + 2 * NUDGE_GROUP_MS).group).toBe(first.group);
+  });
+
+  it("empieza otra ráfaga tras una pausa o con otro elemento", () => {
+    const first = nudgeBurst(null, "r1", 0);
+    expect(nudgeBurst(first, "r1", NUDGE_GROUP_MS + 1).group).not.toBe(first.group);
+    expect(nudgeBurst(first, "r2", 10).group).not.toBe(first.group);
+    expect(nudgeBurst(null, "r1", 0).group).not.toBe(first.group);
   });
 });

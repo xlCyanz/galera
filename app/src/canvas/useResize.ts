@@ -94,7 +94,7 @@ export function useResize(pxPerMm: number | null): Resize {
       h: h === null ? null : roundMm(h),
     })
       .then((applied) => {
-        useDocumentStore.getState().replaceDocument(applied.document);
+        useDocumentStore.getState().applyEdit(applied);
         setState((current) =>
           current.phase === "committing" && current.id === id
             ? { ...current, revision: applied.revision }
