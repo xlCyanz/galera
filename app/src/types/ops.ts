@@ -80,7 +80,27 @@ index: number, } | { "op": "restore",
 /**
  * El elemento tal como tiene que quedar.
  */
-element: Element, };
+element: Element, } | { "op": "add_asset", 
+/**
+ * La clave nueva.
+ */
+key: string, 
+/**
+ * La ruta del archivo, relativa a la raíz del proyecto.
+ */
+path: string, } | { "op": "remove_asset", 
+/**
+ * La clave.
+ */
+key: string, } | { "op": "rename_asset", 
+/**
+ * La clave de ahora.
+ */
+from: string, 
+/**
+ * La clave nueva.
+ */
+to: string, };
 
 /**
  * Una propiedad que se puede cambiar con [`Op::SetProperty`], con su valor.

@@ -425,7 +425,7 @@ fn every_command_describes_itself() {
     ];
     for (op, name) in cases {
         assert_eq!(op.describe(), name);
-        assert_eq!(op.element_id(), "r1");
+        assert_eq!(op.element_id(), Some("r1"));
     }
 }
 
@@ -580,4 +580,102 @@ fn layer_properties_travel_as_the_ui_sends_them() {
             property: Property::Hidden(true)
         }
     );
+}
+
+#[test]
+fn an_asset_can_be_added_and_the_key_must_be_new_and_valid() {
+    let added = apply_and_check_undo(&Op::AddAsset {
+        key: "nuevo".into(),
+        path: "assets/nuevo.png".into(),
+    });
+    assert_eq!(added.assets["nuevo"], "assets/nuevo.png");
+
+    let taken = Op::AddAsset {
+        key: "logo".into(),
+        path: "assets/x.png".into(),
+    };
+    assert_eq!(
+        taken.apply(&document()),
+        Err(OpError::AssetKeyTaken { key: "logo".into() })
+    );
+    let invalid = Op::AddAsset {
+        key: "con espacio".into(),
+        path: "assets/x.png".into(),
+    };
+    assert!(matches!(
+        invalid.apply(&document()),
+        Err(OpError::InvalidAssetKey { .. })
+    ));
+}
+
+#[test]
+fn an_unused_asset_is_removed_and_one_in_use_says_who_uses_it() {
+    let removed = apply_and_check_undo(&Op::RemoveAsset { key: "otro".into() });
+    assert!(!removed.assets.contains_key("otro"));
+
+    let error = Op::RemoveAsset { key: "logo".into() }
+        .apply(&document())
+        .expect_err("i1 lo usa");
+    assert_eq!(
+        error,
+        OpError::AssetInUse {
+            key: "logo".into(),
+            users: vec!["i1".into()]
+        }
+    );
+    assert_eq!(
+        error.to_string(),
+        "el recurso \"logo\" lo usa i1; quítalos o cambia su imagen antes"
+    );
+    assert!(matches!(
+        Op::RemoveAsset {
+            key: "nadie".into()
+        }
+        .apply(&document()),
+        Err(OpError::AssetNotFound { .. })
+    ));
+}
+
+#[test]
+fn renaming_an_asset_updates_every_image_that_uses_it() {
+    let renamed = apply_and_check_undo(&Op::RenameAsset {
+        from: "logo".into(),
+        to: "marca".into(),
+    });
+    assert!(!renamed.assets.contains_key("logo"));
+    assert_eq!(renamed.assets["marca"], "assets/logo.png");
+    assert!(matches!(
+        renamed.element("i1"),
+        Some(Element::Image { asset, .. }) if asset == "marca"
+    ));
+    assert!(
+        renamed.validate().is_ok(),
+        "el documento sigue siendo válido"
+    );
+
+    let original = document();
+    for (to, expected) in [
+        ("otro", OpError::AssetKeyTaken { key: "otro".into() }),
+        (
+            "mal nombre",
+            OpError::InvalidAssetKey {
+                key: "mal nombre".into(),
+            },
+        ),
+    ] {
+        assert_eq!(
+            Op::RenameAsset {
+                from: "logo".into(),
+                to: to.into()
+            }
+            .apply(&original),
+            Err(expected)
+        );
+    }
+    let describe = Op::RenameAsset {
+        from: "logo".into(),
+        to: "marca".into(),
+    }
+    .describe();
+    assert_eq!(describe, "Renombrar el recurso logo a marca");
 }

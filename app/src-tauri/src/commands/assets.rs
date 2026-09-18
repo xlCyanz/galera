@@ -1,5 +1,9 @@
-//! Añadir imágenes al proyecto abierto: soltándolas sobre la ventana o
-//! eligiéndolas en el diálogo nativo.
+//! Las imágenes del proyecto abierto: listarlas para el panel de recursos,
+//! leer una para su miniatura y añadir nuevas, soltándolas sobre la ventana
+//! o eligiéndolas en el diálogo nativo.
+//!
+//! Renombrar y quitar recursos no está aquí: son comandos de `ops`
+//! (`RenameAsset`, `RemoveAsset`), para que entren en el historial.
 //!
 //! Cada imagen se copia en `assets/` del proyecto y se registra en el mapa
 //! `assets` del documento (`galera_core::assets`). Crear los elementos es
@@ -14,8 +18,9 @@
 
 use std::path::{Path, PathBuf};
 
-use galera_core::import_image;
+use galera_core::{asset_summaries, import_image};
 use serde::Serialize;
+use tauri::ipc::Response;
 use tauri::{State, Window};
 use tauri_plugin_dialog::DialogExt;
 
@@ -55,6 +60,72 @@ pub struct ImportedImages {
     pub images: Vec<ImageAsset>,
     /// Las que no, con su motivo.
     pub rejected: Vec<RejectedFile>,
+}
+
+/// Un recurso del documento, para el panel de recursos.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetInfo {
+    /// Su clave en `assets`.
+    pub key: String,
+    /// Su ruta dentro del proyecto.
+    pub path: String,
+    /// Su formato («PNG»), o `null` si el archivo no está o no es una imagen.
+    pub format: Option<String>,
+    /// Su tipo MIME, para enseñarlo, o `null` como `format`.
+    pub mime: Option<String>,
+    /// Cuánto ocupa, en bytes, o `null` si el archivo no está.
+    pub bytes: Option<u64>,
+    /// Los elementos que lo usan.
+    pub users: Vec<String>,
+}
+
+/// Los recursos del documento abierto, en orden de clave.
+///
+/// # Errores
+///
+/// [`CommandError::NothingOpen`] si no hay documento.
+#[tauri::command]
+pub async fn list_assets(state: State<'_, AppState>) -> Result<Vec<AssetInfo>, CommandError> {
+    list_in(&state)
+}
+
+fn list_in(state: &AppState) -> Result<Vec<AssetInfo>, CommandError> {
+    let (project, document) = state.open_document().ok_or(CommandError::NothingOpen)?;
+    Ok(asset_summaries(&project, &document)
+        .into_iter()
+        .map(|summary| AssetInfo {
+            key: summary.key,
+            path: summary.path,
+            format: summary.format.map(|format| format.name().to_owned()),
+            mime: summary.format.map(|format| format.mime().to_owned()),
+            bytes: summary.bytes,
+            users: summary.users,
+        })
+        .collect())
+}
+
+/// El contenido de un recurso, tal cual, para enseñar su miniatura. Vacío
+/// si la clave no existe o el archivo no se puede leer.
+///
+/// Solo lee archivos registrados en `assets` y siempre a través del
+/// proyecto, así que no sale de su carpeta.
+///
+/// # Errores
+///
+/// [`CommandError::NothingOpen`] si no hay documento.
+#[tauri::command]
+pub async fn asset_data(key: String, state: State<'_, AppState>) -> Result<Response, CommandError> {
+    Ok(Response::new(data_in(&state, &key)?))
+}
+
+fn data_in(state: &AppState, key: &str) -> Result<Vec<u8>, CommandError> {
+    let (project, document) = state.open_document().ok_or(CommandError::NothingOpen)?;
+    Ok(document
+        .assets
+        .get(key)
+        .and_then(|path| project.read(path).ok())
+        .unwrap_or_default())
 }
 
 /// Añade al proyecto las imágenes soltadas sobre la ventana.
@@ -258,5 +329,23 @@ mod tests {
             import_in(&AppState::default(), &[]),
             Err(CommandError::NothingOpen)
         ));
+    }
+
+    #[test]
+    fn the_panel_lists_the_assets_and_reads_them_for_thumbnails() {
+        let (_dir, state) = opened();
+        state.offer_files(&[fixture("logo.png")]);
+        import_in(&state, &[fixture("logo.png")]).expect("abierto");
+
+        let listed = list_in(&state).expect("abierto");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].key, "logo");
+        assert_eq!(listed[0].format.as_deref(), Some("PNG"));
+        assert_eq!(listed[0].mime.as_deref(), Some("image/png"));
+        assert!(listed[0].users.is_empty());
+
+        let data = data_in(&state, "logo").expect("abierto");
+        assert_eq!(data, fs::read(fixture("logo.png")).expect("existe"));
+        assert!(data_in(&state, "nadie").expect("abierto").is_empty());
     }
 }

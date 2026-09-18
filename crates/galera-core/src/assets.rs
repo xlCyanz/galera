@@ -7,7 +7,7 @@
 //! sabría dibujar en vez de fallar después al compilar.
 
 use std::fs;
-use std::io;
+use std::io::{self, Read};
 use std::path::Path;
 
 use crate::import::{CopyError, copy_into, safe_name};
@@ -30,6 +30,76 @@ pub enum ImageFormat {
     Webp,
     /// SVG.
     Svg,
+}
+
+impl ImageFormat {
+    /// Su nombre, para enseñarlo: «PNG».
+    pub fn name(self) -> &'static str {
+        match self {
+            ImageFormat::Png => "PNG",
+            ImageFormat::Jpeg => "JPEG",
+            ImageFormat::Gif => "GIF",
+            ImageFormat::Webp => "WebP",
+            ImageFormat::Svg => "SVG",
+        }
+    }
+
+    /// Su tipo MIME, para enseñar la imagen en la interfaz.
+    pub fn mime(self) -> &'static str {
+        match self {
+            ImageFormat::Png => "image/png",
+            ImageFormat::Jpeg => "image/jpeg",
+            ImageFormat::Gif => "image/gif",
+            ImageFormat::Webp => "image/webp",
+            ImageFormat::Svg => "image/svg+xml",
+        }
+    }
+}
+
+/// Lo que se sabe de un recurso del documento, para el panel de recursos.
+#[derive(Debug, Clone, PartialEq)]
+pub struct AssetSummary {
+    /// Su clave en `assets`.
+    pub key: String,
+    /// Su ruta dentro del proyecto.
+    pub path: String,
+    /// Su formato, o `None` si el archivo no está o no es una imagen que se
+    /// pueda usar.
+    pub format: Option<ImageFormat>,
+    /// Cuánto ocupa, en bytes, o `None` si el archivo no está.
+    pub bytes: Option<u64>,
+    /// Los elementos que lo usan, en orden del documento.
+    pub users: Vec<String>,
+}
+
+/// Los recursos del documento, en orden de clave, con su formato, su peso y
+/// quién los usa. Del archivo solo se lee el principio, para el formato.
+pub fn asset_summaries(project: &Project, document: &Document) -> Vec<AssetSummary> {
+    document
+        .assets
+        .iter()
+        .map(|(key, path)| {
+            let file = project.file(path).ok();
+            let bytes = file
+                .as_ref()
+                .and_then(|file| fs::metadata(file).ok())
+                .map(|metadata| metadata.len());
+            let format = file.as_ref().and_then(|file| {
+                let mut head = Vec::new();
+                fs::File::open(file)
+                    .and_then(|opened| opened.take(4096).read_to_end(&mut head))
+                    .ok()?;
+                image_format(&head)
+            });
+            AssetSummary {
+                key: key.clone(),
+                path: path.clone(),
+                format,
+                bytes,
+                users: document.asset_users(key),
+            }
+        })
+        .collect()
 }
 
 /// El formato de una imagen por su contenido, o `None` si no es ninguno de
@@ -258,5 +328,34 @@ mod tests {
             "informe.pdf no es una imagen que Galera sepa usar: tiene que ser PNG, JPEG, GIF, WebP o SVG"
         );
         assert!(!dir.path().join("assets").exists());
+    }
+
+    #[test]
+    fn summaries_say_format_size_and_users_and_survive_a_missing_file() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures");
+        let project = Project::open(&dir).expect("es un proyecto");
+        let document = Document::from_json_str(
+            r#"{ "version": 1, "meta": { "title": "x" },
+                 "assets": { "logo": "assets/logo.png", "foto": "assets/pixel.jpg", "falta": "assets/no-esta.png" },
+                 "pages": [{ "id": "p1", "size": { "width": 10, "height": 10, "unit": "mm" }, "elements": [
+                   { "id": "i1", "type": "image", "x": 0, "y": 0, "w": 1, "h": null, "asset": "logo" },
+                   { "id": "i2", "type": "image", "x": 0, "y": 0, "w": 1, "h": null, "asset": "logo" }
+                 ] }] }"#,
+        )
+        .expect("es un documento");
+        let summaries = asset_summaries(&project, &document);
+        let keys: Vec<&str> = summaries.iter().map(|s| s.key.as_str()).collect();
+        assert_eq!(keys, ["falta", "foto", "logo"]);
+
+        let logo = &summaries[2];
+        assert_eq!(logo.format, Some(ImageFormat::Png));
+        assert_eq!(
+            logo.bytes,
+            Some(fs::metadata(fixture("logo.png")).expect("existe").len())
+        );
+        assert_eq!(logo.users, ["i1", "i2"]);
+        assert_eq!(summaries[1].format.map(ImageFormat::name), Some("JPEG"));
+        assert!(summaries[1].users.is_empty());
+        assert_eq!((summaries[0].format, summaries[0].bytes), (None, None));
     }
 }

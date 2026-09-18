@@ -165,6 +165,14 @@ describe("soltar imágenes desde el sistema", () => {
     expect(notice()).toBeNull();
   });
 
+  it("lo que se suelta fuera del lienzo no es para él", async () => {
+    act(() => drop!({ type: "over", x: AREA.width + 50, y: 10 }));
+    expect(viewport().className).not.toContain("is-drop-target");
+    act(() => drop!({ type: "drop", paths: ["/fotos/logo.png"], x: AREA.width + 50, y: 10 }));
+    await settle();
+    expect(calls.some((c) => c.command === "import_images")).toBe(false);
+  });
+
   it("si nada se puede añadir, no se crea nada", async () => {
     answer = () => imported([], [{ file: "/x.pdf", message: "x.pdf no es una imagen" }]);
     await dropAt(["/x.pdf"], 10, 10);

@@ -696,3 +696,151 @@ body {
 .layer-toggle[aria-pressed="true"] {
   opacity: 0.8;
 }
+
+/* Capas o recursos, con pestañas (ver `ui/SidePanels.tsx`). */
+.side-panels {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 55%;
+  min-height: 100px;
+}
+
+.side-panels > section {
+  max-height: none;
+  min-height: 0;
+}
+
+.side-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.side-tab {
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.side-tab[aria-selected="true"] {
+  border-color: currentColor;
+  opacity: 1;
+}
+
+/* El panel de recursos (ver `ui/AssetsPanel.tsx`). */
+.assets-panel {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.assets-panel.is-drop-target {
+  outline: 2px dashed var(--ruler-pointer);
+}
+
+.assets-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.assets-header h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.assets-message {
+  margin: 0 0 0.5rem;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: #fef3c7;
+  color: #1f2733;
+  white-space: pre-line;
+}
+
+.assets {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.asset {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.asset:hover {
+  background: rgb(127 127 127 / 15%);
+}
+
+.asset-thumb {
+  display: grid;
+  flex: 0 0 36px;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: repeating-conic-gradient(#e5e7eb 0% 25%, #fff 0% 50%) 50% / 10px 10px;
+  color: #71717a;
+}
+
+.asset-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.asset-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.asset-key,
+.asset-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-meta {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.asset-remove {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 16px;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.asset:hover .asset-remove,
+.asset-remove:focus-visible {
+  opacity: 0.7;
+}
