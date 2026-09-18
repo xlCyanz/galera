@@ -7,7 +7,7 @@
 //!
 //! Cada módulo conserva su propio error, que es más preciso
 //! ([`ProjectError`], [`OpenError`], [`ValidationErrors`], [`CodegenError`],
-//! [`WorldError`]), y `GaleraError` los envuelve. Con `?` la conversión es
+//! [`OpError`], [`WorldError`]), y `GaleraError` los envuelve. Con `?` la conversión es
 //! automática.
 //!
 //! # Hacia el webview
@@ -44,6 +44,7 @@ use thiserror::Error;
 use crate::codegen::CodegenError;
 use crate::model::ValidationErrors;
 use crate::open::OpenError;
+use crate::ops::OpError;
 use crate::project::ProjectError;
 use crate::world::WorldError;
 
@@ -66,6 +67,11 @@ pub enum GaleraError {
     /// El documento no se pudo traducir a Typst.
     #[error(transparent)]
     Codegen(#[from] CodegenError),
+
+    /// Un comando de edición no se puede aplicar: un id que no existe, una
+    /// propiedad que el elemento no tiene.
+    #[error(transparent)]
+    Op(#[from] OpError),
 
     /// El entorno de compilación no se pudo preparar: una fuente que falta,
     /// por ejemplo.
@@ -98,6 +104,7 @@ impl GaleraError {
             GaleraError::Open(_) => "open",
             GaleraError::Invalid(_) => "invalid",
             GaleraError::Codegen(_) => "codegen",
+            GaleraError::Op(_) => "op",
             GaleraError::World(_) => "world",
             GaleraError::Typst(_) => "typst",
             GaleraError::PageOutOfRange { .. } => "page_out_of_range",

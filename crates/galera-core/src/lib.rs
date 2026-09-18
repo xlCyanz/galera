@@ -18,7 +18,7 @@
 //! - [`project`]: la carpeta del proyecto y qué se puede leer de ella.
 //! - [`open`](mod@open): abrir un proyecto comprobando su documento y sus recursos.
 //! - [`layout`](mod@layout): la caja real de cada elemento, tal como la compuso Typst.
-//! - `ops`:     comandos de edición e historial de deshacer y rehacer. *(pendiente)*
+//! - [`ops`]: comandos de edición, cada uno con cómo deshacerlo. El historial, *(pendiente)*.
 //! - `snap`:    guías de alineación. *(pendiente)*
 //!
 //! # Principio que ordena todo lo demás
@@ -40,6 +40,7 @@ pub mod error;
 pub mod layout;
 pub mod model;
 pub mod open;
+pub mod ops;
 pub mod project;
 #[cfg(test)]
 mod testing;
@@ -54,6 +55,7 @@ pub use model::{
     ValidationError, ValidationErrors,
 };
 pub use open::{DOCUMENT_FILE, OpenError, Opened, open};
+pub use ops::{Applied, Op, OpError, Property};
 pub use project::{AccessError, Project, ProjectError};
 pub use world::{GaleraWorld, WorldError};
 
