@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { CompilationEvents } from "../commands";
 import { useCompilationStore } from "../store/compilation";
+import { useLayoutStore } from "../store/layout";
 import { useCompilation } from "./useCompilation";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -27,6 +28,7 @@ async function settle() {
 beforeEach(async () => {
   mockIPC(() => undefined, { shouldMockEvents: true });
   useCompilationStore.setState(useCompilationStore.getInitialState(), true);
+  useLayoutStore.setState(useLayoutStore.getInitialState(), true);
   root = createRoot(document.createElement("div"));
   act(() => root.render(<Listener />));
   await settle();
@@ -52,6 +54,18 @@ describe("useCompilation", () => {
       reused: false,
       diagnostics: [],
       pages: ["<svg>1</svg>"],
+      boxes: [
+        {
+          id: "r1",
+          page: 0,
+          x: 1,
+          y: 2,
+          w: 3,
+          h: 4,
+          rotation: 0,
+          bounds: { x: 1, y: 2, w: 3, h: 4 },
+        },
+      ],
     });
     await settle();
     expect(useCompilationStore.getState()).toMatchObject({
@@ -59,6 +73,9 @@ describe("useCompilation", () => {
       ms: 8.5,
       pages: ["<svg>1</svg>"],
     });
+    // Las cajas, en el store del layout, con la misma revisión.
+    expect(useLayoutStore.getState().revision).toBe(1);
+    expect(useLayoutStore.getState().boxes.r1?.h).toBe(4);
   });
 
   it("lleva el evento de error al store", async () => {

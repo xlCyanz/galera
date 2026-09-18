@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { OpenedProject } from "../commands";
 import { useDocumentStore } from "../store/document";
+import { useLayoutStore } from "../store/layout";
 import { Canvas } from "./Canvas";
 import type { ImageLoader } from "./PageSvg";
 import { PX_PER_MM } from "./geometry";
@@ -59,6 +60,7 @@ beforeEach(() => {
   Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get: () => AREA.width });
   Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, get: () => AREA.height });
   useDocumentStore.setState(useDocumentStore.getInitialState(), true);
+  useLayoutStore.setState(useLayoutStore.getInitialState(), true);
   useDocumentStore.getState().open(project);
   container = document.createElement("div");
   document.body.append(container);
@@ -113,6 +115,33 @@ describe("ir a un elemento", () => {
       useDocumentStore.getState().focusElement("t1");
     });
     expect(highlight()?.className).toBe("element-highlight is-open");
+  });
+
+  it("con la caja que midió Typst, recuadra el alto real y centra con él", () => {
+    act(() =>
+      useLayoutStore.getState().update(1, [
+        {
+          id: "t1",
+          page: 1,
+          x: 20,
+          y: 30,
+          w: 100,
+          h: 12.5,
+          rotation: 0,
+          bounds: { x: 20, y: 30, w: 100, h: 12.5 },
+        },
+      ]),
+    );
+    act(() => {
+      useDocumentStore.getState().focusElement("t1");
+    });
+
+    const scale = PX_PER_MM;
+    const box = highlight()!;
+    expect(box.className).toBe("element-highlight");
+    expect(parseFloat(box.style.height)).toBeCloseTo(12.5 * scale, 6);
+    const at = translate(box);
+    expect(at.y + (12.5 * scale) / 2).toBeCloseTo(AREA.height / 2, 6);
   });
 
   it("Escape quita el resaltado", () => {

@@ -12,6 +12,7 @@ import { type RefObject, useEffect, useState } from "react";
 
 import type { PixelSize } from "./geometry";
 import { RULER_SIZE, rulerTicks, tickLabel } from "./rulerTicks";
+import type { CanvasTransform } from "./transform";
 import type { Point } from "./zoom";
 
 /** Largo de las marcas, en píxeles. */
@@ -21,17 +22,16 @@ const MINOR_LENGTH = 5;
 export interface RulersProps {
   /** El área del lienzo, para seguir al puntero. */
   viewport: RefObject<HTMLElement | null>;
-  /** La esquina de la página, relativa al área. */
-  origin: Point;
-  /** La escala: píxeles CSS por milímetro. */
-  pxPerMm: number;
+  /** Dónde está la página y a qué escala: el 0 de las reglas es su esquina. */
+  transform: CanvasTransform;
   /** El tamaño del área. */
   size: PixelSize;
 }
 
 /** Las dos reglas y la esquina donde se cruzan. */
-export function Rulers({ viewport, origin, pxPerMm, size }: RulersProps) {
+export function Rulers({ viewport, transform, size }: RulersProps) {
   const pointer = usePointerIn(viewport);
+  const { origin, pxPerMm } = transform;
 
   return (
     <>

@@ -1,6 +1,6 @@
 /**
  * Escucha los eventos de la compilación en segundo plano y los guarda en el
- * store de compilación.
+ * store de compilación y, las cajas de los elementos, en el del layout.
  *
  * Se monta una vez, en la raíz de la interfaz. El backend compila en su
  * propio hilo (`src-tauri/src/compile_worker.rs`), así que la interfaz nunca
@@ -21,15 +21,18 @@ import {
   type CompilationStarted,
 } from "../commands";
 import { useCompilationStore } from "../store/compilation";
+import { useLayoutStore } from "../store/layout";
 
 export function useCompilation(): void {
   useEffect(() => {
     const store = () => useCompilationStore.getState();
     const subscriptions = [
       listen<CompilationStarted>(CompilationEvents.start, (event) => store().start(event.payload)),
-      listen<CompilationFinished>(CompilationEvents.finish, (event) =>
-        store().finish(event.payload),
-      ),
+      listen<CompilationFinished>(CompilationEvents.finish, (event) => {
+        store().finish(event.payload);
+        // Las cajas van con sus páginas: se guardan con la misma revisión.
+        useLayoutStore.getState().update(event.payload.revision, event.payload.boxes);
+      }),
       listen<CompilationFailed>(CompilationEvents.error, (event) => store().fail(event.payload)),
     ];
 

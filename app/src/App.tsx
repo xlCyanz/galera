@@ -12,6 +12,7 @@ import { Canvas } from "./canvas/Canvas";
 import { exportPdfShortcutLabel, isExportPdfShortcut, isMac } from "./shortcuts";
 import { useCompilation } from "./hooks/useCompilation";
 import { useCompilationStore } from "./store/compilation";
+import { useLayoutStore } from "./store/layout";
 import {
   useCurrentPage,
   useDocumentStore,
@@ -86,6 +87,7 @@ export function App() {
         const opened = await openProject(folder);
         useDocumentStore.getState().open(opened);
         useCompilationStore.getState().expect(opened.revision);
+        useLayoutStore.getState().expect(opened.revision);
       }
     } catch (reason) {
       // Si falla, el backend conserva lo que hubiera abierto, así que aquí

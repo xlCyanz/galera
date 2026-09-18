@@ -7,11 +7,12 @@
 //! | Evento | Cuándo | Datos |
 //! |---|---|---|
 //! | `compilation:start` | Empieza una compilación | `{ revision }` |
-//! | `compilation:finish` | Ha salido bien | `{ revision, ms, reused, diagnostics, pages }` |
+//! | `compilation:finish` | Ha salido bien | `{ revision, ms, reused, diagnostics, pages, boxes }` |
 //! | `compilation:error` | Ha fallado | `{ revision, ms, reused, diagnostics, error }` |
 //!
-//! `pages` lleva el SVG de cada página, y `error` tiene la forma de cualquier
-//! error de un comando (`{ kind, message, … }`).
+//! `pages` lleva el SVG de cada página; `boxes`, la caja real de cada
+//! elemento; y `error` tiene la forma de cualquier error de un comando
+//! (`{ kind, message, … }`).
 //!
 //! # Coalescencia
 //!
@@ -33,7 +34,7 @@
 
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 
-use galera_core::{Compiled, Diagnostic, Document, GaleraError, Project};
+use galera_core::{Compiled, Diagnostic, Document, GaleraError, LayoutBox, Project};
 use serde::{Serialize, Serializer};
 use tauri::{AppHandle, Emitter, Runtime};
 
@@ -138,6 +139,9 @@ pub struct Finished {
     pub diagnostics: Vec<Diagnostic>,
     /// El SVG de cada página.
     pub pages: Vec<String>,
+    /// La caja real de cada elemento, de todas las páginas, tal como la
+    /// compuso Typst (ver `galera_core::layout`).
+    pub boxes: Vec<LayoutBox>,
 }
 
 /// `compilation:error`.
@@ -236,6 +240,7 @@ where
                 pages: (0..compiled.page_count())
                     .filter_map(|page| compiled.to_svg(page).ok())
                     .collect(),
+                boxes: compiled.layout(),
             }),
             Err(error) => events.failed(Failed {
                 revision: compilation.revision,
@@ -330,6 +335,11 @@ mod tests {
         let state = AppState::default();
         let (project, document) = fixture("multipagina");
         let pages = document.pages.len();
+        let elements = document
+            .pages
+            .iter()
+            .map(|page| page.elements.len())
+            .sum::<usize>();
         state.open(project, document);
 
         let events = run_once(&state);
@@ -343,6 +353,14 @@ mod tests {
         assert_eq!(finish["diagnostics"], json!([]));
         let svgs = finish["pages"].as_array().expect("lista de páginas");
         assert_eq!(svgs.len(), pages);
+        // Las cajas de todos los elementos, cada una con su página.
+        let boxes = finish["boxes"].as_array().expect("lista de cajas");
+        assert_eq!(boxes.len(), elements);
+        assert!(boxes.iter().all(|b| {
+            b["page"]
+                .as_u64()
+                .is_some_and(|page| (page as usize) < pages)
+        }));
         assert!(
             svgs.iter()
                 .all(|svg| svg.as_str().is_some_and(|svg| svg.starts_with("<svg")))
