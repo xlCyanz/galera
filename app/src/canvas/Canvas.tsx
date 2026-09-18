@@ -43,6 +43,7 @@ import { arrowNudge, rotatedCorners } from "./dragGeometry";
 import { findElement } from "./elements";
 import { useCanvasNavigation } from "./useCanvasNavigation";
 import { useDrag } from "./useDrag";
+import { useResize } from "./useResize";
 import { useSelection } from "./useSelection";
 import { centerOn } from "./zoom";
 
@@ -88,6 +89,11 @@ export function Canvas({ loader }: CanvasProps) {
   const onSelect = useSelection(transform, currentPage, drag.start);
   // La imagen que enseña la hoja, para la copia que se arrastra.
   const [shownUrl, setShownUrl] = useState<string | null>(null);
+  const resize = useResize(transform?.pxPerMm ?? null);
+  const resized =
+    resize.state.phase !== "idle" && selectedBox !== null && resize.state.id === selectedBox.id
+      ? resize.state
+      : null;
   const dragged = drag.state.phase === "idle" ? null : drag.state;
   const dragOffset =
     dragged !== null && selectedBox !== null && dragged.id === selectedBox.id
@@ -125,7 +131,11 @@ export function Canvas({ loader }: CanvasProps) {
     if (isToggleRulersShortcut(event)) {
       event.preventDefault();
       useDocumentStore.getState().toggleRulers();
-    } else if (event.key === "Escape" && drag.state.phase !== "dragging") {
+    } else if (
+      event.key === "Escape" &&
+      drag.state.phase !== "dragging" &&
+      resize.state.phase !== "resizing"
+    ) {
       // Durante un arrastre, Escape lo cancela (ver `useDrag.ts`).
       useDocumentStore.getState().clearHighlight();
       useDocumentStore.getState().select(null);
@@ -199,9 +209,17 @@ export function Canvas({ loader }: CanvasProps) {
             )}
           {selectedBox !== null && selectedBox.page === currentPage && transform !== null && (
             <ControlLayer
-              box={selectedBox}
+              box={resized === null ? selectedBox : { ...selectedBox, ...resized.box }}
               transform={transform}
               offset={dragOffset}
+              showSize={resized?.phase === "resizing"}
+              onResizeStart={(handle, event) => {
+                const declared = document?.pages[currentPage]?.elements.find(
+                  (element) => element.id === selectedBox.id,
+                );
+                const autoHeight = declared !== undefined && "h" in declared && declared.h === null;
+                resize.start(selectedBox.id, handle, selectedBox, autoHeight, event.clientX, event.clientY);
+              }}
               onBodyPointerDown={(event) => {
                 // Alt o ⌘ atraviesan hacia el elemento de abajo: eso lo
                 // decide el lienzo, no se arrastra.

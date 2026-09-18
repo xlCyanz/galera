@@ -3,6 +3,15 @@
  * cómo lo mueven las flechas.
  */
 
+/**
+ * Redondea una medida al micrómetro antes de guardarla en el documento: sin
+ * esto, pasar de píxeles a mm deja números como 60,000000000000014 en el
+ * JSON. Un micrómetro no se ve ni al 800 % (0,03 px).
+ */
+export function roundMm(value: number): number {
+  return Math.round(value * 1000) / 1000 + 0;
+}
+
 /** Un desplazamiento en mm. */
 export interface Delta {
   dx: number;

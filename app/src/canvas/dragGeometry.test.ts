@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { PX_PER_MM } from "./geometry";
-import { arrowNudge, dragDelta, isStill, rotatedCorners } from "./dragGeometry";
+import { arrowNudge, dragDelta, isStill, rotatedCorners, roundMm } from "./dragGeometry";
 
 const plain = { shiftKey: false, altKey: false, metaKey: false, ctrlKey: false };
 
@@ -53,5 +53,13 @@ describe("rotatedCorners", () => {
     // Centro (10, 5): la esquina (0, 0) va a (15, -5).
     expect(topLeft!.x).toBeCloseTo(15, 9);
     expect(topLeft!.y).toBeCloseTo(-5, 9);
+  });
+});
+
+describe("roundMm", () => {
+  it("al micrómetro, sin -0", () => {
+    expect(roundMm(60.000000000000014)).toBe(60);
+    expect(roundMm(12.34567)).toBe(12.346);
+    expect(Object.is(roundMm(-0.0000001), 0)).toBe(true);
   });
 });
