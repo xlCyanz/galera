@@ -21,6 +21,10 @@
  * elegir imágenes e insertarlas donde se pulsó (`useFileDrop.ts`). Soltar
  * imágenes desde el sistema funciona con cualquier herramienta. Escape
  * vuelve a la de selección.
+ *
+ * Un elemento bloqueado no se acierta con el clic (lo decide el núcleo); si
+ * se selecciona desde el panel de capas, su contorno se ve pero no se
+ * agarra, y las flechas no lo mueven.
  */
 import { type CSSProperties, useEffect, useEffectEvent, useRef, useState } from "react";
 
@@ -77,6 +81,12 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const focusRequests = useFocusRequests();
   const tool = useTool();
   const selecting = tool === "select";
+  // Un elemento bloqueado se selecciona desde el panel de capas, pero en el
+  // lienzo no se agarra ni se empuja con las flechas.
+  const selectedLocked =
+    selected !== null &&
+    document?.pages.some((page) => page.elements.some((element) => element.id === selected && element.locked === true)) ===
+      true;
 
   const viewport = useRef<HTMLDivElement>(null);
   const page = document?.pages[currentPage];
@@ -168,7 +178,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
       // Durante un arrastre, Escape lo cancela (ver `useDrag.ts`).
       useDocumentStore.getState().clearHighlight();
       useDocumentStore.getState().select(null);
-    } else if (nudge !== null && selected !== null && drag.state.phase === "idle") {
+    } else if (nudge !== null && selected !== null && !selectedLocked && drag.state.phase === "idle") {
       event.preventDefault();
       burst.current = nudgeBurst(burst.current, selected, event.timeStamp);
       void applyOp({ op: "move", id: selected, ...nudge }, burst.current.group)
@@ -269,7 +279,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
               offset={dragOffset}
               showSize={resized?.phase === "resizing"}
               showAngle={rotated?.phase === "rotating"}
-              interactive={selecting}
+              interactive={selecting && !selectedLocked}
               onRotateStart={(event) => {
                 // El centro del elemento en la pantalla: alrededor de él gira el puntero.
                 const area = viewport.current?.getBoundingClientRect();

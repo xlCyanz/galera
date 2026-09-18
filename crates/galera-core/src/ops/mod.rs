@@ -128,6 +128,13 @@ pub enum Property {
     Source(String),
     /// Imagen de un elemento de imagen, por su clave en `assets`.
     Asset(String),
+    /// Nombre del elemento en el panel de capas, o `null` para el que se
+    /// deduce de él.
+    Name(Option<String>),
+    /// Si el elemento está oculto.
+    Hidden(bool),
+    /// Si el elemento está bloqueado.
+    Locked(bool),
 }
 
 impl Property {
@@ -141,6 +148,9 @@ impl Property {
             Property::Style(_) => "el estilo",
             Property::Source(_) => "el código",
             Property::Asset(_) => "la imagen",
+            Property::Name(_) => "el nombre",
+            Property::Hidden(_) => "la visibilidad",
+            Property::Locked(_) => "el bloqueo",
         }
     }
 }
@@ -194,7 +204,14 @@ impl Op {
             Op::Move { id, .. } => format!("Mover {id}"),
             Op::Resize { id, .. } => format!("Redimensionar {id}"),
             Op::Rotate { id, .. } => format!("Girar {id}"),
-            Op::SetProperty { id, property } => format!("Cambiar {} de {id}", property.label()),
+            Op::SetProperty { id, property } => match property {
+                Property::Name(_) => format!("Renombrar {id}"),
+                Property::Hidden(true) => format!("Ocultar {id}"),
+                Property::Hidden(false) => format!("Mostrar {id}"),
+                Property::Locked(true) => format!("Bloquear {id}"),
+                Property::Locked(false) => format!("Desbloquear {id}"),
+                other => format!("Cambiar {} de {id}", other.label()),
+            },
             Op::Create { element, .. } => format!("Crear {}", element.id()),
             Op::Delete { id } => format!("Eliminar {id}"),
             Op::Reorder { id, .. } => format!("Reordenar {id}"),
@@ -372,6 +389,25 @@ fn set_property(element: &mut Element, id: &str, property: &Property) -> Result<
         kind,
         what: format!("Cambiar {}", property.label()),
     };
+
+    // Lo del panel de capas vale para cualquier tipo. `false` no se
+    // escribe: un elemento que se oculta y se vuelve a mostrar deja el JSON
+    // como estaba.
+    match property {
+        Property::Name(value) => {
+            element.layer_mut().name = value.clone().filter(|name| !name.trim().is_empty());
+            return Ok(());
+        }
+        Property::Hidden(value) => {
+            element.layer_mut().hidden = value.then_some(true);
+            return Ok(());
+        }
+        Property::Locked(value) => {
+            element.layer_mut().locked = value.then_some(true);
+            return Ok(());
+        }
+        _ => {}
+    }
 
     match (element, property) {
         (Element::Rect { fill, .. } | Element::Ellipse { fill, .. }, Property::Fill(value)) => {

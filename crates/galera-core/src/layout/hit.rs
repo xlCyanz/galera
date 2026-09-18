@@ -15,11 +15,39 @@
 //!   tolerancia del segmento, no dentro de la caja de sus extremos.
 //! - **El borde cuenta como dentro**, y la tolerancia lo ensancha: con ella
 //!   se puede acertar una línea de grosor cero o el filo de una caja.
+//! - **Un elemento bloqueado no se acierta** ([`selectable`]): el clic pasa
+//!   al de debajo. Solo se selecciona desde el panel de capas. Uno oculto ni
+//!   siquiera tiene caja, porque no se emite.
 //!
 //! [`element_at`] da el elemento de más arriba o, pidiendo atravesar, el que
 //! está debajo del que ya se tiene; [`hits`] da todos, de arriba abajo.
 
+use std::collections::HashSet;
+
 use super::LayoutBox;
+use crate::model::Document;
+
+/// Las cajas que se pueden acertar con el ratón: todas menos las de los
+/// elementos que `document` tiene bloqueados.
+///
+/// Se mira el documento actual, no el que se compiló: bloquear no cambia
+/// nada que dibuje Typst, así que vale en cuanto se bloquea.
+pub fn selectable(boxes: Vec<LayoutBox>, document: &Document) -> Vec<LayoutBox> {
+    let locked: HashSet<&str> = document
+        .pages
+        .iter()
+        .flat_map(|page| &page.elements)
+        .filter(|element| element.layer().is_locked())
+        .map(|element| element.id())
+        .collect();
+    if locked.is_empty() {
+        return boxes;
+    }
+    boxes
+        .into_iter()
+        .filter(|layout_box| !locked.contains(layout_box.id.as_str()))
+        .collect()
+}
 
 /// Todos los elementos de `page` bajo el punto `(x, y)` en mm, del de más
 /// arriba al de más abajo. `tolerance` es cuánto se ensancha cada elemento,
@@ -299,5 +327,26 @@ mod tests {
         // Esquina de la caja alineada del girado (15°), fuera de su forma.
         assert_eq!(at(&boxes, 107.0, 71.0), None);
         assert_eq!(at(&boxes, 5.0, 5.0), None);
+    }
+
+    /// El criterio de la tarea: un bloqueado no responde al clic, que pasa
+    /// al de debajo; uno oculto ni siquiera tiene caja.
+    #[test]
+    fn locked_elements_are_not_hit_and_hidden_ones_have_no_box() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures");
+        let json = std::fs::read_to_string(dir.join("capas.json")).expect("existe");
+        let document = crate::Document::from_json_str(&json).expect("es un documento");
+        let project = crate::Project::open(&dir).expect("es un proyecto");
+        let all = crate::layout(&document, &project).expect("compila");
+
+        // Sin filtrar, el fondo bloqueado se acierta; filtrado, no.
+        assert_eq!(at(&all, 5.0, 280.0), Some("fondo"));
+        let boxes = selectable(all, &document);
+        assert_eq!(at(&boxes, 5.0, 280.0), None);
+        // Lo que no está bloqueado sigue igual.
+        assert_eq!(at(&boxes, 170.0, 40.0), Some("sello"));
+        // Donde está el rectángulo oculto solo queda el fondo, y bloqueado.
+        assert_eq!(at(&boxes, 60.0, 40.0), None);
+        assert!(boxes.iter().all(|b| b.id != "borrador" && b.id != "guia"));
     }
 }

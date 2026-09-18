@@ -482,3 +482,102 @@ fn commands_serialize_and_deserialize() {
     let back: Op = serde_json::from_str(&text).expect("deserializa");
     assert_eq!(back, applied.undo);
 }
+
+/// Nombre, oculto y bloqueado valen para cualquier tipo, incluida la línea,
+/// se deshacen y, al quitarse, no dejan rastro en el JSON.
+#[test]
+fn layer_properties_apply_to_every_element_and_leave_no_trace() {
+    let original = document();
+    for id in ["r1", "l1", "t1", "i1", "c1"] {
+        for property in [
+            Property::Name(Some("Mi capa".into())),
+            Property::Hidden(true),
+            Property::Locked(true),
+        ] {
+            let op = Op::SetProperty {
+                id: id.into(),
+                property: property.clone(),
+            };
+            let changed = apply_and_check_undo(&op);
+            let layer = changed.element(id).expect("existe").layer().clone();
+            match property {
+                Property::Name(_) => assert_eq!(layer.name.as_deref(), Some("Mi capa")),
+                Property::Hidden(_) => assert!(layer.is_hidden()),
+                Property::Locked(_) => assert!(layer.is_locked()),
+                _ => unreachable!(),
+            }
+        }
+
+        // Ocultar y volver a mostrar deja el JSON como estaba.
+        let hidden = Op::SetProperty {
+            id: id.into(),
+            property: Property::Hidden(true),
+        }
+        .apply(&original)
+        .expect("se aplica")
+        .document;
+        let shown = Op::SetProperty {
+            id: id.into(),
+            property: Property::Hidden(false),
+        }
+        .apply(&hidden)
+        .expect("se aplica")
+        .document;
+        assert_eq!(
+            shown.to_json_string().expect("serializa"),
+            original.to_json_string().expect("serializa")
+        );
+    }
+}
+
+#[test]
+fn an_empty_name_goes_back_to_the_deduced_one() {
+    let named = Op::SetProperty {
+        id: "r1".into(),
+        property: Property::Name(Some("Algo".into())),
+    }
+    .apply(&document())
+    .expect("se aplica")
+    .document;
+    for empty in [None, Some(String::new()), Some("   ".into())] {
+        let renamed = Op::SetProperty {
+            id: "r1".into(),
+            property: Property::Name(empty),
+        }
+        .apply(&named)
+        .expect("se aplica")
+        .document;
+        assert_eq!(renamed.element("r1").expect("existe").layer().name, None);
+    }
+}
+
+#[test]
+fn layer_commands_describe_themselves() {
+    let describe = |property| {
+        Op::SetProperty {
+            id: "r1".into(),
+            property,
+        }
+        .describe()
+    };
+    assert_eq!(describe(Property::Name(Some("x".into()))), "Renombrar r1");
+    assert_eq!(describe(Property::Hidden(true)), "Ocultar r1");
+    assert_eq!(describe(Property::Hidden(false)), "Mostrar r1");
+    assert_eq!(describe(Property::Locked(true)), "Bloquear r1");
+    assert_eq!(describe(Property::Locked(false)), "Desbloquear r1");
+}
+
+#[test]
+fn layer_properties_travel_as_the_ui_sends_them() {
+    let op: Op = serde_json::from_value(json!({
+        "op": "set_property", "id": "r1", "property": { "name": "hidden", "value": true }
+    }))
+    .expect("la interfaz lo manda así");
+    assert_eq!(
+        op,
+        Op::SetProperty {
+            id: "r1".into(),
+            property: Property::Hidden(true)
+        }
+    );
+}

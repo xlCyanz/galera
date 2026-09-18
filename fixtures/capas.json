@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "meta": { "title": "Capas" },
+  "fonts": ["fonts/Inter-Regular.ttf"],
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "fondo", "type": "rect", "x": 0, "y": 0, "w": 210, "h": 297,
+          "fill": "#f1f5f9", "stroke": null, "name": "Fondo", "locked": true },
+        { "id": "borrador", "type": "rect", "x": 20, "y": 20, "w": 80, "h": 40,
+          "fill": "#dc2626", "stroke": null, "hidden": true },
+        { "id": "guia", "type": "line", "x": 20, "y": 150, "x2": 190, "y2": 150,
+          "stroke": { "color": "#2563eb", "width": 0.25 }, "name": "Guía", "hidden": true, "locked": true },
+        { "id": "titulo", "type": "text", "x": 20, "y": 70, "w": 170, "h": null,
+          "content": [ { "text": "Lo visible" } ],
+          "style": { "font": "Inter", "size": 18, "color": "#1F2733" }, "name": "Título" },
+        { "id": "sello", "type": "ellipse", "x": 150, "y": 20, "w": 40, "h": 40,
+          "fill": "#16a34a", "stroke": null, "hidden": false }
+      ]
+    }
+  ]
+}

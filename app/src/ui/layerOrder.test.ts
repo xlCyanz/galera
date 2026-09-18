@@ -75,3 +75,16 @@ describe("reorderIndex", () => {
     expect(reorderIndex(1, 2, 3)).toBeNull();
   });
 });
+
+describe("filas con nombre, ocultas y bloqueadas", () => {
+  it("el nombre propio manda sobre el deducido, y las marcas pasan a la fila", () => {
+    const named: Page = {
+      ...page,
+      elements: [{ ...rect("r"), name: "Fondo", hidden: true, locked: true }, { ...rect("s"), name: "  " }],
+    };
+    expect(layerRows(named)).toEqual([
+      { id: "s", type: "rect", label: "Rectángulo", name: null, index: 1, hidden: false, locked: false },
+      { id: "r", type: "rect", label: "Fondo", name: "Fondo", index: 0, hidden: true, locked: true },
+    ]);
+  });
+});

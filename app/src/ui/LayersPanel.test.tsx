@@ -38,8 +38,16 @@ beforeEach(() => {
   ops = [];
   mockIPC((command, args) => {
     if (command === "apply_op") {
-      const op = (args as { op: { id: string; index: number } }).op;
+      const op = (args as { op: { op: string; id: string; index: number; property?: { name: string; value: unknown } } }).op;
       ops.push(op);
+      if (op.op === "set_property") {
+        const document = structuredClone(useDocumentStore.getState().document!);
+        const element = document.pages[0]!.elements.find((e) => e.id === op.id)! as Record<string, unknown>;
+        const { name, value } = op.property!;
+        element[name] = value === false || value === null ? undefined : value;
+        const applied: AppliedOp = { revision: 2, document, description: "x", undo: "x", redo: null };
+        return applied;
+      }
       // Aplica el reordenado como el núcleo, para ver la lista nueva.
       const document = structuredClone(useDocumentStore.getState().document!);
       const elements = document.pages[0]!.elements;
@@ -144,5 +152,69 @@ describe("panel de capas", () => {
     act(() => useDocumentStore.getState().setCurrentPage(1));
     expect(rows()).toHaveLength(0);
     expect(container.textContent).toContain("no tiene elementos");
+  });
+});
+
+describe("ocultar, bloquear y renombrar", () => {
+  const toggle = (id: string, which: "hidden" | "locked") =>
+    row(id).querySelector<HTMLButtonElement>(`[data-toggle="${which}"]`)!;
+
+  async function click(button: HTMLElement) {
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, cancelable: true, button: 0 }));
+      button.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  it("el ojo oculta y vuelve a mostrar, sin seleccionar ni arrastrar la fila", async () => {
+    await click(toggle("b", "hidden"));
+    expect(ops).toEqual([{ op: "set_property", id: "b", property: { name: "hidden", value: true } }]);
+    expect(row("b").className).toContain("is-hidden");
+    expect(toggle("b", "hidden").getAttribute("aria-pressed")).toBe("true");
+    expect(useDocumentStore.getState().selectedElement).toBeNull();
+
+    await click(toggle("b", "hidden"));
+    expect(ops[1]).toEqual({ op: "set_property", id: "b", property: { name: "hidden", value: false } });
+    expect(row("b").className).not.toContain("is-hidden");
+  });
+
+  it("el candado bloquea, y un bloqueado se sigue seleccionando desde el panel", async () => {
+    await click(toggle("c", "locked"));
+    expect(ops).toEqual([{ op: "set_property", id: "c", property: { name: "locked", value: true } }]);
+    expect(row("c").className).toContain("is-locked");
+    pointer(row("c"), "pointerdown", 10);
+    pointer(list(), "pointerup", 10);
+    expect(useDocumentStore.getState().selectedElement).toBe("c");
+  });
+
+  it("doble clic en el nombre lo renombra; vacío vuelve al deducido; Esc cancela", async () => {
+    const rename = async (id: string, text: string, key: string) => {
+      act(() => {
+        row(id).querySelector(".layer-label")!.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      });
+      const input = row(id).querySelector<HTMLInputElement>("input")!;
+      act(() => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+        setter.call(input, text);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await act(async () => {
+        input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    };
+
+    await rename("a", "Fondo", "Enter");
+    expect(ops).toEqual([{ op: "set_property", id: "a", property: { name: "name", value: "Fondo" } }]);
+    expect(row("a").querySelector(".layer-label")!.textContent).toBe("Fondo");
+
+    await rename("a", "Otra cosa", "Escape");
+    expect(ops).toHaveLength(1);
+    expect(row("a").querySelector(".layer-label")!.textContent).toBe("Fondo");
+
+    await rename("a", "  ", "Enter");
+    expect(ops[1]).toEqual({ op: "set_property", id: "a", property: { name: "name", value: null } });
+    expect(row("a").querySelector(".layer-label")!.textContent).toBe("Rectángulo");
   });
 });

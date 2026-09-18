@@ -47,16 +47,31 @@ export function elementLabel(element: Element): string {
 export interface LayerRow {
   id: string;
   type: Element["type"];
-  /** El nombre legible. */
+  /** El nombre propio, si se le ha dado, o si no el que se deduce. */
   label: string;
+  /** El nombre propio, si lo tiene. */
+  name: string | null;
   /** Su posición en el arreglo `elements`. */
   index: number;
+  hidden: boolean;
+  locked: boolean;
 }
 
 /** Las filas de una página, la capa de arriba primero. */
 export function layerRows(page: Page): LayerRow[] {
   return page.elements
-    .map((element, index) => ({ id: element.id, type: element.type, label: elementLabel(element), index }))
+    .map((element, index) => {
+      const name = element.name?.trim() ? element.name : null;
+      return {
+        id: element.id,
+        type: element.type,
+        label: name ?? elementLabel(element),
+        name,
+        index,
+        hidden: element.hidden === true,
+        locked: element.locked === true,
+      };
+    })
     .reverse();
 }
 

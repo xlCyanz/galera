@@ -452,7 +452,8 @@ mod tests {
 
     /// Cada elemento de cada fixture tiene su caja, en su página y en el
     /// orden del documento. Incluidos los que no dibujan nada: un rectángulo
-    /// sin relleno ni borde o un bloque de código vacío.
+    /// sin relleno ni borde o un bloque de código vacío. Los ocultos no:
+    /// no se emiten.
     #[test]
     fn every_element_of_every_fixture_has_a_box() {
         for entry in std::fs::read_dir(fixtures_dir()).expect("fixtures/") {
@@ -473,6 +474,7 @@ mod tests {
                     content
                         .elements
                         .iter()
+                        .filter(|element| !element.layer().is_hidden())
                         .map(move |element| (element.id().to_owned(), page))
                 })
                 .collect();

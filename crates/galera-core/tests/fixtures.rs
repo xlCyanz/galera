@@ -16,6 +16,7 @@ use galera_core::{Document, Project, Severity, codegen, compile};
 /// `fixtures/` se pueda abrir como proyecto, y
 /// `document_json_is_a_copy_of_informe` comprueba que siguen iguales.
 const FIXTURES: &[&str] = &[
+    "capas",
     "codigo",
     "elipse",
     "escape",

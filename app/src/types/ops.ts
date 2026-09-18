@@ -85,4 +85,4 @@ element: Element, };
 /**
  * Una propiedad que se puede cambiar con [`Op::SetProperty`], con su valor.
  */
-export type Property = { "name": "fill", "value": string | null } | { "name": "stroke", "value": Stroke | null } | { "name": "radius", "value": number } | { "name": "content", "value": Array<Run> } | { "name": "style", "value": TextStyle } | { "name": "source", "value": string } | { "name": "asset", "value": string };
+export type Property = { "name": "fill", "value": string | null } | { "name": "stroke", "value": Stroke | null } | { "name": "radius", "value": number } | { "name": "content", "value": Array<Run> } | { "name": "style", "value": TextStyle } | { "name": "source", "value": string } | { "name": "asset", "value": string } | { "name": "name", "value": string | null } | { "name": "hidden", "value": boolean } | { "name": "locked", "value": boolean };

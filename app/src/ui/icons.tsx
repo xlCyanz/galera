@@ -36,3 +36,31 @@ export const ELEMENT_ICONS: Record<Element["type"], ReactNode> = {
   image: TOOL_ICONS.image,
   code: <path d="M7 6l-4 4 4 4M13 6l4 4-4 4" />,
 };
+
+/** Los iconos de los controles de cada capa. */
+export const LAYER_ICONS = {
+  visible: (
+    <>
+      <path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10z" />
+      <circle cx="10" cy="10" r="2.5" />
+    </>
+  ),
+  hidden: (
+    <>
+      <path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10z" />
+      <path d="M3 3l14 14" />
+    </>
+  ),
+  locked: (
+    <>
+      <rect x="4.5" y="9" width="11" height="8" rx="1" />
+      <path d="M7 9V6.5a3 3 0 016 0V9" />
+    </>
+  ),
+  unlocked: (
+    <>
+      <rect x="4.5" y="9" width="11" height="8" rx="1" />
+      <path d="M7 9V6.5a3 3 0 015.8-1" />
+    </>
+  ),
+} satisfies Record<string, ReactNode>;

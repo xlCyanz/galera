@@ -9,6 +9,9 @@
 //! La última que salió bien (`AppState::last_good_compilation`). Es la que
 //! enseña el lienzo, también mientras el documento tiene errores, así que el
 //! clic acierta lo que se ve.
+//!
+//! Los elementos bloqueados se quitan antes (`hit::selectable`), mirando el
+//! documento actual: bloquear vale en cuanto se bloquea.
 
 use galera_core::layout::hit;
 use tauri::State;
@@ -65,7 +68,9 @@ fn element_at_in(
         0.0
     };
     let compiled = state.last_good_compilation()?;
-    let boxes = compiled.layout();
+    let (_, document) = state.open_document()?;
+    // Lo bloqueado no se acierta: el clic pasa al de debajo.
+    let boxes = hit::selectable(compiled.layout(), &document);
     hit::element_at(&boxes, page, x, y, tolerance, below).map(|found| found.id.clone())
 }
 
@@ -179,6 +184,18 @@ mod tests {
         assert_eq!(
             element_at_in(&state, 0, 100.0, 5.0, f64::INFINITY, None).as_deref(),
             Some("r1")
+        );
+    }
+
+    /// Lo bloqueado no se acierta: el clic pasa al de debajo, o a nada.
+    #[test]
+    fn a_locked_element_is_not_hit() {
+        let state = compiled("capas");
+        // El fondo cubre la página, pero está bloqueado.
+        assert_eq!(element_at_in(&state, 0, 5.0, 280.0, 0.0, None), None);
+        assert_eq!(
+            element_at_in(&state, 0, 170.0, 40.0, 0.0, None).as_deref(),
+            Some("sello")
         );
     }
 }
