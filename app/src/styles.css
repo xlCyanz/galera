@@ -901,3 +901,136 @@ body {
   min-width: 0;
   font: inherit;
 }
+
+/* El inspector de formas y su selector de color. */
+.shape-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.inspector-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.inspector-label {
+  flex: 0 0 4.5em;
+  opacity: 0.7;
+}
+
+.inspector-check {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.dash-select {
+  min-width: 0;
+  font: inherit;
+}
+
+.color-picker {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.color-swatch {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  padding: 2px 4px;
+  font: inherit;
+  text-align: left;
+}
+
+.color-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.color-chip {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid rgb(127 127 127 / 60%);
+  border-radius: 3px;
+  background: repeating-conic-gradient(#e5e7eb 0% 25%, #fff 0% 50%) 50% / 8px 8px;
+}
+
+.color-chip[data-none="true"] {
+  background: linear-gradient(to top right, transparent 45%, #dc2626 45% 55%, transparent 55%), #fff;
+}
+
+.color-popover {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 172px;
+  padding: 10px;
+  border-radius: 6px;
+  background: #27272a;
+  color: #f4f4f5;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 40%);
+}
+
+.color-wheel {
+  position: relative;
+  align-self: center;
+  border-radius: 50%;
+  background: radial-gradient(circle closest-side, #fff, transparent),
+    conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.color-wheel-shade {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #000;
+  pointer-events: none;
+}
+
+.color-wheel-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #000;
+  pointer-events: none;
+}
+
+.color-slider {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+}
+
+.color-hex {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.color-recent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.color-none {
+  font: inherit;
+}

@@ -6,6 +6,11 @@
 export type Align = "left" | "center" | "right" | "justify";
 
 /**
+ * Estilo de un trazo que no es continuo.
+ */
+export type Dash = "dashed" | "dotted" | "dash-dotted";
+
+/**
  * Un documento completo de Galera.
  *
  * Es lo que se guarda como `document.json` dentro de un proyecto `.galera`.
@@ -518,7 +523,12 @@ color: string,
 /**
  * Grosor en milímetros.
  */
-width: number, };
+width: number, 
+/**
+ * Estilo del trazo, o `None` para continuo. Sin valor no se escribe en
+ * el JSON: los documentos de antes se leen y se guardan igual.
+ */
+dash?: Dash, };
 
 /**
  * Estilo de un bloque de texto completo.
