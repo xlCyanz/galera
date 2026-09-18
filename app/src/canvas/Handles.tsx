@@ -6,9 +6,10 @@
  * aquí se colocan en píxeles sobre la caja sin girar, y el giro lo pone la
  * capa. Miden siempre `HANDLE_SIZE` píxeles, a cualquier zoom.
  *
- * Los ocho de redimensionado avisan con `onResizeStart` (ver `useResize.ts`);
- * el de rotación y los extremos de una línea, todavía no hacen nada. Pulsar
- * cualquiera no llega al lienzo, así que no deselecciona el elemento.
+ * Los ocho de redimensionado avisan con `onResizeStart` (ver `useResize.ts`)
+ * y el de rotación con `onRotateStart` (ver `useRotate.ts`); los extremos de
+ * una línea todavía no hacen nada. Pulsar cualquiera no llega al lienzo, así
+ * que no deselecciona el elemento.
  */
 import type { PointerEvent } from "react";
 
@@ -45,10 +46,12 @@ export interface BoxHandlesProps {
   rotation: number;
   /** Se ha pulsado un manejador de redimensionado. */
   onResizeStart?: (handle: ResizeHandle, event: PointerEvent<HTMLElement>) => void;
+  /** Se ha pulsado el manejador de rotación. */
+  onRotateStart?: (event: PointerEvent<HTMLElement>) => void;
 }
 
 /** Los ocho de redimensionado y el de rotación, por encima del borde superior. */
-export function BoxHandles({ width, height, rotation, onResizeStart }: BoxHandlesProps) {
+export function BoxHandles({ width, height, rotation, onResizeStart, onRotateStart }: BoxHandlesProps) {
   return (
     <>
       <div
@@ -59,7 +62,12 @@ export function BoxHandles({ width, height, rotation, onResizeStart }: BoxHandle
         className="handle rotate-handle"
         data-handle="rotate"
         style={{ ...at(width / 2, -ROTATE_HANDLE_OFFSET), cursor: "grab" }}
-        onPointerDown={keepFromCanvas}
+        onPointerDown={(event) => {
+          keepFromCanvas(event);
+          if (event.button === 0) {
+            onRotateStart?.(event);
+          }
+        }}
       />
       {RESIZE_HANDLES.map((handle) => {
         const position = HANDLE_POSITION[handle];

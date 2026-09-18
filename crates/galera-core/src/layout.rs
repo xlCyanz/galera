@@ -704,6 +704,45 @@ mod tests {
         }
     }
 
+    /// Lo que enseña la interfaz mientras se gira (F2-07) es la caja de antes
+    /// girada sobre su centro. Para que coincida con lo que sale al
+    /// recompilar, girar con `Op::Rotate` no puede mover ni cambiar la caja
+    /// sin girar: solo el ángulo. También con el alto automático de un texto.
+    #[test]
+    fn rotating_keeps_the_unrotated_box_and_only_changes_the_angle() {
+        let document = page_with(
+            r##"{ "id": "r1", "type": "rect", "x": 30, "y": 40, "w": 60, "h": 20, "fill": "#ff0000", "stroke": null },
+                { "id": "t1", "type": "text", "x": 100, "y": 10, "w": 50, "h": null,
+                  "content": [{ "text": "Un texto que ocupa varias líneas al girarlo" }],
+                  "style": { "font": "Inter", "size": 12, "color": "#000000", "align": "left", "leading": 0.65 } }"##,
+        );
+        let before = boxes_of(&document);
+
+        for rotation in [15.0, 37.5, 90.0, -165.0, 180.0, 270.0] {
+            for id in ["r1", "t1"] {
+                let rotated = crate::ops::Op::Rotate {
+                    id: id.to_owned(),
+                    rotation,
+                }
+                .apply(&document)
+                .expect("se aplica")
+                .document;
+                let boxes = boxes_of(&rotated);
+                let unrotated = find(&before, id);
+                let layout_box = find(&boxes, id);
+                assert_box(
+                    layout_box,
+                    (unrotated.x, unrotated.y, unrotated.w, unrotated.h),
+                );
+                assert_close(
+                    layout_box.rotation,
+                    normalized(rotation),
+                    &format!("{id} a {rotation}°"),
+                );
+            }
+        }
+    }
+
     fn normalized(degrees: f64) -> f64 {
         let angle = degrees.rem_euclid(360.0);
         if angle > 180.0 { angle - 360.0 } else { angle }
