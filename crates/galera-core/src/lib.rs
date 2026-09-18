@@ -34,10 +34,12 @@
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod assets;
 pub mod codegen;
 pub mod compile;
 pub mod error;
 pub mod fonts;
+mod import;
 pub mod layout;
 pub mod model;
 pub mod open;
@@ -47,6 +49,7 @@ pub mod project;
 mod testing;
 pub mod world;
 
+pub use assets::{ImportImageError, ImportedImage, import_image};
 pub use codegen::{escape, escape_into};
 pub use compile::{Compiled, compile, compile_pdf, compile_svg};
 pub use error::{Diagnostic, GaleraError, Result, Severity};

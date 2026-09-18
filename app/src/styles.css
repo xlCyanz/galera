@@ -548,3 +548,9 @@ body {
 .canvas-notice button {
   white-space: nowrap;
 }
+
+/* Se está arrastrando un archivo del sistema sobre el lienzo. */
+.canvas-viewport.is-drop-target {
+  outline: 2px dashed var(--ruler-pointer);
+  outline-offset: -2px;
+}

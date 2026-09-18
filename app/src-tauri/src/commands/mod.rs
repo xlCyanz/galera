@@ -8,6 +8,7 @@
 //! como se escriben en TypeScript. Cuando fallan, devuelven un
 //! [`CommandError`], que llega a la interfaz como `{ kind, message }`.
 
+pub mod assets;
 mod error;
 pub mod export;
 pub mod fonts;
