@@ -11,6 +11,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 
+use crate::import::{CopyError, copy_into};
 use crate::model::{Align, Document, Element, TextStyle};
 use crate::project::Project;
 use crate::world::families_in;
@@ -122,73 +123,11 @@ pub fn import_font(project: &Project, source: &Path) -> Result<ImportedFont, Imp
     if families.is_empty() {
         return Err(ImportFontError::NotAFont { path: shown });
     }
-
-    let dir = project.root().join(FONTS_DIR);
-    fs::create_dir_all(&dir).map_err(|error| ImportFontError::Write {
-        path: FONTS_DIR.to_owned(),
-        source: error,
+    let path = copy_into(project, FONTS_DIR, source, &data).map_err(|error| match error {
+        CopyError::OutsideProject => ImportFontError::OutsideProject,
+        CopyError::Write { path, source } => ImportFontError::Write { path, source },
     })?;
-    // La carpeta puede ser un enlace simbólico hacia fuera: `resolve` lo
-    // detecta igual que al leer.
-    project
-        .resolve(FONTS_DIR)
-        .map_err(|_| ImportFontError::OutsideProject)?;
-
-    let (stem, extension) = safe_name(source);
-    for n in 1.. {
-        let name = if n == 1 {
-            format!("{stem}{extension}")
-        } else {
-            format!("{stem}-{n}{extension}")
-        };
-        let path = format!("{FONTS_DIR}/{name}");
-        let target = dir.join(&name);
-        match fs::read(&target) {
-            Ok(existing) if existing == data => return Ok(ImportedFont { path, families }),
-            Ok(_) => continue,
-            Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                fs::write(&target, &data).map_err(|error| ImportFontError::Write {
-                    path: path.clone(),
-                    source: error,
-                })?;
-                return Ok(ImportedFont { path, families });
-            }
-            Err(error) => {
-                return Err(ImportFontError::Write {
-                    path,
-                    source: error,
-                });
-            }
-        }
-    }
-    unreachable!("el bucle solo termina devolviendo")
-}
-
-/// El nombre del archivo sin extensión y la extensión (con el punto, en
-/// minúsculas), con todo lo que no sea letra ASCII, número, `-` o `_`
-/// cambiado por `_`.
-fn safe_name(source: &Path) -> (String, String) {
-    let clean = |text: &str| -> String {
-        text.chars()
-            .map(|c| {
-                if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
-                    c
-                } else {
-                    '_'
-                }
-            })
-            .collect()
-    };
-    let stem = source
-        .file_stem()
-        .map(|stem| clean(&stem.to_string_lossy()))
-        .filter(|stem| !stem.is_empty())
-        .unwrap_or_else(|| "fuente".to_owned());
-    let extension = source
-        .extension()
-        .map(|extension| format!(".{}", clean(&extension.to_string_lossy()).to_lowercase()))
-        .unwrap_or_default();
-    (stem, extension)
+    Ok(ImportedFont { path, families })
 }
 
 #[cfg(test)]

@@ -17,8 +17,10 @@
  *
  * La herramienta activa (`store/tool.ts`) decide qué hace el clic: con la
  * de selección, seleccionar y arrastrar; con la mano, desplazar; con las que
- * crean formas y textos, dibujarlos (`useCreate.ts`); la imagen llega con
- * otra tarea de la Fase 3. Escape vuelve a la de selección.
+ * crean formas y textos, dibujarlos (`useCreate.ts`); con la de imagen,
+ * elegir imágenes e insertarlas donde se pulsó (`useFileDrop.ts`). Soltar
+ * imágenes desde el sistema funciona con cualquier herramienta. Escape
+ * vuelve a la de selección.
  */
 import { type CSSProperties, useEffect, useEffectEvent, useRef, useState } from "react";
 
@@ -51,6 +53,7 @@ import { findElement } from "./elements";
 import { useCanvasNavigation } from "./useCanvasNavigation";
 import { useDrag } from "./useDrag";
 import { useCreate } from "./useCreate";
+import { useFileDrop } from "./useFileDrop";
 import { useResize } from "./useResize";
 import { useRotate } from "./useRotate";
 import { useSelection } from "./useSelection";
@@ -59,9 +62,11 @@ import { centerOn } from "./zoom";
 export interface CanvasProps {
   /** Solo para pruebas. */
   loader?: ImageLoader;
+  /** Solo para pruebas: cómo escuchar lo que se suelta desde el sistema. */
+  subscribeToDrops?: Parameters<typeof useFileDrop>[3];
 }
 
-export function Canvas({ loader }: CanvasProps) {
+export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const document = useOpenDocument();
   const currentPage = useCurrentPage();
   const pages = useRenderedPages();
@@ -107,6 +112,7 @@ export function Canvas({ loader }: CanvasProps) {
       : null;
   const rotate = useRotate();
   const create = useCreate(transform, currentPage);
+  const fileDrop = useFileDrop(viewport, transform, currentPage, subscribeToDrops);
   const rotated =
     rotate.state.phase !== "idle" && selectedBox !== null && rotate.state.id === selectedBox.id
       ? rotate.state
@@ -181,6 +187,7 @@ export function Canvas({ loader }: CanvasProps) {
     "canvas-viewport",
     panReady ? "is-pan-ready" : "",
     panning ? "is-panning" : "",
+    fileDrop.over ? "is-drop-target" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -204,6 +211,8 @@ export function Canvas({ loader }: CanvasProps) {
               onSelect(event);
             } else if (tool === "rect" || tool === "ellipse" || tool === "line" || tool === "text") {
               create.onPointerDown(tool, event);
+            } else if (tool === "image") {
+              fileDrop.insertFromDialog(event);
             }
           }}
         >
@@ -310,6 +319,18 @@ export function Canvas({ loader }: CanvasProps) {
               </button>
               <button type="button" onClick={create.dismiss}>
                 Cancelar
+              </button>
+            </div>
+          )}
+          {fileDrop.messages.length > 0 && (
+            <div className="canvas-notice" role="alert" onPointerDown={(event) => event.stopPropagation()}>
+              <div>
+                {fileDrop.messages.map((message) => (
+                  <p key={message}>{message}</p>
+                ))}
+              </div>
+              <button type="button" onClick={fileDrop.dismiss}>
+                Cerrar
               </button>
             </div>
           )}

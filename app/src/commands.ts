@@ -16,6 +16,7 @@
  * de los parámetros de esa función.
  */
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 import type { Diagnostic } from "./types/diagnostic";
 import type { LayoutBox } from "./types/layout";
@@ -308,4 +309,77 @@ export function textDefaults(): Promise<TextStyle | null> {
  */
 export function addFont(): Promise<AppliedOp | null> {
   return invoke<AppliedOp | null>("add_font");
+}
+
+/** Una imagen ya copiada en el proyecto y registrada en `assets`. */
+export interface ImageAsset {
+  /** Su clave en `assets`, para el elemento. */
+  key: string;
+  /** Su ruta dentro del proyecto. */
+  path: string;
+}
+
+/** Un archivo que no se pudo añadir, y por qué. */
+export interface RejectedFile {
+  file: string;
+  message: string;
+}
+
+/** El resultado de añadir imágenes al proyecto. */
+export interface ImportedImages {
+  /** El documento con las imágenes registradas, o `null` si no se añadió ninguna. */
+  applied: AppliedOp | null;
+  /** Las añadidas, en orden. */
+  images: ImageAsset[];
+  /** Las que no, con su motivo. */
+  rejected: RejectedFile[];
+}
+
+/**
+ * Copia en `assets/` del proyecto las imágenes soltadas sobre la ventana y
+ * las registra en el documento. Solo acepta archivos que de verdad se han
+ * soltado (lo comprueba el backend); los demás, y los que no son imágenes,
+ * vuelven en `rejected`.
+ */
+export function importImages(paths: string[]): Promise<ImportedImages> {
+  return invoke<ImportedImages>("import_images", { paths });
+}
+
+/** Pide imágenes con el diálogo nativo y las añade al proyecto. */
+export function chooseImages(): Promise<ImportedImages> {
+  return invoke<ImportedImages>("choose_images");
+}
+
+/** Algo que se arrastra desde el sistema sobre la ventana, en píxeles CSS. */
+export type FileDrop =
+  | { type: "over"; x: number; y: number }
+  | { type: "drop"; paths: string[]; x: number; y: number }
+  | { type: "leave" };
+
+/**
+ * Escucha lo que se arrastra desde el sistema (el Finder, el escritorio)
+ * sobre la ventana. Devuelve cómo dejar de escuchar.
+ *
+ * Tauri da la posición en píxeles físicos; aquí se pasa a píxeles CSS,
+ * que son los de `clientX` y `clientY`. Fuera de Tauri no escucha nada.
+ */
+export function subscribeToFileDrops(handler: (drop: FileDrop) => void): Promise<() => void> {
+  let webview;
+  try {
+    webview = getCurrentWebview();
+  } catch {
+    // Fuera de Tauri (en las pruebas o en un navegador) no hay ventana a la
+    // que soltar nada.
+    return Promise.resolve(() => undefined);
+  }
+  return webview.onDragDropEvent(({ payload }) => {
+    const scale = window.devicePixelRatio || 1;
+    if (payload.type === "leave") {
+      handler({ type: "leave" });
+    } else if (payload.type === "drop") {
+      handler({ type: "drop", paths: payload.paths, x: payload.position.x / scale, y: payload.position.y / scale });
+    } else {
+      handler({ type: "over", x: payload.position.x / scale, y: payload.position.y / scale });
+    }
+  });
 }

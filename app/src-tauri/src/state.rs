@@ -66,6 +66,10 @@ pub struct AppState {
     compiling: Mutex<()>,
     /// Las carpetas elegidas en el diálogo de abrir, con su ruta real.
     chosen_folders: Mutex<HashSet<PathBuf>>,
+    /// Los archivos soltados sobre la ventana o elegidos en un diálogo, con
+    /// su ruta real: los únicos que la interfaz puede pedir que se copien
+    /// al proyecto.
+    offered_files: Mutex<HashSet<PathBuf>>,
 }
 
 /// Lo que hay abierto.
@@ -408,6 +412,57 @@ impl AppState {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .contains(&real_path(folder))
+    }
+
+    /// Anota archivos que quien usa la app ha soltado sobre la ventana o
+    /// elegido en un diálogo. Duran lo que dure la app abierta.
+    ///
+    /// Es la misma idea que [`AppState::choose_folder`]: la interfaz no
+    /// puede pedir que se lea cualquier archivo del disco, solo los que la
+    /// persona ha ofrecido.
+    pub fn offer_files(&self, files: &[PathBuf]) {
+        let mut offered = self
+            .offered_files
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        offered.extend(files.iter().map(|file| real_path(file)));
+    }
+
+    /// Si un archivo se ha soltado sobre la ventana o elegido en un diálogo.
+    pub fn was_offered(&self, file: &Path) -> bool {
+        self.offered_files
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .contains(&real_path(file))
+    }
+
+    /// Registra imágenes, ya copiadas en la carpeta del proyecto, en el mapa
+    /// `assets` del documento abierto. Como [`AppState::add_font`], no pasa
+    /// por el historial: registrar una imagen no cambia cómo se ve nada.
+    ///
+    /// `None` si no hay nada abierto.
+    pub fn add_assets(&self, assets: &[(String, String)]) -> Option<Edited> {
+        let mut session = self.write();
+        let session = &mut *session;
+        let open = session.open.as_mut()?;
+        let mut changed = false;
+        for (key, path) in assets {
+            if open.document.assets.get(key) != Some(path) {
+                open.document.assets.insert(key.clone(), path.clone());
+                changed = true;
+            }
+        }
+        if changed {
+            session.revision += 1;
+            session.compiled = None;
+        }
+        Some(Edited {
+            revision: session.revision,
+            document: open.document.clone(),
+            description: "Añadir imágenes".to_owned(),
+            undo: session.history.undo_description().map(str::to_owned),
+            redo: session.history.redo_description().map(str::to_owned),
+        })
     }
 
     /// Cerrojo de lectura. Un cerrojo envenenado solo significa que un hilo

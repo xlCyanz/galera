@@ -51,6 +51,13 @@ pub fn run() -> tauri::Result<()> {
         // El diálogo se usa solo desde Rust: la interfaz no tiene permiso
         // para abrirlo por su cuenta. Ver `commands::project`.
         .plugin(tauri_plugin_dialog::init())
+        // Lo que se suelta sobre la ventana queda anotado antes de que la
+        // interfaz pida copiarlo. Ver `commands::assets`.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
+                window.state::<AppState>().offer_files(paths);
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::session::session_status,
             commands::project::choose_project_folder,
@@ -64,6 +71,8 @@ pub fn run() -> tauri::Result<()> {
             commands::export::export_pdf,
             commands::fonts::text_defaults,
             commands::fonts::add_font,
+            commands::assets::import_images,
+            commands::assets::choose_images,
         ])
         .run(tauri::generate_context!())
 }
