@@ -207,6 +207,50 @@ pub struct ElementBox {
     /// Rotación en grados, en sentido horario, alrededor del centro.
     #[serde(default)]
     pub rotation: f64,
+
+    /// Nombre, visibilidad y bloqueo en el panel de capas.
+    #[serde(flatten)]
+    pub layer: Layer,
+}
+
+/// Lo que el panel de capas guarda de cada elemento: un nombre propio, si
+/// está oculto y si está bloqueado.
+///
+/// Los tres son opcionales y, sin valor, **no se escriben** en el JSON: un
+/// documento anterior a ellos se lee igual y, si no se tocan, se guarda
+/// byte a byte igual.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
+pub struct Layer {
+    /// Nombre que se enseña en el panel en vez del que se deduce del
+    /// elemento.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
+    pub name: Option<String>,
+
+    /// Si está oculto: no se emite en el código Typst, así que ni se dibuja
+    /// ni se exporta.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
+    pub hidden: Option<bool>,
+
+    /// Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
+    /// el panel de capas.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
+    pub locked: Option<bool>,
+}
+
+impl Layer {
+    /// Si está oculto.
+    pub fn is_hidden(&self) -> bool {
+        self.hidden == Some(true)
+    }
+
+    /// Si está bloqueado.
+    pub fn is_locked(&self) -> bool {
+        self.locked == Some(true)
+    }
 }
 
 /// Un elemento colocado sobre una página.
@@ -274,6 +318,9 @@ pub enum Element {
         rotation: f64,
         /// Trazo con el que se dibuja.
         stroke: Stroke,
+        /// Nombre, visibilidad y bloqueo en el panel de capas.
+        #[serde(flatten)]
+        layer: Layer,
     },
 
     /// Una imagen del proyecto.
@@ -336,6 +383,30 @@ impl Element {
             | Element::Image { base, .. }
             | Element::Code { base, .. } => (base.x, base.y),
             Element::Line { x, y, .. } => (*x, *y),
+        }
+    }
+
+    /// Nombre, visibilidad y bloqueo del elemento, sea cual sea su tipo.
+    pub fn layer(&self) -> &Layer {
+        match self {
+            Element::Text { base, .. }
+            | Element::Rect { base, .. }
+            | Element::Ellipse { base, .. }
+            | Element::Image { base, .. }
+            | Element::Code { base, .. } => &base.layer,
+            Element::Line { layer, .. } => layer,
+        }
+    }
+
+    /// Como [`Element::layer`], para cambiarlo.
+    pub fn layer_mut(&mut self) -> &mut Layer {
+        match self {
+            Element::Text { base, .. }
+            | Element::Rect { base, .. }
+            | Element::Ellipse { base, .. }
+            | Element::Image { base, .. }
+            | Element::Code { base, .. } => &mut base.layer,
+            Element::Line { layer, .. } => layer,
         }
     }
 
@@ -735,5 +806,37 @@ mod tests {
         let doc = example();
         assert_eq!(doc.element("i1").map(Element::type_name), Some("image"));
         assert_eq!(doc.element("no-existe"), None);
+    }
+
+    /// Nombre, oculto y bloqueado son opcionales: un documento sin ellos se
+    /// lee y se vuelve a escribir sin que aparezcan, y con ellos se leen en
+    /// cualquier tipo de elemento, también en una línea.
+    #[test]
+    fn layer_fields_are_optional_and_round_trip() {
+        let without = r##"{"version":1,"meta":{"title":"x"},"fonts":[],"assets":{},"variables":{},"pages":[{"id":"p1","size":{"width":10.0,"height":10.0,"unit":"mm"},"elements":[{"type":"rect","id":"r1","x":0.0,"y":0.0,"w":1.0,"h":1.0,"rotation":0.0,"fill":null,"stroke":null,"radius":0.0}]}]}"##;
+        let document = Document::from_json_str(without).expect("es un documento");
+        assert_eq!(document.to_json_string().expect("serializa"), without);
+
+        let with = Document::from_json_str(
+            r##"{ "version": 1, "meta": { "title": "x" }, "pages": [{ "id": "p1",
+                 "size": { "width": 10, "height": 10, "unit": "mm" }, "elements": [
+                   { "type": "rect", "id": "r1", "x": 0, "y": 0, "w": 1, "h": 1, "fill": null, "stroke": null,
+                     "name": "Fondo", "hidden": true, "locked": false },
+                   { "type": "line", "id": "l1", "x": 0, "y": 0, "x2": 1, "y2": 1,
+                     "stroke": { "color": "#000000", "width": 1 }, "locked": true }
+                 ] }] }"##,
+        )
+        .expect("es un documento");
+        let rect = with.element("r1").expect("existe").layer();
+        assert_eq!(rect.name.as_deref(), Some("Fondo"));
+        assert!(rect.is_hidden());
+        assert!(!rect.is_locked());
+        let line = with.element("l1").expect("existe").layer();
+        assert!(line.is_locked());
+        assert_eq!(line.name, None);
+
+        let again =
+            Document::from_json_str(&with.to_json_string().expect("serializa")).expect("se relee");
+        assert_eq!(again, with);
     }
 }

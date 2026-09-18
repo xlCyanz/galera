@@ -21,6 +21,7 @@ const COMMANDS: usize = 100;
 /// Todos los fixtures: tienen de todo (textos con alto automático, líneas,
 /// imágenes, bloques de código, elementos girados, varias páginas).
 const FIXTURES: &[&str] = &[
+    "capas",
     "codigo",
     "elipse",
     "escape",

@@ -56,8 +56,8 @@ pub use error::{Diagnostic, GaleraError, Result, Severity};
 pub use fonts::{ImportFontError, ImportedFont, default_text_style, import_font};
 pub use layout::{LayoutBox, MmRect, layout};
 pub use model::{
-    Align, Document, Element, ElementBox, Meta, Page, PageSize, Run, Stroke, TextStyle, Unit,
-    ValidationError, ValidationErrors,
+    Align, Document, Element, ElementBox, Layer, Meta, Page, PageSize, Run, Stroke, TextStyle,
+    Unit, ValidationError, ValidationErrors,
 };
 pub use open::{DOCUMENT_FILE, OpenError, Opened, open};
 pub use ops::history::History;

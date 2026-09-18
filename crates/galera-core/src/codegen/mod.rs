@@ -199,7 +199,13 @@ fn emit_page(
     }
     out.push_str(&format!("\n// {}\n", page.id));
 
-    for element in &page.elements {
+    // Un elemento oculto no se emite: ni se dibuja, ni se exporta, ni
+    // tiene caja en el layout.
+    for element in page
+        .elements
+        .iter()
+        .filter(|element| !element.layer().is_hidden())
+    {
         emit_element(element, document, out)?;
     }
 

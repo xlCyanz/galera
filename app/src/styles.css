@@ -655,3 +655,44 @@ body {
   opacity: 0.6;
   font-size: 11px;
 }
+
+.layer.is-hidden .layer-icon,
+.layer.is-hidden .layer-label {
+  opacity: 0.45;
+}
+
+.layer-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+}
+
+/* El ojo y el candado: se ven al pasar por la fila, y siempre si están activos. */
+.layer-toggle {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.layer-toggle svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.layer:hover .layer-toggle,
+.layer.is-selected .layer-toggle,
+.layer-toggle:focus-visible,
+.layer-toggle[aria-pressed="true"] {
+  opacity: 0.8;
+}

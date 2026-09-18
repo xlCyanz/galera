@@ -140,3 +140,27 @@ describe("la herramienta activa en el lienzo", () => {
     expect(useDocumentStore.getState().selectedElement).toBeNull();
   });
 });
+
+describe("un elemento bloqueado seleccionado desde el panel", () => {
+  it("enseña el contorno, pero no se agarra ni se empuja con las flechas", async () => {
+    act(() => {
+      const document = structuredClone(project.document);
+      document.pages[0]!.elements.push({ type: "rect", id: "r1", x: 30, y: 40, w: 60, h: 25, rotation: 0, fill: null, stroke: null, radius: 0, locked: true });
+      useDocumentStore.getState().replaceDocument(document);
+      useDocumentStore.getState().select("r1");
+    });
+    expect(layer().className).toContain("is-inert");
+    let moved = 0;
+    mockIPC((command) => {
+      if (command === "apply_op") {
+        moved += 1;
+      }
+      return null;
+    });
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", cancelable: true }));
+    });
+    await settle();
+    expect(moved).toBe(0);
+  });
+});

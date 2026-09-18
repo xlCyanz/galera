@@ -90,7 +90,22 @@ h: number | null,
 /**
  * Rotación en grados, en sentido horario, alrededor del centro.
  */
-rotation: number, } | { "type": "rect", 
+rotation: number, 
+/**
+ * Nombre que se enseña en el panel en vez del que se deduce del
+ * elemento.
+ */
+name?: string, 
+/**
+ * Si está oculto: no se emite en el código Typst, así que ni se dibuja
+ * ni se exporta.
+ */
+hidden?: boolean, 
+/**
+ * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
+ * el panel de capas.
+ */
+locked?: boolean, } | { "type": "rect", 
 /**
  * Color de relleno `#RRGGBB` o `#RRGGBBAA`, o `None` para no rellenar.
  */
@@ -132,7 +147,22 @@ h: number | null,
 /**
  * Rotación en grados, en sentido horario, alrededor del centro.
  */
-rotation: number, } | { "type": "ellipse", 
+rotation: number, 
+/**
+ * Nombre que se enseña en el panel en vez del que se deduce del
+ * elemento.
+ */
+name?: string, 
+/**
+ * Si está oculto: no se emite en el código Typst, así que ni se dibuja
+ * ni se exporta.
+ */
+hidden?: boolean, 
+/**
+ * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
+ * el panel de capas.
+ */
+locked?: boolean, } | { "type": "ellipse", 
 /**
  * Color de relleno, o `None` para no rellenar.
  */
@@ -170,7 +200,22 @@ h: number | null,
 /**
  * Rotación en grados, en sentido horario, alrededor del centro.
  */
-rotation: number, } | { "type": "line", 
+rotation: number, 
+/**
+ * Nombre que se enseña en el panel en vez del que se deduce del
+ * elemento.
+ */
+name?: string, 
+/**
+ * Si está oculto: no se emite en el código Typst, así que ni se dibuja
+ * ni se exporta.
+ */
+hidden?: boolean, 
+/**
+ * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
+ * el panel de capas.
+ */
+locked?: boolean, } | { "type": "line", 
 /**
  * Identificador único dentro del documento.
  */
@@ -198,7 +243,22 @@ rotation: number,
 /**
  * Trazo con el que se dibuja.
  */
-stroke: Stroke, } | { "type": "image", 
+stroke: Stroke, 
+/**
+ * Nombre que se enseña en el panel en vez del que se deduce del
+ * elemento.
+ */
+name?: string, 
+/**
+ * Si está oculto: no se emite en el código Typst, así que ni se dibuja
+ * ni se exporta.
+ */
+hidden?: boolean, 
+/**
+ * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
+ * el panel de capas.
+ */
+locked?: boolean, } | { "type": "image", 
 /**
  * Clave dentro de [`Document::assets`].
  */
@@ -232,7 +292,22 @@ h: number | null,
 /**
  * Rotación en grados, en sentido horario, alrededor del centro.
  */
-rotation: number, } | { "type": "code", 
+rotation: number, 
+/**
+ * Nombre que se enseña en el panel en vez del que se deduce del
+ * elemento.
+ */
+name?: string, 
+/**
+ * Si está oculto: no se emite en el código Typst, así que ni se dibuja
+ * ni se exporta.
+ */
+hidden?: boolean, 
+/**
+ * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
+ * el panel de capas.
+ */
+locked?: boolean, } | { "type": "code", 
 /**
  * Código Typst, literal.
  */
@@ -266,7 +341,22 @@ h: number | null,
 /**
  * Rotación en grados, en sentido horario, alrededor del centro.
  */
-rotation: number, };
+rotation: number, 
+/**
+ * Nombre que se enseña en el panel en vez del que se deduce del
+ * elemento.
+ */
+name?: string, 
+/**
+ * Si está oculto: no se emite en el código Typst, así que ni se dibuja
+ * ni se exporta.
+ */
+hidden?: boolean, 
+/**
+ * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
+ * el panel de capas.
+ */
+locked?: boolean, };
 
 /**
  * Datos comunes a casi todos los elementos: identidad, posición y tamaño.
@@ -304,7 +394,47 @@ h: number | null,
 /**
  * Rotación en grados, en sentido horario, alrededor del centro.
  */
-rotation: number, };
+rotation: number, 
+/**
+ * Nombre que se enseña en el panel en vez del que se deduce del
+ * elemento.
+ */
+name?: string, 
+/**
+ * Si está oculto: no se emite en el código Typst, así que ni se dibuja
+ * ni se exporta.
+ */
+hidden?: boolean, 
+/**
+ * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
+ * el panel de capas.
+ */
+locked?: boolean, };
+
+/**
+ * Lo que el panel de capas guarda de cada elemento: un nombre propio, si
+ * está oculto y si está bloqueado.
+ *
+ * Los tres son opcionales y, sin valor, **no se escriben** en el JSON: un
+ * documento anterior a ellos se lee igual y, si no se tocan, se guarda
+ * byte a byte igual.
+ */
+export type Layer = { 
+/**
+ * Nombre que se enseña en el panel en vez del que se deduce del
+ * elemento.
+ */
+name?: string, 
+/**
+ * Si está oculto: no se emite en el código Typst, así que ni se dibuja
+ * ni se exporta.
+ */
+hidden?: boolean, 
+/**
+ * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
+ * el panel de capas.
+ */
+locked?: boolean, };
 
 /**
  * Metadatos del documento.

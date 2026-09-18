@@ -1,0 +1,13 @@
+---
+source: crates/galera-core/tests/fixtures.rs
+expression: code
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set document(title: "Capas")
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 0mm, dy: 0mm)[#rect(width: 210mm, height: 297mm, fill: rgb("#f1f5f9"), stroke: none)] <el-fondo>
+#place(top + left, dx: 20mm, dy: 70mm)[#block(width: 170mm, { set text(font: "Inter", size: 18pt, fill: rgb("#1F2733")); set par(leading: 0.65em); align(left)[Lo visible] })] <el-titulo>
+#place(top + left, dx: 150mm, dy: 20mm)[#ellipse(width: 40mm, height: 40mm, fill: rgb("#16a34a"), stroke: none)] <el-sello>
