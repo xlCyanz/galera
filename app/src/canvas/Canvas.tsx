@@ -14,6 +14,11 @@
  *
  * El lienzo expone la escala como la variable CSS `--px-per-mm`, para que
  * lo que se dibuje encima use la misma.
+ *
+ * La herramienta activa (`store/tool.ts`) decide qué hace el clic: con la
+ * de selección, seleccionar y arrastrar; con la mano, desplazar; con las que
+ * crean elementos, todavía nada (llegan con la Fase 3), salvo cambiar el
+ * cursor. Escape vuelve a la de selección.
  */
 import { type CSSProperties, useEffect, useEffectEvent, useRef, useState } from "react";
 
@@ -31,6 +36,7 @@ import {
   useSelectedElement,
 } from "../store/document";
 import { useElementBox } from "../store/layout";
+import { useTool, useToolStore } from "../store/tool";
 import { ControlLayer } from "./ControlLayer";
 import { DragGhost } from "./DragGhost";
 import { ElementHighlight } from "./ElementHighlight";
@@ -62,11 +68,13 @@ export function Canvas({ loader }: CanvasProps) {
   const selected = useSelectedElement();
   const selectedBox = useElementBox(selected);
   const focusRequests = useFocusRequests();
+  const tool = useTool();
+  const selecting = tool === "select";
 
   const viewport = useRef<HTMLDivElement>(null);
   const page = document?.pages[currentPage];
   const { zoom, scroll, viewportSize, run, panReady, panning, viewportHandlers } =
-    useCanvasNavigation(viewport, page?.size ?? null);
+    useCanvasNavigation(viewport, page?.size ?? null, tool === "hand");
 
   // Toda conversión de mm a píxeles del área sale de aquí (ver `transform.ts`).
   const transform =
@@ -140,6 +148,8 @@ export function Canvas({ loader }: CanvasProps) {
     if (isToggleRulersShortcut(event)) {
       event.preventDefault();
       useDocumentStore.getState().toggleRulers();
+    } else if (event.key === "Escape" && useToolStore.getState().tool !== "select") {
+      useToolStore.getState().setTool("select");
     } else if (
       event.key === "Escape" &&
       drag.state.phase !== "dragging" &&
@@ -181,11 +191,15 @@ export function Canvas({ loader }: CanvasProps) {
         <div
           ref={viewport}
           className={viewportClass}
+          data-tool={tool}
           {...viewportHandlers}
           onPointerDown={(event) => {
-            // Primero desplazar (Espacio o botón central); si no, seleccionar.
+            // Primero desplazar (Espacio, botón central o la mano); si no,
+            // seleccionar, si es la herramienta de selección.
             viewportHandlers.onPointerDown(event);
-            onSelect(event);
+            if (selecting) {
+              onSelect(event);
+            }
           }}
         >
           {document !== null && sheet !== null && (
@@ -241,6 +255,7 @@ export function Canvas({ loader }: CanvasProps) {
               offset={dragOffset}
               showSize={resized?.phase === "resizing"}
               showAngle={rotated?.phase === "rotating"}
+              interactive={selecting}
               onRotateStart={(event) => {
                 // El centro del elemento en la pantalla: alrededor de él gira el puntero.
                 const area = viewport.current?.getBoundingClientRect();

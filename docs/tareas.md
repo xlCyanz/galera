@@ -9,13 +9,13 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 0 — Núcleo por terminal](https://github.com/xlCyanz/galera/milestone/1) | 16 | 16 |
 | [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 12 |
 | [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 11 |
-| [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 0 |
+| [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 1 |
 | [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 0 |
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 0 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **39** |
+| **Total** | **95** | **40** |
 
 
 ---
@@ -101,7 +101,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 
 | Estado | Tarea | Issue | Depende de |
 |:--:|---|:--:|---|
-| ⬜ | **F3-01** — Riel de herramientas | [#41](https://github.com/xlCyanz/galera/issues/41) | #29, #33 |
+| ✅ | **F3-01** — Riel de herramientas | [#41](https://github.com/xlCyanz/galera/issues/41) | #29, #33 |
 | ⬜ | **F3-02** — Crear rectángulo, elipse y línea | [#42](https://github.com/xlCyanz/galera/issues/42) | #41, #37 |
 | ⬜ | **F3-03** — Crear cuadro de texto | [#43](https://github.com/xlCyanz/galera/issues/43) | #42 |
 | ⬜ | **F3-04** — Insertar imagen, incluido arrastrar desde el sistema | [#44](https://github.com/xlCyanz/galera/issues/44) | #42, #47 |
