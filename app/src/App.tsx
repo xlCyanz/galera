@@ -27,7 +27,7 @@ import {
   useProjectRoot,
 } from "./store/document";
 import { Inspector } from "./ui/Inspector";
-import { LayersPanel } from "./ui/LayersPanel";
+import { SidePanels } from "./ui/SidePanels";
 import { StatusBar } from "./ui/StatusBar";
 import { ToolRail } from "./ui/ToolRail";
 
@@ -164,7 +164,7 @@ export function App() {
         <Canvas />
         {title !== null && (
           <div className="sidebar">
-            <LayersPanel />
+            <SidePanels />
             <Inspector />
           </div>
         )}

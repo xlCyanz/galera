@@ -73,6 +73,8 @@ pub fn run() -> tauri::Result<()> {
             commands::fonts::add_font,
             commands::assets::import_images,
             commands::assets::choose_images,
+            commands::assets::list_assets,
+            commands::assets::asset_data,
         ])
         .run(tauri::generate_context!())
 }

@@ -106,6 +106,17 @@ impl Document {
             .flat_map(|page| &page.elements)
             .find(|element| element.id() == id)
     }
+
+    /// Los ids de las imágenes que usan el recurso `key`, en orden del
+    /// documento.
+    pub fn asset_users(&self, key: &str) -> Vec<String> {
+        self.pages
+            .iter()
+            .flat_map(|page| &page.elements)
+            .filter(|element| matches!(element, Element::Image { asset, .. } if asset == key))
+            .map(|element| element.id().to_owned())
+            .collect()
+    }
 }
 
 /// Metadatos del documento.

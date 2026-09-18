@@ -383,3 +383,29 @@ export function subscribeToFileDrops(handler: (drop: FileDrop) => void): Promise
     }
   });
 }
+
+/** Un recurso del documento, para el panel de recursos. */
+export interface AssetInfo {
+  /** Su clave en `assets`. */
+  key: string;
+  /** Su ruta dentro del proyecto. */
+  path: string;
+  /** Su formato («PNG»), o `null` si el archivo no está o no es una imagen. */
+  format: string | null;
+  /** Su tipo MIME, o `null` como `format`. */
+  mime: string | null;
+  /** Cuánto ocupa, en bytes, o `null` si el archivo no está. */
+  bytes: number | null;
+  /** Los elementos que lo usan. */
+  users: string[];
+}
+
+/** Los recursos del documento abierto, en orden de clave. */
+export function listAssets(): Promise<AssetInfo[]> {
+  return invoke<AssetInfo[]>("list_assets");
+}
+
+/** El contenido de un recurso, para su miniatura. Vacío si no se puede leer. */
+export function assetData(key: string): Promise<ArrayBuffer> {
+  return invoke<ArrayBuffer>("asset_data", { key });
+}

@@ -49,7 +49,9 @@ pub mod project;
 mod testing;
 pub mod world;
 
-pub use assets::{ImportImageError, ImportedImage, import_image};
+pub use assets::{
+    AssetSummary, ImageFormat, ImportImageError, ImportedImage, asset_summaries, import_image,
+};
 pub use codegen::{escape, escape_into};
 pub use compile::{Compiled, compile, compile_pdf, compile_svg};
 pub use error::{Diagnostic, GaleraError, Result, Severity};

@@ -57,7 +57,11 @@ export function useFileDrop(
   const [messages, setMessages] = useState<string[]>([]);
   const busy = useRef(false);
 
-  /** Un punto de la pantalla en mm de la página; fuera del lienzo, su centro. */
+  /**
+   * Un punto de la pantalla en mm de la página, o `null` si cae fuera del
+   * lienzo: lo que se suelta en otro sitio (el panel de recursos, por
+   * ejemplo) no es para el lienzo.
+   */
   const pointAt = useEffectEvent((clientX: number, clientY: number) => {
     const area = viewport.current?.getBoundingClientRect();
     if (transform === null || area === undefined) {
@@ -65,9 +69,7 @@ export function useFileDrop(
     }
     const inside =
       clientX >= area.left && clientX <= area.right && clientY >= area.top && clientY <= area.bottom;
-    const x = inside ? clientX - area.left : area.width / 2;
-    const y = inside ? clientY - area.top : area.height / 2;
-    return toDocument(transform, x, y);
+    return inside ? toDocument(transform, clientX - area.left, clientY - area.top) : null;
   });
 
   /** Crea los elementos de lo que el backend ya añadió al proyecto. */
@@ -115,7 +117,7 @@ export function useFileDrop(
 
   const onDrop = useEffectEvent((drop: FileDrop) => {
     if (drop.type !== "drop") {
-      setOver(drop.type === "over");
+      setOver(drop.type === "over" && pointAt(drop.x, drop.y) !== null);
       return;
     }
     setOver(false);

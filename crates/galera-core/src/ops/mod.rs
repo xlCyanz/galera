@@ -26,7 +26,7 @@ pub mod history;
 
 use serde::{Deserialize, Serialize};
 
-use crate::model::{Document, Element, Run, Stroke, TextStyle};
+use crate::model::{Document, Element, Run, Stroke, TextStyle, is_valid_id};
 
 /// Un cambio del documento.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -105,6 +105,31 @@ pub enum Op {
     Restore {
         /// El elemento tal como tiene que quedar.
         element: Element,
+    },
+
+    /// Registra un archivo del proyecto en el mapa `assets` con una clave.
+    /// Es lo que deshace [`Op::RemoveAsset`].
+    AddAsset {
+        /// La clave nueva.
+        key: String,
+        /// La ruta del archivo, relativa a la raíz del proyecto.
+        path: String,
+    },
+
+    /// Quita una clave del mapa `assets`. Solo si ningún elemento la usa; el
+    /// archivo se queda en la carpeta del proyecto.
+    RemoveAsset {
+        /// La clave.
+        key: String,
+    },
+
+    /// Cambia la clave de un recurso, y con ella la de todas las imágenes
+    /// que la usan.
+    RenameAsset {
+        /// La clave de ahora.
+        from: String,
+        /// La clave nueva.
+        to: String,
     },
 }
 
@@ -185,6 +210,34 @@ pub enum OpError {
         /// El id repetido.
         id: String,
     },
+    /// No hay ningún recurso con esa clave.
+    #[error("no hay ningún recurso con la clave {key:?}")]
+    AssetNotFound {
+        /// La clave que se pidió.
+        key: String,
+    },
+    /// Ya hay un recurso con esa clave.
+    #[error("ya hay un recurso con la clave {key:?}")]
+    AssetKeyTaken {
+        /// La clave repetida.
+        key: String,
+    },
+    /// La clave no vale: solo letras y dígitos ASCII, guion y guion bajo.
+    #[error(
+        "la clave {key:?} no vale: solo puede tener letras y dígitos ASCII, guion y guion bajo"
+    )]
+    InvalidAssetKey {
+        /// La clave pedida.
+        key: String,
+    },
+    /// Un recurso que se quiere quitar lo usan elementos.
+    #[error("el recurso {key:?} lo usa{} {}; quítalos o cambia su imagen antes", if users.len() == 1 { "" } else { "n" }, users.join(", "))]
+    AssetInUse {
+        /// La clave.
+        key: String,
+        /// Los elementos que lo usan, en orden del documento.
+        users: Vec<String>,
+    },
     /// El elemento no admite ese cambio.
     #[error("{what} no se puede aplicar a {id:?}, que es un elemento de tipo {kind}")]
     NotApplicable {
@@ -216,19 +269,24 @@ impl Op {
             Op::Delete { id } => format!("Eliminar {id}"),
             Op::Reorder { id, .. } => format!("Reordenar {id}"),
             Op::Restore { element } => format!("Restaurar {}", element.id()),
+            Op::AddAsset { key, .. } => format!("Añadir el recurso {key}"),
+            Op::RemoveAsset { key } => format!("Quitar el recurso {key}"),
+            Op::RenameAsset { from, to } => format!("Renombrar el recurso {from} a {to}"),
         }
     }
 
-    /// El id del elemento al que afecta.
-    pub fn element_id(&self) -> &str {
+    /// El id del elemento al que afecta, o `None` si es un cambio de los
+    /// recursos del documento.
+    pub fn element_id(&self) -> Option<&str> {
         match self {
             Op::Move { id, .. }
             | Op::Resize { id, .. }
             | Op::Rotate { id, .. }
             | Op::SetProperty { id, .. }
             | Op::Delete { id }
-            | Op::Reorder { id, .. } => id,
-            Op::Create { element, .. } | Op::Restore { element } => element.id(),
+            | Op::Reorder { id, .. } => Some(id),
+            Op::Create { element, .. } | Op::Restore { element } => Some(element.id()),
+            Op::AddAsset { .. } | Op::RemoveAsset { .. } | Op::RenameAsset { .. } => None,
         }
     }
 
@@ -345,8 +403,73 @@ impl Op {
                     std::mem::replace(&mut document.pages[page].elements[index], element.clone());
                 Ok(Op::Restore { element: previous })
             }
+
+            Op::AddAsset { key, path } => {
+                check_asset_key(document, key)?;
+                document.assets.insert(key.clone(), path.clone());
+                Ok(Op::RemoveAsset { key: key.clone() })
+            }
+
+            Op::RemoveAsset { key } => {
+                if !document.assets.contains_key(key) {
+                    return Err(OpError::AssetNotFound { key: key.clone() });
+                }
+                let users = document.asset_users(key);
+                if !users.is_empty() {
+                    return Err(OpError::AssetInUse {
+                        key: key.clone(),
+                        users,
+                    });
+                }
+                let path = document.assets.remove(key).unwrap_or_default();
+                Ok(Op::AddAsset {
+                    key: key.clone(),
+                    path,
+                })
+            }
+
+            Op::RenameAsset { from, to } => {
+                if !document.assets.contains_key(from) {
+                    return Err(OpError::AssetNotFound { key: from.clone() });
+                }
+                if from != to {
+                    check_asset_key(document, to)?;
+                    let path = document.assets.remove(from).unwrap_or_default();
+                    document.assets.insert(to.clone(), path);
+                    for element in document
+                        .pages
+                        .iter_mut()
+                        .flat_map(|page| &mut page.elements)
+                    {
+                        if let Element::Image { asset, .. } = element
+                            && asset == from
+                        {
+                            asset.clone_from(to);
+                        }
+                    }
+                }
+                Ok(Op::RenameAsset {
+                    from: to.clone(),
+                    to: from.clone(),
+                })
+            }
         }
     }
+}
+
+/// Una clave nueva de `assets` tiene que ser válida y no estar usada.
+fn check_asset_key(document: &Document, key: &str) -> Result<(), OpError> {
+    if !is_valid_id(key) {
+        return Err(OpError::InvalidAssetKey {
+            key: key.to_owned(),
+        });
+    }
+    if document.assets.contains_key(key) {
+        return Err(OpError::AssetKeyTaken {
+            key: key.to_owned(),
+        });
+    }
+    Ok(())
 }
 
 /// Cambia un elemento en su sitio y devuelve el [`Op::Restore`] con cómo
