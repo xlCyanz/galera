@@ -94,6 +94,8 @@ export interface PageSvgProps {
   height: number;
   /** Cómo se anuncia la página a un lector de pantalla. */
   label: string;
+  /** Avisa de la imagen que se está enseñando, cada vez que cambia. */
+  onShown?: (url: string | null) => void;
   /** Posición de la esquina superior izquierda en el área, en píxeles CSS. */
   left?: number;
   top?: number;
@@ -112,9 +114,11 @@ export function PageSvg({
   label,
   left = 0,
   top = 0,
+  onShown,
   loader = browserImageLoader,
 }: PageSvgProps) {
   const url = useDecodedSvgUrl(svg, loader);
+  useEffect(() => onShown?.(url), [url, onShown]);
 
   return (
     <div

@@ -20,6 +20,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Diagnostic } from "./types/diagnostic";
 import type { LayoutBox } from "./types/layout";
 import type { Document } from "./types/model";
+import type { Op } from "./types/ops";
 
 /**
  * El estado de la sesión, tal como lo devuelve `session_status`.
@@ -246,4 +247,24 @@ export function elementAt(
   below: string | null,
 ): Promise<string | null> {
   return invoke<string | null>("element_at", { page, x, y, tolerance, below });
+}
+
+/** Un comando de edición aplicado, tal como lo devuelve `apply_op`. */
+export interface AppliedOp {
+  /** La revisión con la que queda el documento; su compilación ya incluye el cambio. */
+  revision: number;
+  /** El documento con el cambio. */
+  document: Document;
+  /** Un nombre legible del cambio: «Mover r1». */
+  description: string;
+}
+
+/**
+ * Aplica un comando de edición al documento abierto. El backend lo aplica,
+ * pide compilar y devuelve el documento nuevo; la compilación llega por
+ * eventos. Se rechaza con un `CommandError` (`kind: "op"`) si no se puede
+ * aplicar, y entonces no cambia nada.
+ */
+export function applyOp(op: Op): Promise<AppliedOp> {
+  return invoke<AppliedOp>("apply_op", { op });
 }

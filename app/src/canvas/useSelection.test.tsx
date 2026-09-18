@@ -86,12 +86,16 @@ afterEach(() => {
 const viewport = () => container.querySelector<HTMLElement>(".canvas-viewport")!;
 const selected = () => useDocumentStore.getState().selectedElement;
 
-/** Un clic en un punto de la pantalla, y espera la respuesta del núcleo. */
+/**
+ * Un clic en un punto de la pantalla —pulsar y soltar enseguida—, y espera
+ * la respuesta del núcleo.
+ */
 async function click(clientX: number, clientY: number, init: MouseEventInit = {}) {
   await act(async () => {
     viewport().dispatchEvent(
       new MouseEvent("pointerdown", { bubbles: true, cancelable: true, button: 0, clientX, clientY, ...init }),
     );
+    window.dispatchEvent(new MouseEvent("pointerup", { clientX, clientY }));
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 }

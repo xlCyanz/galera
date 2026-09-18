@@ -15,7 +15,9 @@
  * El lienzo expone la escala como la variable CSS `--px-per-mm`, para que
  * lo que se dibuje encima use la misma.
  */
-import { type CSSProperties, useEffect, useEffectEvent, useRef } from "react";
+import { type CSSProperties, useEffect, useEffectEvent, useRef, useState } from "react";
+
+import { applyOp } from "../commands";
 
 import { isToggleRulersShortcut, isTypingTarget } from "../shortcuts";
 import { useRenderedPages } from "../store/compilation";
@@ -30,14 +32,17 @@ import {
 } from "../store/document";
 import { useElementBox } from "../store/layout";
 import { ControlLayer } from "./ControlLayer";
+import { DragGhost } from "./DragGhost";
 import { ElementHighlight } from "./ElementHighlight";
 import { type ImageLoader, PageSvg } from "./PageSvg";
 import { Rulers } from "./Rulers";
 import { ZoomControls } from "./ZoomControls";
 import { PX_PER_MM, pageSizeInPx, toMillimeters } from "./geometry";
-import { canvasTransform, rectToCanvas } from "./transform";
+import { canvasTransform, rectToCanvas, toCanvas } from "./transform";
+import { arrowNudge, rotatedCorners } from "./dragGeometry";
 import { findElement } from "./elements";
 import { useCanvasNavigation } from "./useCanvasNavigation";
+import { useDrag } from "./useDrag";
 import { useSelection } from "./useSelection";
 import { centerOn } from "./zoom";
 
@@ -78,7 +83,16 @@ export function Canvas({ loader }: CanvasProps) {
   // que declara el documento.
   const found = document === null || highlighted === null ? null : findElement(document, highlighted);
   const measured = useElementBox(highlighted);
-  const onSelect = useSelection(transform, currentPage);
+  const drag = useDrag(transform?.pxPerMm ?? null);
+  // Pulsar un elemento y arrastrar sin soltar lo selecciona y lo mueve.
+  const onSelect = useSelection(transform, currentPage, drag.start);
+  // La imagen que enseña la hoja, para la copia que se arrastra.
+  const [shownUrl, setShownUrl] = useState<string | null>(null);
+  const dragged = drag.state.phase === "idle" ? null : drag.state;
+  const dragOffset =
+    dragged !== null && selectedBox !== null && dragged.id === selectedBox.id
+      ? dragged.delta
+      : { dx: 0, dy: 0 };
   const highlight =
     measured !== null
       ? { pageIndex: measured.page, box: { ...measured } }
@@ -107,12 +121,19 @@ export function Canvas({ loader }: CanvasProps) {
     if (page === undefined || isTypingTarget(event.target)) {
       return;
     }
+    const nudge = arrowNudge(event);
     if (isToggleRulersShortcut(event)) {
       event.preventDefault();
       useDocumentStore.getState().toggleRulers();
-    } else if (event.key === "Escape") {
+    } else if (event.key === "Escape" && drag.state.phase !== "dragging") {
+      // Durante un arrastre, Escape lo cancela (ver `useDrag.ts`).
       useDocumentStore.getState().clearHighlight();
       useDocumentStore.getState().select(null);
+    } else if (nudge !== null && selected !== null && drag.state.phase === "idle") {
+      event.preventDefault();
+      void applyOp({ op: "move", id: selected, ...nudge })
+        .then((applied) => useDocumentStore.getState().replaceDocument(applied.document))
+        .catch(() => undefined);
     }
   });
   useEffect(() => {
@@ -154,11 +175,44 @@ export function Canvas({ loader }: CanvasProps) {
               top={sheet.top}
               svg={pages[currentPage] ?? null}
               label={`Página ${currentPage + 1} de ${document.pages.length}`}
+              onShown={setShownUrl}
               {...(loader === undefined ? {} : { loader })}
             />
           )}
+          {dragged !== null &&
+            selectedBox !== null &&
+            selectedBox.page === currentPage &&
+            transform !== null &&
+            sheet !== null &&
+            shownUrl !== null && (
+              <DragGhost
+                url={shownUrl}
+                sheet={sheet}
+                corners={rotatedCorners(selectedBox, selectedBox.rotation).map(({ x, y }) =>
+                  toCanvas(transform, x, y),
+                )}
+                offset={{
+                  x: dragOffset.dx * transform.pxPerMm,
+                  y: dragOffset.dy * transform.pxPerMm,
+                }}
+              />
+            )}
           {selectedBox !== null && selectedBox.page === currentPage && transform !== null && (
-            <ControlLayer box={selectedBox} transform={transform} />
+            <ControlLayer
+              box={selectedBox}
+              transform={transform}
+              offset={dragOffset}
+              onBodyPointerDown={(event) => {
+                // Alt o ⌘ atraviesan hacia el elemento de abajo: eso lo
+                // decide el lienzo, no se arrastra.
+                if (event.button !== 0 || event.altKey || event.metaKey) {
+                  return;
+                }
+                event.stopPropagation();
+                event.preventDefault();
+                drag.start(selectedBox.id, event.clientX, event.clientY);
+              }}
+            />
           )}
           {highlight !== null && highlight.pageIndex === currentPage && transform !== null && (
             <ElementHighlight box={highlight.box} transform={transform} />
