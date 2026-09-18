@@ -380,8 +380,17 @@ body {
   min-width: 0;
 }
 
-.inspector {
+/* A la derecha del lienzo: las capas encima y el inspector debajo. */
+.sidebar {
+  display: flex;
   flex: 0 0 240px;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 0;
+}
+
+.inspector {
+  flex: 0 0 auto;
   overflow-x: hidden;
   overflow-y: auto;
   font-size: 13px;
@@ -553,4 +562,96 @@ body {
 .canvas-viewport.is-drop-target {
   outline: 2px dashed var(--ruler-pointer);
   outline-offset: -2px;
+}
+
+/* El panel de capas (ver `ui/LayersPanel.tsx`). */
+.layers-panel {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  max-height: 50%;
+  min-height: 80px;
+  font-size: 13px;
+}
+
+.layers-panel h2 {
+  margin: 0 0 0.5rem;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.layers-empty {
+  margin: 0;
+  opacity: 0.6;
+}
+
+.layers {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  user-select: none;
+}
+
+.layer {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: default;
+  touch-action: none;
+}
+
+.layer:hover {
+  background: rgb(127 127 127 / 15%);
+}
+
+.layer.is-selected {
+  background: var(--tool-active, #2563eb);
+  color: #fff;
+}
+
+.layer.is-dragged {
+  opacity: 0.5;
+}
+
+.layers.is-dragging .layer {
+  cursor: grabbing;
+}
+
+.layer.drop-above {
+  box-shadow: inset 0 2px 0 var(--tool-active, #2563eb);
+}
+
+.layer.drop-below {
+  box-shadow: inset 0 -2px 0 var(--tool-active, #2563eb);
+}
+
+.layer-icon {
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.layer-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-id {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.6;
+  font-size: 11px;
 }

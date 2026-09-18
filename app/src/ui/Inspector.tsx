@@ -15,16 +15,7 @@ import type { Element, Page } from "../types/model";
 import { MeasureField } from "./MeasureField";
 import { formatNumber } from "./fieldValue";
 import { type FieldName, fieldOp, inspectorFields } from "./inspectorFields";
-
-/** Cómo se llama cada tipo de elemento en la interfaz. */
-const KIND: Record<Element["type"], string> = {
-  text: "Texto",
-  rect: "Rectángulo",
-  ellipse: "Elipse",
-  line: "Línea",
-  image: "Imagen",
-  code: "Código",
-};
+import { ELEMENT_KIND } from "./layerOrder";
 
 const FIELDS: Array<{ name: FieldName; label: string; title: string; unit: string }> = [
   { name: "x", label: "X", title: "Posición horizontal", unit: "mm" },
@@ -82,7 +73,7 @@ function ElementInspector({ element, measured }: { element: Element; measured: R
   return (
     <section>
       <h2>
-        {KIND[element.type]} <span className="inspector-id">{element.id}</span>
+        {ELEMENT_KIND[element.type]} <span className="inspector-id">{element.id}</span>
       </h2>
       <div className="inspector-grid">
         {FIELDS.map(({ name, label, title, unit }) => {
