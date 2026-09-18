@@ -4,6 +4,7 @@ import { MAX_ZOOM, MIN_ZOOM } from "../store/document";
 import { PX_PER_MM } from "./geometry";
 import {
   FIT_MARGIN,
+  centerOn,
   MIN_VISIBLE,
   ZOOM_LEVELS,
   clampScroll,
@@ -150,6 +151,18 @@ describe("zoom hacia un punto", () => {
     const view = zoomAround({ zoom: 1, scroll: { x: 0, y: 0 } }, 2, center, viewport, a4);
     expect(view.scroll.x).toBeCloseTo(0, 9);
     expect(view.scroll.y).toBeCloseTo(0, 9);
+  });
+});
+
+describe("centerOn", () => {
+  it("deja el punto pedido en el centro del área, con el mismo zoom", () => {
+    const point = { x: 300, y: 500 };
+    const view = centerOn(2, point, viewport, a4);
+    const center = { x: viewport.width / 2, y: viewport.height / 2 };
+    const at = pageAt(view, center);
+    expect(view.zoom).toBe(2);
+    expect(at.x).toBeCloseTo(point.x, 9);
+    expect(at.y).toBeCloseTo(point.y, 9);
   });
 });
 

@@ -9,6 +9,9 @@
  * Encima y a la izquierda van las reglas (`Rulers.tsx`), que se enseñan u
  * ocultan con ⇧R.
  *
+ * Cuando se pide ir a un elemento (desde un error, por ejemplo), el lienzo
+ * lo centra y lo resalta (`ElementHighlight.tsx`). Escape quita el resaltado.
+ *
  * El lienzo expone la escala como la variable CSS `--px-per-mm`, para que
  * lo que se dibuje encima use la misma.
  */
@@ -19,15 +22,19 @@ import { useRenderedPages } from "../store/compilation";
 import {
   useCurrentPage,
   useDocumentStore,
+  useFocusRequests,
+  useHighlightedElement,
   useOpenDocument,
   useRulersVisible,
 } from "../store/document";
+import { ElementHighlight } from "./ElementHighlight";
 import { type ImageLoader, PageSvg } from "./PageSvg";
 import { Rulers } from "./Rulers";
 import { ZoomControls } from "./ZoomControls";
 import { PX_PER_MM, pageSizeInPx } from "./geometry";
+import { findElement } from "./elements";
 import { useCanvasNavigation } from "./useCanvasNavigation";
-import { pageOrigin } from "./zoom";
+import { centerOn, pageOrigin } from "./zoom";
 
 export interface CanvasProps {
   /** Solo para pruebas. */
@@ -39,6 +46,8 @@ export function Canvas({ loader }: CanvasProps) {
   const currentPage = useCurrentPage();
   const pages = useRenderedPages();
   const rulersVisible = useRulersVisible();
+  const highlighted = useHighlightedElement();
+  const focusRequests = useFocusRequests();
 
   const viewport = useRef<HTMLDivElement>(null);
   const page = document?.pages[currentPage];
@@ -48,10 +57,36 @@ export function Canvas({ loader }: CanvasProps) {
   const size = page === undefined ? null : pageSizeInPx(page.size, zoom);
   const origin = size === null ? null : pageOrigin(viewportSize, size, scroll);
 
+  const found = document === null || highlighted === null ? null : findElement(document, highlighted);
+
+  // Centrar el elemento resaltado cada vez que se pide, con el zoom actual.
+  const centerHighlighted = useEffectEvent(() => {
+    if (found === null || page === undefined) {
+      return;
+    }
+    const { box } = found;
+    const center = {
+      x: (box.x + box.w / 2) * PX_PER_MM,
+      y: (box.y + (box.h ?? 0) / 2) * PX_PER_MM,
+    };
+    const view = centerOn(zoom, center, viewportSize, pageSizeInPx(page.size, 1));
+    useDocumentStore.getState().setView(view.zoom, view.scroll);
+  });
+  useEffect(() => {
+    if (focusRequests > 0) {
+      centerHighlighted();
+    }
+  }, [focusRequests]);
+
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
-    if (page !== undefined && isToggleRulersShortcut(event) && !isTypingTarget(event.target)) {
+    if (page === undefined || isTypingTarget(event.target)) {
+      return;
+    }
+    if (isToggleRulersShortcut(event)) {
       event.preventDefault();
       useDocumentStore.getState().toggleRulers();
+    } else if (event.key === "Escape" && highlighted !== null) {
+      useDocumentStore.getState().clearHighlight();
     }
   });
   useEffect(() => {
@@ -90,6 +125,9 @@ export function Canvas({ loader }: CanvasProps) {
               label={`Página ${currentPage + 1} de ${document.pages.length}`}
               {...(loader === undefined ? {} : { loader })}
             />
+          )}
+          {found !== null && found.pageIndex === currentPage && origin !== null && (
+            <ElementHighlight box={found.box} origin={origin} pxPerMm={PX_PER_MM * zoom} />
           )}
         </div>
         {page !== undefined && (

@@ -15,6 +15,7 @@
  */
 import { create } from "zustand";
 
+import { findElement } from "../canvas/elements";
 import type { OpenedProject } from "../commands";
 import type { Document } from "../types/model";
 
@@ -45,6 +46,16 @@ export interface DocumentState {
   scroll: Scroll;
   /** Si se ven las reglas. Es de quien mira: no cambia al abrir otro documento. */
   rulersVisible: boolean;
+  /**
+   * El elemento resaltado en el lienzo, por ejemplo al llegar a él desde un
+   * error. Hasta que haya selección (Fase 2), es la forma de señalarlo.
+   */
+  highlightedElement: string | null;
+  /**
+   * Cuántas veces se ha pedido llevar el lienzo a un elemento. El lienzo
+   * mira este número: cada vez que cambia, centra el elemento resaltado.
+   */
+  focusRequests: number;
 
   /**
    * Guarda un proyecto recién abierto. Vuelve a la primera página y quita el
@@ -69,22 +80,38 @@ export interface DocumentState {
   setView: (zoom: number, scroll: Scroll) => void;
   /** Enseña u oculta las reglas. */
   toggleRulers: () => void;
+  /**
+   * Lleva el lienzo a un elemento: cambia a su página, lo resalta y pide
+   * centrarlo. Devuelve `false` si no hay ningún elemento con ese id.
+   */
+  focusElement: (id: string) => boolean;
+  /** Quita el resaltado. */
+  clearHighlight: () => void;
 }
 
 const origin: Scroll = { x: 0, y: 0 };
 
-export const useDocumentStore = create<DocumentState>()((set) => ({
+export const useDocumentStore = create<DocumentState>()((set, get) => ({
   document: null,
   root: null,
   currentPage: 0,
   zoom: 1,
   scroll: origin,
   rulersVisible: true,
+  highlightedElement: null,
+  focusRequests: 0,
 
   open: (opened) =>
-    set({ document: opened.document, root: opened.root, currentPage: 0, scroll: origin }),
+    set({
+      document: opened.document,
+      root: opened.root,
+      currentPage: 0,
+      scroll: origin,
+      highlightedElement: null,
+    }),
 
-  close: () => set({ document: null, root: null, currentPage: 0, scroll: origin }),
+  close: () =>
+    set({ document: null, root: null, currentPage: 0, scroll: origin, highlightedElement: null }),
 
   setCurrentPage: (page) =>
     set((state) => ({
@@ -118,6 +145,22 @@ export const useDocumentStore = create<DocumentState>()((set) => ({
     })),
 
   toggleRulers: () => set((state) => ({ rulersVisible: !state.rulersVisible })),
+
+  focusElement: (id) => {
+    const { document } = get();
+    const found = document === null ? null : findElement(document, id);
+    if (found === null) {
+      return false;
+    }
+    set((state) => ({
+      currentPage: found.pageIndex,
+      highlightedElement: id,
+      focusRequests: state.focusRequests + 1,
+    }));
+    return true;
+  },
+
+  clearHighlight: () => set({ highlightedElement: null }),
 }));
 
 /** Un zoom dentro de los límites. */
@@ -152,3 +195,7 @@ export const useZoom = () => useDocumentStore((state) => state.zoom);
 export const useScroll = () => useDocumentStore((state) => state.scroll);
 /** Si se ven las reglas. */
 export const useRulersVisible = () => useDocumentStore((state) => state.rulersVisible);
+/** El elemento resaltado. */
+export const useHighlightedElement = () => useDocumentStore((state) => state.highlightedElement);
+/** Cuántas veces se ha pedido llevar el lienzo a un elemento. */
+export const useFocusRequests = () => useDocumentStore((state) => state.focusRequests);

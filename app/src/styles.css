@@ -183,6 +183,97 @@ body {
   user-select: none;
 }
 
-.warnings {
-  color: #a16207;
+
+/* Resaltado de un elemento, por ejemplo al llegar desde un error. */
+.element-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  border: 2px dashed var(--ruler-pointer);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.element-highlight.is-open {
+  border-bottom: none;
+}
+
+/* Panel de problemas y barra de estado, abajo del todo. */
+.issues {
+  max-height: 12rem;
+  overflow: auto;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, Canvas 90%, CanvasText 10%);
+}
+
+.issues ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.issue {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.5rem 0.75rem;
+}
+
+.issue + .issue {
+  border-top: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+}
+
+.issue-severity {
+  flex: none;
+  min-width: 3.5rem;
+  font-weight: 600;
+}
+
+.issue.is-error .issue-severity {
+  color: #dc2626;
+}
+
+.issue.is-warning .issue-severity {
+  color: #ca8a04;
+}
+
+.issue-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.issue-message,
+.issue-hint {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.issue-message {
+  font-family: ui-monospace, monospace;
+}
+
+.issue-hint {
+  opacity: 0.75;
+}
+
+.issue-element {
+  flex: none;
+}
+
+.status-bar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-spacer {
+  flex: 1;
+}
+
+.status-compilation.is-error,
+.status-issues.has-errors {
+  color: #dc2626;
 }

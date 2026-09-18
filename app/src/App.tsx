@@ -9,17 +9,9 @@ import {
   sessionStatus,
 } from "./commands";
 import { Canvas } from "./canvas/Canvas";
-import { compilationSummary } from "./format";
 import { exportPdfShortcutLabel, isExportPdfShortcut, isMac } from "./shortcuts";
 import { useCompilation } from "./hooks/useCompilation";
-import {
-  useCompilationError,
-  useCompilationMs,
-  useCompilationReused,
-  useCompilationStatus,
-  useCompilationStore,
-  useDiagnostics,
-} from "./store/compilation";
+import { useCompilationStore } from "./store/compilation";
 import {
   useCurrentPage,
   useDocumentStore,
@@ -27,6 +19,7 @@ import {
   usePageCount,
   useProjectRoot,
 } from "./store/document";
+import { StatusBar } from "./ui/StatusBar";
 
 const mac = isMac();
 
@@ -134,7 +127,6 @@ export function App() {
         </button>
       </div>
       {title !== null && <ProjectInfo title={title} />}
-      <CompilationInfo />
       <Canvas />
       {status !== null && (
         <dl className="ok">
@@ -154,6 +146,7 @@ export function App() {
           {error}
         </p>
       )}
+      <StatusBar />
     </main>
   );
 }
@@ -193,37 +186,5 @@ function ProjectInfo({ title }: { title: string }) {
         </button>
       </nav>
     </div>
-  );
-}
-
-/** Cuánto tardó la última compilación y, si falla, por qué. */
-function CompilationInfo() {
-  const status = useCompilationStatus();
-  const ms = useCompilationMs();
-  const reused = useCompilationReused();
-  const pageCount = usePageCount();
-  const diagnostics = useDiagnostics();
-  const failure = useCompilationError();
-
-  if (status === "idle") {
-    return null;
-  }
-
-  return (
-    <section className="compilation" aria-label="Compilación">
-      <p>{status === "compiling" ? "Compilando…" : compilationSummary(pageCount, ms, reused)}</p>
-      {failure !== null && (
-        <p role="alert" className="error">
-          {failure.message}
-        </p>
-      )}
-      {failure === null && diagnostics.length > 0 && (
-        <ul className="warnings">
-          {diagnostics.map((warning, index) => (
-            <li key={index}>{warning.message}</li>
-          ))}
-        </ul>
-      )}
-    </section>
   );
 }
