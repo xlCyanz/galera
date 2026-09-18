@@ -44,6 +44,7 @@ import { findElement } from "./elements";
 import { useCanvasNavigation } from "./useCanvasNavigation";
 import { useDrag } from "./useDrag";
 import { useResize } from "./useResize";
+import { useRotate } from "./useRotate";
 import { useSelection } from "./useSelection";
 import { centerOn } from "./zoom";
 
@@ -94,6 +95,11 @@ export function Canvas({ loader }: CanvasProps) {
     resize.state.phase !== "idle" && selectedBox !== null && resize.state.id === selectedBox.id
       ? resize.state
       : null;
+  const rotate = useRotate();
+  const rotated =
+    rotate.state.phase !== "idle" && selectedBox !== null && rotate.state.id === selectedBox.id
+      ? rotate.state
+      : null;
   const dragged = drag.state.phase === "idle" ? null : drag.state;
   const dragOffset =
     dragged !== null && selectedBox !== null && dragged.id === selectedBox.id
@@ -134,7 +140,8 @@ export function Canvas({ loader }: CanvasProps) {
     } else if (
       event.key === "Escape" &&
       drag.state.phase !== "dragging" &&
-      resize.state.phase !== "resizing"
+      resize.state.phase !== "resizing" &&
+      rotate.state.phase !== "rotating"
     ) {
       // Durante un arrastre, Escape lo cancela (ver `useDrag.ts`).
       useDocumentStore.getState().clearHighlight();
@@ -189,7 +196,7 @@ export function Canvas({ loader }: CanvasProps) {
               {...(loader === undefined ? {} : { loader })}
             />
           )}
-          {dragged !== null &&
+          {(dragged !== null || rotated !== null) &&
             selectedBox !== null &&
             selectedBox.page === currentPage &&
             transform !== null &&
@@ -205,14 +212,47 @@ export function Canvas({ loader }: CanvasProps) {
                   x: dragOffset.dx * transform.pxPerMm,
                   y: dragOffset.dy * transform.pxPerMm,
                 }}
+                {...(rotated === null
+                  ? {}
+                  : {
+                      turn: {
+                        degrees: rotated.rotation - selectedBox.rotation,
+                        pivot: toCanvas(
+                          transform,
+                          selectedBox.x + selectedBox.w / 2,
+                          selectedBox.y + selectedBox.h / 2,
+                        ),
+                      },
+                    })}
               />
             )}
           {selectedBox !== null && selectedBox.page === currentPage && transform !== null && (
             <ControlLayer
-              box={resized === null ? selectedBox : { ...selectedBox, ...resized.box }}
+              box={{
+                ...selectedBox,
+                ...(resized === null ? {} : resized.box),
+                ...(rotated === null ? {} : { rotation: rotated.rotation }),
+              }}
               transform={transform}
               offset={dragOffset}
               showSize={resized?.phase === "resizing"}
+              showAngle={rotated?.phase === "rotating"}
+              onRotateStart={(event) => {
+                // El centro del elemento en la pantalla: alrededor de él gira el puntero.
+                const area = viewport.current?.getBoundingClientRect();
+                const center = toCanvas(
+                  transform,
+                  selectedBox.x + selectedBox.w / 2,
+                  selectedBox.y + selectedBox.h / 2,
+                );
+                rotate.start(
+                  selectedBox.id,
+                  selectedBox.rotation,
+                  { x: center.x + (area?.left ?? 0), y: center.y + (area?.top ?? 0) },
+                  event.clientX,
+                  event.clientY,
+                );
+              }}
               onResizeStart={(handle, event) => {
                 const declared = document?.pages[currentPage]?.elements.find(
                   (element) => element.id === selectedBox.id,
