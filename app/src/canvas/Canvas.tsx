@@ -17,8 +17,8 @@
  *
  * La herramienta activa (`store/tool.ts`) decide qué hace el clic: con la
  * de selección, seleccionar y arrastrar; con la mano, desplazar; con las que
- * crean elementos, todavía nada (llegan con la Fase 3), salvo cambiar el
- * cursor. Escape vuelve a la de selección.
+ * crean formas, dibujarlas (`useCreate.ts`); texto e imagen llegan con otras
+ * tareas de la Fase 3. Escape vuelve a la de selección.
  */
 import { type CSSProperties, useEffect, useEffectEvent, useRef, useState } from "react";
 
@@ -38,6 +38,7 @@ import {
 import { useElementBox } from "../store/layout";
 import { useTool, useToolStore } from "../store/tool";
 import { ControlLayer } from "./ControlLayer";
+import { CreatePreview } from "./CreatePreview";
 import { DragGhost } from "./DragGhost";
 import { ElementHighlight } from "./ElementHighlight";
 import { type ImageLoader, PageSvg } from "./PageSvg";
@@ -49,6 +50,7 @@ import { type NudgeBurst, arrowNudge, nudgeBurst, rotatedCorners } from "./dragG
 import { findElement } from "./elements";
 import { useCanvasNavigation } from "./useCanvasNavigation";
 import { useDrag } from "./useDrag";
+import { useCreate } from "./useCreate";
 import { useResize } from "./useResize";
 import { useRotate } from "./useRotate";
 import { useSelection } from "./useSelection";
@@ -104,6 +106,7 @@ export function Canvas({ loader }: CanvasProps) {
       ? resize.state
       : null;
   const rotate = useRotate();
+  const create = useCreate(transform, currentPage);
   const rotated =
     rotate.state.phase !== "idle" && selectedBox !== null && rotate.state.id === selectedBox.id
       ? rotate.state
@@ -199,6 +202,8 @@ export function Canvas({ loader }: CanvasProps) {
             viewportHandlers.onPointerDown(event);
             if (selecting) {
               onSelect(event);
+            } else if (tool === "rect" || tool === "ellipse" || tool === "line") {
+              create.onPointerDown(tool, event);
             }
           }}
         >
@@ -290,6 +295,9 @@ export function Canvas({ loader }: CanvasProps) {
                 drag.start(selectedBox.id, event.clientX, event.clientY);
               }}
             />
+          )}
+          {create.state.phase !== "idle" && transform !== null && (
+            <CreatePreview shape={create.state.shape} transform={transform} />
           )}
           {highlight !== null && highlight.pageIndex === currentPage && transform !== null && (
             <ElementHighlight box={highlight.box} transform={transform} />

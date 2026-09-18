@@ -494,3 +494,24 @@ body {
 .control-layer.is-inert * {
   pointer-events: none;
 }
+
+/* La forma que se está creando (ver `canvas/CreatePreview.tsx`). */
+.create-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  border: 1.5px solid var(--ruler-pointer);
+  background: color-mix(in srgb, var(--ruler-pointer) 12%, transparent);
+  pointer-events: none;
+}
+
+.create-preview.is-line {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: none;
+  overflow: visible;
+  stroke: var(--ruler-pointer);
+  stroke-width: 1.5;
+}
