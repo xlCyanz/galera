@@ -60,8 +60,8 @@ pub use fonts::{
 };
 pub use layout::{LayoutBox, MmRect, layout};
 pub use model::{
-    Align, Dash, Document, Element, ElementBox, Layer, Meta, Page, PageSize, Run, Stroke,
-    TextStyle, Unit, ValidationError, ValidationErrors,
+    Align, DEFAULT_PARAGRAPH_SPACING, Dash, Document, Element, ElementBox, Layer, Meta, Page,
+    PageSize, Run, Stroke, TextStyle, Unit, ValidationError, ValidationErrors,
 };
 pub use open::{DOCUMENT_FILE, OpenError, Opened, open};
 pub use ops::history::History;

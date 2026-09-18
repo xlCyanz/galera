@@ -165,6 +165,7 @@ fn every_property_changes_where_it_applies() {
                 color: "#0000ff".into(),
                 align: crate::model::Align::Center,
                 leading: 1.0,
+                spacing: None,
             }),
         ),
         ("c1", Property::Source("#lorem(10)".into())),

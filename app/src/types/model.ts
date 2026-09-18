@@ -553,7 +553,13 @@ align: Align,
 /**
  * Interlineado, como múltiplo del tamaño de fuente.
  */
-leading: number, };
+leading: number, 
+/**
+ * Espacio entre párrafos, como múltiplo del tamaño de fuente, o `None`
+ * para el de Typst ([`DEFAULT_PARAGRAPH_SPACING`]). Sin valor no se
+ * escribe en el JSON.
+ */
+spacing?: number, };
 
 /**
  * Unidad de medida.
