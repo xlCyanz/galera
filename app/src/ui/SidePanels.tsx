@@ -1,17 +1,19 @@
 /**
- * La parte de arriba de la columna derecha: capas o recursos, con una
- * pestaña para cada uno. El inspector va siempre debajo.
+ * La parte de arriba de la columna derecha: capas, recursos o fuentes, con
+ * una pestaña para cada uno. El inspector va siempre debajo.
  */
 import { useState } from "react";
 
 import { AssetsPanel } from "./AssetsPanel";
+import { FontsPanel } from "./FontsPanel";
 import { LayersPanel } from "./LayersPanel";
 
-type Tab = "layers" | "assets";
+type Tab = "layers" | "assets" | "fonts";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "layers", label: "Capas" },
   { id: "assets", label: "Recursos" },
+  { id: "fonts", label: "Fuentes" },
 ];
 
 export function SidePanels() {
@@ -32,7 +34,9 @@ export function SidePanels() {
           </button>
         ))}
       </div>
-      {tab === "layers" ? <LayersPanel /> : <AssetsPanel />}
+      {tab === "layers" && <LayersPanel />}
+      {tab === "assets" && <AssetsPanel />}
+      {tab === "fonts" && <FontsPanel />}
     </div>
   );
 }

@@ -679,3 +679,75 @@ fn renaming_an_asset_updates_every_image_that_uses_it() {
     .describe();
     assert_eq!(describe, "Renombrar el recurso logo a marca");
 }
+
+#[test]
+fn a_font_is_declared_and_removed_back_in_its_place() {
+    let mut original = document();
+    original.fonts = vec![
+        "fonts/a.ttf".into(),
+        "fonts/b.ttf".into(),
+        "fonts/c.ttf".into(),
+    ];
+
+    let removed = Op::RemoveFont {
+        path: "fonts/b.ttf".into(),
+    }
+    .apply(&original)
+    .expect("se aplica");
+    assert_eq!(removed.document.fonts, ["fonts/a.ttf", "fonts/c.ttf"]);
+    assert_eq!(
+        removed.undo,
+        Op::AddFont {
+            path: "fonts/b.ttf".into(),
+            index: Some(1)
+        }
+    );
+    let back = removed.undo.apply(&removed.document).expect("se deshace");
+    assert_eq!(back.document, original);
+
+    let added = Op::AddFont {
+        path: "fonts/d.ttf".into(),
+        index: None,
+    }
+    .apply(&original)
+    .expect("se aplica");
+    assert_eq!(
+        added.document.fonts.last().map(String::as_str),
+        Some("fonts/d.ttf")
+    );
+    assert_eq!(
+        added
+            .undo
+            .apply(&added.document)
+            .expect("se deshace")
+            .document,
+        original
+    );
+
+    assert_eq!(
+        Op::AddFont {
+            path: "fonts/a.ttf".into(),
+            index: None
+        }
+        .apply(&original),
+        Err(OpError::FontAlreadyDeclared {
+            path: "fonts/a.ttf".into()
+        })
+    );
+    assert_eq!(
+        Op::RemoveFont {
+            path: "fonts/z.ttf".into()
+        }
+        .apply(&original),
+        Err(OpError::FontNotDeclared {
+            path: "fonts/z.ttf".into()
+        })
+    );
+    assert_eq!(
+        Op::RemoveFont {
+            path: "fonts/b.ttf".into()
+        }
+        .describe(),
+        "Quitar la fuente b.ttf"
+    );
+}

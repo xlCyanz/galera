@@ -409,3 +409,41 @@ export function listAssets(): Promise<AssetInfo[]> {
 export function assetData(key: string): Promise<ArrayBuffer> {
   return invoke<ArrayBuffer>("asset_data", { key });
 }
+
+/** Una fuente que declara el documento, para el panel de fuentes. */
+export interface FontInfo {
+  /** Su ruta, tal como está en `fonts`. */
+  path: string;
+  /** Las familias que trae; vacío si el archivo no está o no es una fuente. */
+  families: string[];
+  /** Cuánto ocupa, en bytes, o `null` si no está. */
+  bytes: number | null;
+  /** Los textos que se quedarían sin tipografía si se quitara. */
+  users: string[];
+}
+
+/** Las fuentes que declara el documento abierto, en su orden. */
+export function listFonts(): Promise<FontInfo[]> {
+  return invoke<FontInfo[]>("list_fonts");
+}
+
+/**
+ * Las familias de las fuentes del proyecto: las únicas que puede usar un
+ * texto. Nunca las del sistema (principio 4).
+ */
+export function fontFamilies(): Promise<string[]> {
+  return invoke<string[]>("font_families");
+}
+
+/** Una muestra de la fuente, en SVG, dibujada por Typst con ese archivo. */
+export function fontSample(path: string): Promise<string> {
+  return invoke<string>("font_sample", { path });
+}
+
+/**
+ * Deja de declarar una fuente. Se rechaza con `kind: "font_in_use"` y los
+ * textos que la usan si alguno la necesita. Entra en el historial.
+ */
+export function removeFont(path: string): Promise<AppliedOp> {
+  return invoke<AppliedOp>("remove_font", { path });
+}

@@ -92,7 +92,19 @@ path: string, } | { "op": "remove_asset",
 /**
  * La clave.
  */
-key: string, } | { "op": "rename_asset", 
+key: string, } | { "op": "add_font", 
+/**
+ * La ruta del archivo, relativa a la raíz del proyecto.
+ */
+path: string, 
+/**
+ * Dónde en la lista; sin él, al final.
+ */
+index: number | null, } | { "op": "remove_font", 
+/**
+ * La ruta tal como está en `fonts`.
+ */
+path: string, } | { "op": "rename_asset", 
 /**
  * La clave de ahora.
  */

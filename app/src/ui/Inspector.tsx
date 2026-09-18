@@ -4,6 +4,8 @@
  * como al arrastrar en el lienzo: entra en el historial y recompila. Las
  * cuentas están en `inspectorFields.ts`.
  *
+ * En un texto, además, su fuente, entre las del proyecto (`FontSelect.tsx`).
+ *
  * Sin selección, enseña la página que se ve: su id, su tamaño y cuántos
  * elementos tiene.
  */
@@ -12,6 +14,7 @@ import { toMillimeters } from "../canvas/geometry";
 import { useCurrentPage, useDocumentStore, useOpenDocument, useSelectedElement } from "../store/document";
 import { useElementBox } from "../store/layout";
 import type { Element, Page } from "../types/model";
+import { FontSelect } from "./FontSelect";
 import { MeasureField } from "./MeasureField";
 import { formatNumber } from "./fieldValue";
 import { type FieldName, fieldOp, inspectorFields } from "./inspectorFields";
@@ -92,6 +95,7 @@ function ElementInspector({ element, measured }: { element: Element; measured: R
           );
         })}
       </div>
+      {element.type === "text" && <FontSelect id={element.id} style={element.style} />}
     </section>
   );
 }
