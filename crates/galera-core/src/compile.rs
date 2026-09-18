@@ -66,6 +66,11 @@ pub struct Compiled {
 }
 
 impl Compiled {
+    /// El documento compilado de Typst, para `layout`. No sale del crate.
+    pub(crate) fn paged(&self) -> &PagedDocument {
+        &self.document
+    }
+
     /// Número de páginas del documento compilado.
     pub fn page_count(&self) -> usize {
         self.document.pages().len()
@@ -243,6 +248,7 @@ mod tests {
 
     use super::*;
     use crate::model::{Element, TextStyle};
+    use crate::testing::{pdf_page_height, pdf_streams};
     use crate::world::WorldError;
 
     fn libertinus_regular() -> &'static [u8] {
@@ -762,50 +768,6 @@ mod tests {
         }
 
         panic!("el PDF debe tener un trazado relleno");
-    }
-
-    /// Los flujos del PDF que se pueden descomprimir, como texto.
-    fn pdf_streams(pdf: &[u8]) -> Vec<String> {
-        let mut streams = Vec::new();
-        let mut rest = pdf;
-        while let Some(start) = find(rest, b"stream\n") {
-            let body = &rest[start + b"stream\n".len()..];
-            let Some(end) = find(body, b"endstream") else {
-                break;
-            };
-            // Entre los datos y `endstream` va un salto de línea que no es
-            // parte del flujo comprimido.
-            let data = body[..end]
-                .strip_suffix(b"\n")
-                .map(|data| data.strip_suffix(b"\r").unwrap_or(data))
-                .unwrap_or(&body[..end]);
-            if let Ok(inflated) = miniz_oxide::inflate::decompress_to_vec_zlib(data) {
-                streams.push(String::from_utf8_lossy(&inflated).into_owned());
-            }
-            // Saltar `endstream` entero: si no, su propio `stream\n` se
-            // tomaría por el principio del siguiente flujo.
-            rest = &body[end + b"endstream".len()..];
-        }
-        streams
-    }
-
-    /// La altura de la primera página, de su `/MediaBox`.
-    fn pdf_page_height(pdf: &[u8]) -> f64 {
-        let start = find(pdf, b"/MediaBox[").expect("el PDF tiene MediaBox") + b"/MediaBox[".len();
-        let end = start + find(&pdf[start..], b"]").expect("MediaBox cerrado");
-        std::str::from_utf8(&pdf[start..end])
-            .expect("MediaBox en ASCII")
-            .split_whitespace()
-            .nth(3)
-            .expect("cuatro números")
-            .parse()
-            .expect("número")
-    }
-
-    fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-        haystack
-            .windows(needle.len())
-            .position(|window| window == needle)
     }
 
     /// El criterio central de la tarea: el mismo elemento mide lo mismo en el

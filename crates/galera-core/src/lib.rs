@@ -17,7 +17,7 @@
 //! - [`error`]: el error único del núcleo, [`GaleraError`], y los diagnósticos.
 //! - [`project`]: la carpeta del proyecto y qué se puede leer de ella.
 //! - [`open`](mod@open): abrir un proyecto comprobando su documento y sus recursos.
-//! - `layout`:  cajas, posiciones de glifos y detección de clics. *(pendiente)*
+//! - [`layout`](mod@layout): la caja real de cada elemento, tal como la compuso Typst.
 //! - `ops`:     comandos de edición e historial de deshacer y rehacer. *(pendiente)*
 //! - `snap`:    guías de alineación. *(pendiente)*
 //!
@@ -37,14 +37,18 @@
 pub mod codegen;
 pub mod compile;
 pub mod error;
+pub mod layout;
 pub mod model;
 pub mod open;
 pub mod project;
+#[cfg(test)]
+mod testing;
 pub mod world;
 
 pub use codegen::{escape, escape_into};
 pub use compile::{Compiled, compile, compile_pdf, compile_svg};
 pub use error::{Diagnostic, GaleraError, Result, Severity};
+pub use layout::{LayoutBox, MmRect, layout};
 pub use model::{
     Align, Document, Element, ElementBox, Meta, Page, PageSize, Run, Stroke, TextStyle, Unit,
     ValidationError, ValidationErrors,

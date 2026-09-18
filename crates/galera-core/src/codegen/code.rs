@@ -165,8 +165,9 @@ mod tests {
             "todo el código tiene que quedar dentro de la cadena: {typst}"
         );
         assert!(
-            typst
-                .contains("\n#place(top + left, dx: 0mm, dy: 0mm)[#rect(width: 10mm, height: 10mm"),
+            typst.contains(
+                "\n#place(top + left, dx: 0mm, dy: 0mm)[#block(rect(width: 10mm, height: 10mm"
+            ),
             "el elemento siguiente tiene que seguir en su propia línea: {typst}"
         );
     }
