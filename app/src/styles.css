@@ -844,3 +844,60 @@ body {
 .asset-remove:focus-visible {
   opacity: 0.7;
 }
+
+/* Una fuente del panel de fuentes: la muestra encima y sus datos debajo. */
+.font {
+  padding: 6px 4px;
+  border-radius: 4px;
+}
+
+.font:hover {
+  background: rgb(127 127 127 / 15%);
+}
+
+.font:hover .asset-remove,
+.font .asset-remove:focus-visible {
+  opacity: 0.7;
+}
+
+.font-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.font-sample {
+  height: 28px;
+  margin-bottom: 4px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.font-sample img {
+  height: 100%;
+}
+
+.font-sample.is-missing {
+  display: grid;
+  place-items: center;
+  color: #71717a;
+  font-size: 11px;
+}
+
+.font-select {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.font-select span {
+  opacity: 0.7;
+}
+
+.font-select select {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+}

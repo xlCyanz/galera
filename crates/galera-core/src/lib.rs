@@ -55,7 +55,9 @@ pub use assets::{
 pub use codegen::{escape, escape_into};
 pub use compile::{Compiled, compile, compile_pdf, compile_svg};
 pub use error::{Diagnostic, GaleraError, Result, Severity};
-pub use fonts::{ImportFontError, ImportedFont, default_text_style, import_font};
+pub use fonts::{
+    ImportFontError, ImportedFont, default_text_style, font_users, import_font, sample_document,
+};
 pub use layout::{LayoutBox, MmRect, layout};
 pub use model::{
     Align, Document, Element, ElementBox, Layer, Meta, Page, PageSize, Run, Stroke, TextStyle,

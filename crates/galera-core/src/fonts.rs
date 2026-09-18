@@ -12,7 +12,9 @@ use std::io;
 use std::path::Path;
 
 use crate::import::{CopyError, copy_into};
-use crate::model::{Align, Document, Element, TextStyle};
+use crate::model::{
+    Align, Document, Element, ElementBox, Layer, Meta, Page, PageSize, Run, TextStyle, Unit,
+};
 use crate::project::Project;
 use crate::world::families_in;
 
@@ -60,6 +62,75 @@ pub fn default_text_style(document: &Document, families: &[String]) -> Option<Te
             leading: 0.65,
         })
     })
+}
+
+/// El texto de la muestra de una fuente.
+pub const SAMPLE_TEXT: &str = "Aa Bb Cc 0123 ¿Ñ?";
+
+/// Un documento de una línea que enseña la familia `family` de la fuente
+/// `font`: lo que se compila para la muestra del panel de fuentes. Así la
+/// muestra la dibuja Typst con el mismo archivo que usará el documento.
+pub fn sample_document(font: &str, family: &str) -> Document {
+    Document {
+        version: crate::DOCUMENT_VERSION,
+        meta: Meta {
+            title: family.to_owned(),
+        },
+        fonts: vec![font.to_owned()],
+        assets: Default::default(),
+        variables: Default::default(),
+        pages: vec![Page {
+            id: "muestra".to_owned(),
+            size: PageSize {
+                width: 70.0,
+                height: 10.0,
+                unit: Unit::Mm,
+            },
+            elements: vec![Element::Text {
+                base: ElementBox {
+                    id: "texto".to_owned(),
+                    x: 1.0,
+                    y: 1.5,
+                    w: 68.0,
+                    h: None,
+                    rotation: 0.0,
+                    layer: Layer::default(),
+                },
+                content: vec![Run::plain(SAMPLE_TEXT)],
+                style: TextStyle {
+                    font: family.to_owned(),
+                    size: 16.0,
+                    color: "#1f2733".to_owned(),
+                    align: Align::Left,
+                    leading: 0.65,
+                },
+            }],
+        }],
+    }
+}
+
+/// Los textos que se quedarían sin tipografía si el documento dejara de
+/// declarar una fuente: los que usan una de sus familias (`families`) que
+/// ninguna otra fuente declarada trae (`others`). En orden del documento.
+pub fn font_users(document: &Document, families: &[String], others: &[String]) -> Vec<String> {
+    let provided_elsewhere = |family: &str| {
+        others
+            .iter()
+            .any(|other| other.eq_ignore_ascii_case(family))
+    };
+    let only_here = |family: &str| {
+        families
+            .iter()
+            .any(|mine| mine.eq_ignore_ascii_case(family))
+            && !provided_elsewhere(family)
+    };
+    document
+        .pages
+        .iter()
+        .flat_map(|page| &page.elements)
+        .filter(|element| matches!(element, Element::Text { style, .. } if only_here(&style.font)))
+        .map(|element| element.id().to_owned())
+        .collect()
 }
 
 /// Una fuente recién añadida a la carpeta del proyecto.
@@ -259,5 +330,33 @@ mod tests {
         fs::copy(fixture_font("Inter-Regular.ttf"), &odd).expect("copiar");
         let imported = import_font(&project, &odd).expect("se añade");
         assert_eq!(imported.path, "fonts/Mi_fuente__2_.ttf");
+    }
+
+    #[test]
+    fn the_sample_is_a_valid_document_that_typst_draws_with_that_font() {
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures");
+        let project = Project::open(&dir).expect("es un proyecto");
+        let sample = sample_document("fonts/Inter-Regular.ttf", "Inter");
+        assert_eq!(sample.validate(), Ok(()));
+        let svg = crate::compile_svg(&sample, &project, 0).expect("compila");
+        assert!(svg.starts_with("<svg"), "{svg}");
+    }
+
+    #[test]
+    fn a_font_is_in_use_by_texts_whose_family_no_other_font_brings() {
+        let document = document(
+            r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 50, "h": null, "content": [],
+                  "style": { "font": "Inter", "size": 12, "color": "#000000" } },
+                { "id": "t2", "type": "text", "x": 0, "y": 0, "w": 50, "h": null, "content": [],
+                  "style": { "font": "Otra", "size": 12, "color": "#000000" } },
+                { "id": "r1", "type": "rect", "x": 0, "y": 0, "w": 1, "h": 1, "fill": null, "stroke": null }"##,
+        );
+        assert_eq!(
+            font_users(&document, &["inter".into()], &["Otra".into()]),
+            ["t1"]
+        );
+        // Si otra fuente trae la misma familia, quitar esta no deja a nadie sin ella.
+        assert!(font_users(&document, &["Inter".into()], &["Inter".into()]).is_empty());
+        assert!(font_users(&document, &["Nadie".into()], &[]).is_empty());
     }
 }

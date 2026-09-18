@@ -9,13 +9,13 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 0 — Núcleo por terminal](https://github.com/xlCyanz/galera/milestone/1) | 16 | 16 |
 | [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 12 |
 | [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 11 |
-| [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 7 |
+| [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 8 |
 | [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 0 |
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 0 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **46** |
+| **Total** | **95** | **47** |
 
 
 ---
@@ -108,7 +108,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F3-05** — Panel de capas: listado y reordenar | [#45](https://github.com/xlCyanz/galera/issues/45) | #31 |
 | ✅ | **F3-06** — Panel de capas: ocultar, bloquear y renombrar | [#46](https://github.com/xlCyanz/galera/issues/46) | #45, #2 |
 | ✅ | **F3-07** — Panel de recursos: imágenes del proyecto | [#47](https://github.com/xlCyanz/galera/issues/47) | #19 |
-| ⬜ | **F3-08** — Panel de recursos: fuentes del proyecto | [#48](https://github.com/xlCyanz/galera/issues/48) | #47, #10 |
+| ✅ | **F3-08** — Panel de recursos: fuentes del proyecto | [#48](https://github.com/xlCyanz/galera/issues/48) | #47, #10 |
 | ⬜ | **F3-09** — Inspector de formas: relleno, borde y radio | [#49](https://github.com/xlCyanz/galera/issues/49) | #39, #6 |
 | ⬜ | **F3-10** — Inspector de texto: fuente, tamaño, color y alineación | [#50](https://github.com/xlCyanz/galera/issues/50) | #48, #7 |
 | ⬜ | **F3-11** — Formato .galera: guardar y abrir | [#51](https://github.com/xlCyanz/galera/issues/51) | #19, #44 |

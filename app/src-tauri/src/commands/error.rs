@@ -50,6 +50,19 @@ pub enum CommandError {
     #[error(transparent)]
     Font(#[from] ImportFontError),
 
+    /// Una fuente que se quiere quitar la necesitan textos.
+    #[error(
+        "la fuente {path} la usa{} {}: cambia su tipografía antes de quitarla",
+        if users.len() == 1 { "" } else { "n" },
+        users.join(", ")
+    )]
+    FontInUse {
+        /// La ruta de la fuente.
+        path: String,
+        /// Los textos que se quedarían sin ella.
+        users: Vec<String>,
+    },
+
     /// No se pudo escribir un archivo.
     #[error("no se pudo guardar {}: {source}", path.display())]
     Write {
@@ -71,6 +84,7 @@ impl CommandError {
             CommandError::NothingOpen => "nothing_open",
             CommandError::NotALocalPath => "not_a_local_path",
             CommandError::Font(_) => "font",
+            CommandError::FontInUse { .. } => "font_in_use",
             CommandError::Write { .. } => "write",
         }
     }

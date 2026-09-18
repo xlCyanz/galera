@@ -123,6 +123,23 @@ pub enum Op {
         key: String,
     },
 
+    /// Declara una fuente del proyecto en `fonts`. Es lo que deshace
+    /// [`Op::RemoveFont`].
+    AddFont {
+        /// La ruta del archivo, relativa a la raíz del proyecto.
+        path: String,
+        /// Dónde en la lista; sin él, al final.
+        index: Option<usize>,
+    },
+
+    /// Deja de declarar una fuente. El archivo se queda en la carpeta del
+    /// proyecto. Que ningún texto la necesite lo comprueba quien lo pide,
+    /// porque saber qué familias trae un archivo exige leerlo.
+    RemoveFont {
+        /// La ruta tal como está en `fonts`.
+        path: String,
+    },
+
     /// Cambia la clave de un recurso, y con ella la de todas las imágenes
     /// que la usan.
     RenameAsset {
@@ -222,6 +239,18 @@ pub enum OpError {
         /// La clave repetida.
         key: String,
     },
+    /// El documento ya declara esa fuente.
+    #[error("el documento ya declara la fuente {path:?}")]
+    FontAlreadyDeclared {
+        /// La ruta.
+        path: String,
+    },
+    /// El documento no declara esa fuente.
+    #[error("el documento no declara la fuente {path:?}")]
+    FontNotDeclared {
+        /// La ruta.
+        path: String,
+    },
     /// La clave no vale: solo letras y dígitos ASCII, guion y guion bajo.
     #[error(
         "la clave {key:?} no vale: solo puede tener letras y dígitos ASCII, guion y guion bajo"
@@ -272,6 +301,8 @@ impl Op {
             Op::AddAsset { key, .. } => format!("Añadir el recurso {key}"),
             Op::RemoveAsset { key } => format!("Quitar el recurso {key}"),
             Op::RenameAsset { from, to } => format!("Renombrar el recurso {from} a {to}"),
+            Op::AddFont { path, .. } => format!("Añadir la fuente {}", file_name(path)),
+            Op::RemoveFont { path } => format!("Quitar la fuente {}", file_name(path)),
         }
     }
 
@@ -286,7 +317,11 @@ impl Op {
             | Op::Delete { id }
             | Op::Reorder { id, .. } => Some(id),
             Op::Create { element, .. } | Op::Restore { element } => Some(element.id()),
-            Op::AddAsset { .. } | Op::RemoveAsset { .. } | Op::RenameAsset { .. } => None,
+            Op::AddAsset { .. }
+            | Op::RemoveAsset { .. }
+            | Op::RenameAsset { .. }
+            | Op::AddFont { .. }
+            | Op::RemoveFont { .. } => None,
         }
     }
 
@@ -428,6 +463,30 @@ impl Op {
                 })
             }
 
+            Op::AddFont { path, index } => {
+                if document.fonts.contains(path) {
+                    return Err(OpError::FontAlreadyDeclared { path: path.clone() });
+                }
+                let at = index
+                    .unwrap_or(document.fonts.len())
+                    .min(document.fonts.len());
+                document.fonts.insert(at, path.clone());
+                Ok(Op::RemoveFont { path: path.clone() })
+            }
+
+            Op::RemoveFont { path } => {
+                let at = document
+                    .fonts
+                    .iter()
+                    .position(|font| font == path)
+                    .ok_or_else(|| OpError::FontNotDeclared { path: path.clone() })?;
+                document.fonts.remove(at);
+                Ok(Op::AddFont {
+                    path: path.clone(),
+                    index: Some(at),
+                })
+            }
+
             Op::RenameAsset { from, to } => {
                 if !document.assets.contains_key(from) {
                     return Err(OpError::AssetNotFound { key: from.clone() });
@@ -455,6 +514,11 @@ impl Op {
             }
         }
     }
+}
+
+/// El nombre del archivo de una ruta con `/`: «Inter-Regular.ttf».
+fn file_name(path: &str) -> &str {
+    path.rsplit('/').next().unwrap_or(path)
 }
 
 /// Una clave nueva de `assets` tiene que ser válida y no estar usada.
