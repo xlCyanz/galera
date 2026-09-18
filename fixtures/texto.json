@@ -21,7 +21,10 @@
           "style": { "font": "Inter", "size": 10, "color": "#1F2733", "align": "justify", "leading": 0.8 } },
         { "id": "alto-fijo-y-saltos", "type": "text", "x": 110, "y": 80, "w": 80, "h": 30,
           "content": [ { "text": "Primera línea\nsegunda línea\n\nOtro párrafo, " }, { "text": "en dos tramos.", "bold": true } ],
-          "style": { "font": "Inter", "size": 10, "color": "#1F2733", "align": "left", "leading": 0.65 } }
+          "style": { "font": "Inter", "size": 10, "color": "#1F2733", "align": "left", "leading": 0.65 } },
+        { "id": "espaciado", "type": "text", "x": 20, "y": 130, "w": 80, "h": null,
+          "content": [ { "text": "Un párrafo.\n\nOtro párrafo, más separado." } ],
+          "style": { "font": "Inter", "size": 10, "color": "#1F2733", "align": "left", "leading": 0.8, "spacing": 2 } }
       ]
     }
   ]

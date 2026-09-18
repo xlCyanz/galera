@@ -72,6 +72,10 @@ pub(super) fn emit_text(
         number(style.leading),
     ));
 
+    if let Some(spacing) = style.spacing {
+        out.push_str(&format!(", spacing: {}em", number(spacing)));
+    }
+
     // Typst no justifica con `align`: la justificación es del párrafo.
     if style.align == Align::Justify {
         out.push_str(", justify: true");
@@ -357,5 +361,27 @@ mod tests {
         insta::assert_snapshot!(plain(
             "= No es un título\nPrecio: 50$ *sin* IVA #descuento\n\n- tampoco es una lista\nhttps://ejemplo.es // sin comentario ~ con tilde"
         ));
+    }
+
+    /// El espacio entre párrafos va en `par` solo si el estilo lo fija; si
+    /// no, se deja el de Typst y el código de siempre no cambia.
+    #[test]
+    fn paragraph_spacing_is_emitted_only_when_set() {
+        let with = generate_with(
+            r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 50, "h": null,
+                 "content": [{ "text": "x" }],
+                 "style": { "font": "Inter", "size": 12, "color": "#000000", "leading": 0.8, "spacing": 1.5 } }"##,
+        );
+        assert!(
+            with.contains("set par(leading: 0.8em, spacing: 1.5em)"),
+            "{with}"
+        );
+
+        let without = generate_with(
+            r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 50, "h": null,
+                 "content": [{ "text": "x" }],
+                 "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##,
+        );
+        assert!(!without.contains("spacing"), "{without}");
     }
 }

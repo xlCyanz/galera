@@ -9,7 +9,7 @@ Documentos de ejemplo que sirven de banco de pruebas para todo el proyecto. Comp
 | `rectangulo.json` | Relleno y borde, sin ninguno, solo borde, rotación, alto automático, color con transparencia. |
 | `elipse.json` | Relleno, solo borde, rotación negativa, color corto (`#abc`). |
 | `linea.json` | Horizontal, hacia atrás (deltas negativos), rotada, y los tres estilos de trazo: rayas, puntos y raya-punto. |
-| `texto.json` | Las cuatro alineaciones, alto fijo, saltos de línea y de párrafo, varios tramos. |
+| `texto.json` | Las cuatro alineaciones, alto fijo, saltos de línea y de párrafo, varios tramos, espacio entre párrafos. |
 | `imagen.json` | PNG, JPEG y SVG; proporción original, alto fijo, rotación. |
 | `codigo.json` | Tabla en varias líneas con comillas, alto fijo, bloque vacío. |
 | `escape.json` | Todo lo que tiene que escaparse: caracteres de marcado, marcadores de línea, comentarios, enlaces y comillas en el título. Las comillas en nombres de fuente se prueban en las pruebas unitarias de `codegen`: una familia que no existe ya no pasa la validación. |

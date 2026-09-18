@@ -4,7 +4,8 @@
  * como al arrastrar en el lienzo: entra en el historial y recompila. Las
  * cuentas están en `inspectorFields.ts`.
  *
- * En un texto, además, su fuente, entre las del proyecto (`FontSelect.tsx`);
+ * En un texto, además, su estilo: fuente, tamaño, color, alineación,
+ * interlineado y espacio entre párrafos (`TextInspector.tsx`);
  * en una forma, su relleno, borde y radio (`ShapeInspector.tsx`).
  *
  * Sin selección, enseña la página que se ve: su id, su tamaño y cuántos
@@ -15,9 +16,9 @@ import { toMillimeters } from "../canvas/geometry";
 import { useCurrentPage, useDocumentStore, useOpenDocument, useSelectedElement } from "../store/document";
 import { useElementBox } from "../store/layout";
 import type { Element, Page } from "../types/model";
-import { FontSelect } from "./FontSelect";
 import { MeasureField } from "./MeasureField";
 import { ShapeInspector } from "./ShapeInspector";
+import { TextInspector } from "./TextInspector";
 import { formatNumber } from "./fieldValue";
 import { type FieldName, fieldOp, inspectorFields } from "./inspectorFields";
 import { ELEMENT_KIND } from "./layerOrder";
@@ -97,7 +98,7 @@ function ElementInspector({ element, measured }: { element: Element; measured: R
           );
         })}
       </div>
-      {element.type === "text" && <FontSelect id={element.id} style={element.style} />}
+      {element.type === "text" && <TextInspector element={element} />}
       {(element.type === "rect" || element.type === "ellipse" || element.type === "line") && (
         <ShapeInspector elements={[element]} />
       )}

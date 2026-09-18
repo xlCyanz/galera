@@ -516,7 +516,18 @@ pub struct TextStyle {
     /// Interlineado, como múltiplo del tamaño de fuente.
     #[serde(default = "default_leading")]
     pub leading: f64,
+
+    /// Espacio entre párrafos, como múltiplo del tamaño de fuente, o `None`
+    /// para el de Typst ([`DEFAULT_PARAGRAPH_SPACING`]). Sin valor no se
+    /// escribe en el JSON.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
+    pub spacing: Option<f64>,
 }
+
+/// El espacio entre párrafos que usa Typst si el estilo no dice otro, como
+/// múltiplo del tamaño de fuente.
+pub const DEFAULT_PARAGRAPH_SPACING: f64 = 1.2;
 
 /// Alineación horizontal del texto.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]

@@ -383,10 +383,12 @@ body {
 /* A la derecha del lienzo: las capas encima y el inspector debajo. */
 .sidebar {
   display: flex;
-  flex: 0 0 240px;
+  flex: 0 0 280px;
   flex-direction: column;
   gap: 1rem;
+  min-width: 0;
   min-height: 0;
+  overflow-x: hidden;
 }
 
 .inspector {
@@ -1033,4 +1035,25 @@ body {
 
 .color-none {
   font: inherit;
+}
+
+.align-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+.align-button {
+  width: 26px;
+  height: 26px;
+}
+
+.align-button svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.shape-inspector .font-select {
+  margin-top: 0;
 }

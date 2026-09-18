@@ -35,6 +35,11 @@ export interface MeasureFieldProps {
    * «Mixto», y escribir un número lo fija en todos.
    */
   mixed?: boolean;
+  /**
+   * Cuánto sube un paso: una flecha o unos píxeles de arrastre. Shift lo
+   * multiplica por 10 y Alt lo divide entre 10. Por defecto, 1.
+   */
+  step?: number;
 }
 
 export function MeasureField({
@@ -46,6 +51,7 @@ export function MeasureField({
   note,
   onCommit,
   mixed = false,
+  step: baseStep = 1,
 }: MeasureFieldProps) {
   const id = useId();
   // Lo que se está escribiendo o arrastrando; `null` si se enseña `value`.
@@ -73,7 +79,7 @@ export function MeasureField({
     } else if ((event.key === "ArrowUp" || event.key === "ArrowDown") && value !== null) {
       event.preventDefault();
       const base = parseNumber(event.currentTarget.value) ?? value;
-      const step = stepFor(event) * (event.key === "ArrowUp" ? 1 : -1);
+      const step = stepFor(event) * baseStep * (event.key === "ArrowUp" ? 1 : -1);
       setDraft(null);
       onCommit?.(Math.round((base + step) * 1000) / 1000 + 0);
     }
@@ -93,7 +99,7 @@ export function MeasureField({
     if (current === null) {
       return;
     }
-    const next = scrubValue(current.start, event.clientY - current.y, stepFor(event));
+    const next = scrubValue(current.start, event.clientY - current.y, stepFor(event) * baseStep);
     current.moved ||= next !== current.start;
     setDraft(formatNumber(next));
   };
@@ -105,7 +111,7 @@ export function MeasureField({
       return;
     }
     event.currentTarget.releasePointerCapture?.(event.pointerId);
-    const next = scrubValue(current.start, event.clientY - current.y, stepFor(event));
+    const next = scrubValue(current.start, event.clientY - current.y, stepFor(event) * baseStep);
     setDraft(null);
     if (current.moved && next !== current.start) {
       onCommit?.(next);
