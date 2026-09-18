@@ -542,6 +542,35 @@ pub struct Stroke {
     pub color: String,
     /// Grosor en milímetros.
     pub width: f64,
+    /// Estilo del trazo, o `None` para continuo. Sin valor no se escribe en
+    /// el JSON: los documentos de antes se leen y se guardan igual.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
+    pub dash: Option<Dash>,
+}
+
+/// Estilo de un trazo que no es continuo.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
+#[serde(rename_all = "kebab-case")]
+pub enum Dash {
+    /// Rayas.
+    Dashed,
+    /// Puntos.
+    Dotted,
+    /// Raya y punto.
+    DashDotted,
+}
+
+impl Dash {
+    /// El nombre que le da Typst en `stroke(dash: …)`.
+    pub fn typst_name(self) -> &'static str {
+        match self {
+            Dash::Dashed => "dashed",
+            Dash::Dotted => "dotted",
+            Dash::DashDotted => "dash-dotted",
+        }
+    }
 }
 
 /// Interlineado por defecto de Typst, como múltiplo del tamaño de fuente.

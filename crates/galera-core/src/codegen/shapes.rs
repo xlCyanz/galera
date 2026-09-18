@@ -127,11 +127,17 @@ fn emit_fill(fill: Option<&str>, out: &mut String) -> Result<(), CodegenError> {
 /// sitio para el guionado y los extremos sin cambiar la forma de la llamada.
 fn emit_stroke(stroke: Option<&Stroke>, out: &mut String) -> Result<(), CodegenError> {
     match stroke {
-        Some(stroke) => out.push_str(&format!(
-            ", stroke: (paint: {}, thickness: {})",
-            color(&stroke.color)?,
-            millimeters(stroke.width),
-        )),
+        Some(stroke) => {
+            out.push_str(&format!(
+                ", stroke: (paint: {}, thickness: {}",
+                color(&stroke.color)?,
+                millimeters(stroke.width),
+            ));
+            if let Some(dash) = stroke.dash {
+                out.push_str(&format!(", dash: \"{}\"", dash.typst_name()));
+            }
+            out.push(')');
+        }
         None => out.push_str(", stroke: none"),
     }
     Ok(())
@@ -367,5 +373,32 @@ mod tests {
     #[test]
     fn line_snapshot() {
         insta::assert_snapshot!(generate_with(LINE));
+    }
+
+    /// Un trazo no continuo lleva su estilo; uno continuo no dice nada, así
+    /// que el código de los documentos de antes no cambia.
+    #[test]
+    fn a_dashed_stroke_says_its_style_and_a_solid_one_says_nothing() {
+        for (dash, expected) in [
+            (
+                r#", "dash": "dashed""#,
+                r#"thickness: 0.5mm, dash: "dashed")"#,
+            ),
+            (
+                r#", "dash": "dotted""#,
+                r#"thickness: 0.5mm, dash: "dotted")"#,
+            ),
+            (
+                r#", "dash": "dash-dotted""#,
+                r#"thickness: 0.5mm, dash: "dash-dotted")"#,
+            ),
+            ("", "thickness: 0.5mm)"),
+        ] {
+            let typst = generate_with(&format!(
+                r##"{{ "id": "l1", "type": "line", "x": 0, "y": 0, "x2": 10, "y2": 0,
+                     "stroke": {{ "color": "#000000", "width": 0.5{dash} }} }}"##
+            ));
+            assert!(typst.contains(expected), "{typst}");
+        }
     }
 }

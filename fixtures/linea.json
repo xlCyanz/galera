@@ -11,7 +11,13 @@
         { "id": "hacia-atras", "type": "line", "x": 190, "y": 120, "x2": 20, "y2": 40,
           "stroke": { "color": "#dc2626", "width": 2 } },
         { "id": "girada", "type": "line", "x": 20, "y": 150, "x2": 120, "y2": 150,
-          "rotation": 45, "stroke": { "color": "#1e40af", "width": 1 } }
+          "rotation": 45, "stroke": { "color": "#1e40af", "width": 1 } },
+        { "id": "rayas", "type": "line", "x": 20, "y": 200, "x2": 190, "y2": 200,
+          "stroke": { "color": "#000000", "width": 0.5, "dash": "dashed" } },
+        { "id": "puntos", "type": "line", "x": 20, "y": 210, "x2": 190, "y2": 210,
+          "stroke": { "color": "#000000", "width": 0.5, "dash": "dotted" } },
+        { "id": "raya-punto", "type": "line", "x": 20, "y": 220, "x2": 190, "y2": 220,
+          "stroke": { "color": "#000000", "width": 0.5, "dash": "dash-dotted" } }
       ]
     }
   ]

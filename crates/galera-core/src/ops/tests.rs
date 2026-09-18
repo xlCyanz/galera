@@ -149,6 +149,7 @@ fn every_property_changes_where_it_applies() {
     let stroke = Stroke {
         color: "#00ff00".into(),
         width: 2.0,
+        dash: Some(crate::model::Dash::Dotted),
     };
     let cases = [
         ("r1", Property::Fill(None)),

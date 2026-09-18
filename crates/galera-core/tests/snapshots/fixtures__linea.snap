@@ -11,3 +11,6 @@ expression: code
 #place(top + left, dx: 20mm, dy: 20mm)[#line(start: (0mm, 0mm), end: (170mm, 0mm), stroke: (paint: rgb("#000000"), thickness: 0.5mm))] <el-horizontal>
 #place(top + left, dx: 190mm, dy: 120mm)[#line(start: (0mm, 0mm), end: (-170mm, -80mm), stroke: (paint: rgb("#dc2626"), thickness: 2mm))] <el-hacia-atras>
 #place(top + left, dx: 20mm, dy: 150mm)[#rotate(45deg, origin: center + horizon)[#line(start: (0mm, 0mm), end: (100mm, 0mm), stroke: (paint: rgb("#1e40af"), thickness: 1mm))]] <el-girada>
+#place(top + left, dx: 20mm, dy: 200mm)[#line(start: (0mm, 0mm), end: (170mm, 0mm), stroke: (paint: rgb("#000000"), thickness: 0.5mm, dash: "dashed"))] <el-rayas>
+#place(top + left, dx: 20mm, dy: 210mm)[#line(start: (0mm, 0mm), end: (170mm, 0mm), stroke: (paint: rgb("#000000"), thickness: 0.5mm, dash: "dotted"))] <el-puntos>
+#place(top + left, dx: 20mm, dy: 220mm)[#line(start: (0mm, 0mm), end: (170mm, 0mm), stroke: (paint: rgb("#000000"), thickness: 0.5mm, dash: "dash-dotted"))] <el-raya-punto>

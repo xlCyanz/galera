@@ -8,7 +8,7 @@ Documentos de ejemplo que sirven de banco de pruebas para todo el proyecto. Comp
 | `document.json` | Copia exacta de `informe.json`, para que `fixtures/` se pueda abrir como proyecto desde la app. Una prueba comprueba que siguen iguales, y no tiene instantánea propia. |
 | `rectangulo.json` | Relleno y borde, sin ninguno, solo borde, rotación, alto automático, color con transparencia. |
 | `elipse.json` | Relleno, solo borde, rotación negativa, color corto (`#abc`). |
-| `linea.json` | Horizontal, hacia atrás (deltas negativos), rotada. |
+| `linea.json` | Horizontal, hacia atrás (deltas negativos), rotada, y los tres estilos de trazo: rayas, puntos y raya-punto. |
 | `texto.json` | Las cuatro alineaciones, alto fijo, saltos de línea y de párrafo, varios tramos. |
 | `imagen.json` | PNG, JPEG y SVG; proporción original, alto fijo, rotación. |
 | `codigo.json` | Tabla en varias líneas con comillas, alto fijo, bloque vacío. |

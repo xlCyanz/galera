@@ -30,20 +30,34 @@ export interface MeasureFieldProps {
   note?: string;
   /** Se ha fijado un valor nuevo. */
   onCommit?: (value: number) => void;
+  /**
+   * El valor no es el mismo en todos los elementos: el campo sale vacío con
+   * «Mixto», y escribir un número lo fija en todos.
+   */
+  mixed?: boolean;
 }
 
-export function MeasureField({ label, title, value, unit, readOnly = false, note, onCommit }: MeasureFieldProps) {
+export function MeasureField({
+  label,
+  title,
+  value,
+  unit,
+  readOnly = false,
+  note,
+  onCommit,
+  mixed = false,
+}: MeasureFieldProps) {
   const id = useId();
   // Lo que se está escribiendo o arrastrando; `null` si se enseña `value`.
   const [draft, setDraft] = useState<string | null>(null);
   const scrub = useRef<{ start: number; y: number; moved: boolean } | null>(null);
   const shown = draft ?? (value === null ? "" : formatNumber(value));
-  const editable = !readOnly && value !== null && onCommit !== undefined;
+  const editable = !readOnly && (value !== null || mixed) && onCommit !== undefined;
 
   const commit = (text: string) => {
     setDraft(null);
     const parsed = parseNumber(text);
-    if (parsed !== null && value !== null && parsed !== value) {
+    if (parsed !== null && parsed !== value) {
       onCommit?.(parsed);
     }
   };
@@ -118,6 +132,7 @@ export function MeasureField({ label, title, value, unit, readOnly = false, note
         aria-label={title}
         inputMode="decimal"
         value={shown}
+        placeholder={mixed ? "Mixto" : undefined}
         readOnly={!editable}
         onChange={(event) => setDraft(event.currentTarget.value)}
         onBlur={(event) => {
