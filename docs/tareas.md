@@ -8,14 +8,14 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 |---|---|---|
 | [Fase 0 — Núcleo por terminal](https://github.com/xlCyanz/galera/milestone/1) | 16 | 16 |
 | [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 12 |
-| [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 0 |
+| [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 1 |
 | [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 0 |
 | [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 0 |
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 0 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **28** |
+| **Total** | **95** | **29** |
 
 
 ---
@@ -79,7 +79,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 
 | Estado | Tarea | Issue | Depende de |
 |:--:|---|:--:|---|
-| ⬜ | **F2-01** — Módulo layout: extraer la caja real de cada elemento | [#30](https://github.com/xlCyanz/galera/issues/30) | #12, #5 |
+| ✅ | **F2-01** — Módulo layout: extraer la caja real de cada elemento | [#30](https://github.com/xlCyanz/galera/issues/30) | #12, #5 |
 | ⬜ | **F2-02** — Exponer el layout a la interfaz | [#31](https://github.com/xlCyanz/galera/issues/31) | #30, #20 |
 | ⬜ | **F2-03** — Hit-testing: del clic al elemento | [#32](https://github.com/xlCyanz/galera/issues/32) | #31 |
 | ⬜ | **F2-04** — Capa de controles: contorno y ocho manejadores | [#33](https://github.com/xlCyanz/galera/issues/33) | #32 |
@@ -253,7 +253,7 @@ Al terminar cada fase se anota aquí qué se hizo, qué quedó pendiente y qué 
 - Se prepara un `World` nuevo en cada compilación; reutilizarlo es F4-04 (#58).
 - `today()` usa UTC cuando Typst pide la fecha local.
 - Las imágenes con ancho y alto usan el ajuste por defecto de Typst (`cover`); no hay campo para elegir otro.
-- Que la etiqueta detrás de `place` permita localizar la caja del contenido se comprueba en F2-01 (#30).
+- Que la etiqueta detrás de `place` permite localizar la caja del contenido quedó comprobado en F2-01 (#30): Typst deja marcas de inicio y fin del `place` etiquetado en la página. Para ello, un rectángulo o una elipse sin relleno ni borde se emiten dentro de `#block(…)`, que no dibuja nada pero deja su caja.
 - Inter no tiene emoji ni escrituras CJK, y Galera no recurre a fuentes del sistema: esos caracteres salen vacíos si el documento no trae una fuente que los tenga. A tener en cuenta en el panel de fuentes (F3-08, #48).
 - `docs/galera-design-brief.md` sigue sin estar en el repositorio; bloquea F1-13 (#29).
 

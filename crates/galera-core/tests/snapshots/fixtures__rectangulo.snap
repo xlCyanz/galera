@@ -9,7 +9,7 @@ expression: code
 
 // p1
 #place(top + left, dx: 20mm, dy: 20mm)[#rect(width: 80mm, height: 40mm, fill: rgb("#1e40af"), stroke: (paint: rgb("#0f172a"), thickness: 0.5mm), radius: 4mm)] <el-relleno-y-borde>
-#place(top + left, dx: 110mm, dy: 20mm)[#rect(width: 80mm, height: 40mm, fill: none, stroke: none)] <el-sin-relleno-ni-borde>
+#place(top + left, dx: 110mm, dy: 20mm)[#block(rect(width: 80mm, height: 40mm, fill: none, stroke: none))] <el-sin-relleno-ni-borde>
 #place(top + left, dx: 20mm, dy: 80mm)[#rect(width: 80mm, height: 40mm, fill: none, stroke: (paint: rgb("#dc2626"), thickness: 1.25mm))] <el-solo-borde>
 #place(top + left, dx: 110mm, dy: 80mm)[#rotate(15deg, origin: center + horizon)[#rect(width: 80mm, height: 40mm, fill: rgb("#16a34a80"), stroke: none)]] <el-girado>
 #place(top + left, dx: 20mm, dy: 140mm)[#rect(width: 80mm, fill: rgb("#f59e0b"), stroke: none)] <el-alto-automatico>

@@ -11,6 +11,14 @@
 //! diferencia hasta el segundo extremo. Si el segundo extremo está arriba o
 //! a la izquierda del primero, esa diferencia es negativa, que es lo
 //! correcto: el origen lo fija el `place`.
+//!
+//! # Formas invisibles
+//!
+//! Un rectángulo o una elipse sin relleno ni borde no dibuja nada, y Typst no
+//! deja en la página ni rastro de su tamaño: el módulo `layout` no tendría de
+//! dónde sacar su caja, y no se podría seleccionar. Por eso se envuelven en
+//! `#block(…)`, que sigue sin dibujar nada pero deja en la página un grupo del
+//! tamaño de la forma.
 
 use crate::model::{ElementBox, Stroke};
 
@@ -24,7 +32,7 @@ pub(super) fn emit_rect(
     radius: f64,
     out: &mut String,
 ) -> Result<(), CodegenError> {
-    out.push_str("#rect(");
+    let invisible = open_shape("rect", fill, stroke, out);
     emit_size(base, out);
     emit_fill(fill, out)?;
     emit_stroke(stroke, out)?;
@@ -35,7 +43,7 @@ pub(super) fn emit_rect(
         out.push_str(&format!(", radius: {}", millimeters(radius)));
     }
 
-    out.push(')');
+    close_shape(invisible, out);
     Ok(())
 }
 
@@ -46,12 +54,28 @@ pub(super) fn emit_ellipse(
     stroke: Option<&Stroke>,
     out: &mut String,
 ) -> Result<(), CodegenError> {
-    out.push_str("#ellipse(");
+    let invisible = open_shape("ellipse", fill, stroke, out);
     emit_size(base, out);
     emit_fill(fill, out)?;
     emit_stroke(stroke, out)?;
-    out.push(')');
+    close_shape(invisible, out);
     Ok(())
+}
+
+/// Abre la llamada a la forma, dentro de un `block` si no se va a dibujar
+/// nada (ver el módulo). Devuelve si se ha abierto el `block`.
+fn open_shape(name: &str, fill: Option<&str>, stroke: Option<&Stroke>, out: &mut String) -> bool {
+    let invisible = fill.is_none() && stroke.is_none();
+    if invisible {
+        out.push_str(&format!("#block({name}("));
+    } else {
+        out.push_str(&format!("#{name}("));
+    }
+    invisible
+}
+
+fn close_shape(invisible: bool, out: &mut String) {
+    out.push_str(if invisible { "))" } else { ")" });
 }
 
 /// Escribe un segmento entre dos puntos.
@@ -212,6 +236,27 @@ mod tests {
         assert!(typst.contains("stroke: none"), "{typst}");
     }
 
+    /// Una forma que no dibuja nada va dentro de un `block`, para que su caja
+    /// quede en la página (ver el módulo). Una que sí dibuja, no.
+    #[test]
+    fn an_invisible_shape_is_wrapped_in_a_block() {
+        let invisible = generate_with(
+            r##"{ "id": "e1", "type": "ellipse", "x": 0, "y": 0, "w": 10, "h": 5,
+                 "fill": null, "stroke": null }"##,
+        );
+        assert!(
+            invisible
+                .contains("#block(ellipse(width: 10mm, height: 5mm, fill: none, stroke: none))"),
+            "{invisible}"
+        );
+
+        let visible = generate_with(
+            r##"{ "id": "e1", "type": "ellipse", "x": 0, "y": 0, "w": 10, "h": 5,
+                 "fill": "#ff0000", "stroke": null }"##,
+        );
+        assert!(!visible.contains("#block("), "{visible}");
+    }
+
     #[test]
     fn an_automatic_height_is_left_for_typst_to_measure() {
         let typst = generate_with(
@@ -220,10 +265,10 @@ mod tests {
         );
         // El alto de la página sí aparece en la cabecera; el del rectángulo no.
         assert!(
-            typst.contains("#rect(width: 10mm, fill: none, stroke: none)"),
+            typst.contains("rect(width: 10mm, fill: none, stroke: none)"),
             "{typst}"
         );
-        assert!(!typst.contains("#rect(width: 10mm, height:"), "{typst}");
+        assert!(!typst.contains("rect(width: 10mm, height:"), "{typst}");
     }
 
     /// Un radio de cero es el valor por defecto de Typst: emitirlo en cada
@@ -286,7 +331,7 @@ mod tests {
                  "rotation": 15, "fill": null, "stroke": null }"##,
         );
         assert!(
-            typst.contains("#rotate(15deg, origin: center + horizon)[#rect("),
+            typst.contains("#rotate(15deg, origin: center + horizon)[#block(rect("),
             "{typst}"
         );
     }

@@ -9,4 +9,4 @@ expression: "generate_with(\"#table(\\n  columns: 2,\\n  [*Concepto*], [*Importe
 
 // p1
 #place(top + left, dx: 20mm, dy: 200mm)[#block(width: 170mm, height: 40mm, eval("#table(\n  columns: 2,\n  [*Concepto*], [*Importe*],\n  [Cuota \"anual\"], [120 €],\n)", mode: "markup"))] <el-c1>
-#place(top + left, dx: 0mm, dy: 0mm)[#rect(width: 10mm, height: 10mm, fill: none, stroke: none)] <el-r1>
+#place(top + left, dx: 0mm, dy: 0mm)[#block(rect(width: 10mm, height: 10mm, fill: none, stroke: none))] <el-r1>
