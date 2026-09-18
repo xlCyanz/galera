@@ -11,6 +11,7 @@ function page(id: string): Page {
 function project(title: string, pageCount: number): OpenedProject {
   return {
     root: `/proyectos/${title}`,
+    revision: 1,
     document: {
       version: 1,
       meta: { title },

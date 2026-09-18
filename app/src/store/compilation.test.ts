@@ -1,28 +1,30 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { RenderedPage } from "../commands";
+import type { CompilationFailed, CompilationFinished } from "../commands";
 import type { Diagnostic } from "../types/diagnostic";
-import { compileOpenDocument, useCompilationStore } from "./compilation";
+import { useCompilationStore } from "./compilation";
 
-function rendered(overrides: Partial<RenderedPage> = {}): RenderedPage {
+function finished(overrides: Partial<CompilationFinished> = {}): CompilationFinished {
+  return { revision: 1, ms: 12, reused: false, diagnostics: [], pages: ["<svg>1</svg>"], ...overrides };
+}
+
+const typstError: Diagnostic = {
+  severity: "error",
+  message: "unclosed delimiter",
+  hints: [],
+  element_id: "c1",
+};
+
+function failed(overrides: Partial<CompilationFailed> = {}): CompilationFailed {
   return {
-    svg: "<svg>1</svg>",
-    diagnostics: [],
-    error: null,
-    ms: 12,
-    reused: false,
     revision: 1,
+    ms: 3,
+    reused: false,
+    diagnostics: [typstError],
+    error: { kind: "typst", message: "Typst encontró 1 error" },
     ...overrides,
   };
 }
-
-const typstError = {
-  svg: null,
-  error: { kind: "typst", message: "Typst encontró 1 error" },
-  diagnostics: [
-    { severity: "error", message: "unclosed delimiter", hints: [], element_id: "c1" },
-  ],
-} satisfies Partial<RenderedPage>;
 
 const store = () => useCompilationStore.getState();
 
@@ -42,46 +44,32 @@ describe("store de la compilación", () => {
     });
   });
 
-  it("start pasa a compilando", () => {
-    store().start();
-    expect(store().status).toBe("compiling");
+  it("compilation:start pasa a compilando y conserva lo que había", () => {
+    store().finish(finished({ pages: ["<svg>bueno</svg>"] }));
+    store().start({ revision: 2 });
+    expect(store()).toMatchObject({ status: "compiling", pages: ["<svg>bueno</svg>"] });
   });
 
-  it("finish con todas las páginas bien pasa a listo y guarda SVG, tiempo y avisos", () => {
-    const warning: Diagnostic = {
-      severity: "warning",
-      message: "cuidado",
-      hints: [],
-      element_id: null,
-    };
-    store().start();
-    store().finish([
-      rendered({ svg: "<svg>1</svg>", diagnostics: [warning] }),
-      rendered({ svg: "<svg>2</svg>", diagnostics: [warning], reused: true }),
-    ]);
+  it("compilation:finish pasa a listo con páginas, tiempo y avisos", () => {
+    const warning: Diagnostic = { severity: "warning", message: "cuidado", hints: [], element_id: null };
+    store().start({ revision: 1 });
+    store().finish(finished({ pages: ["<svg>1</svg>", "<svg>2</svg>"], diagnostics: [warning], reused: true }));
 
     expect(store()).toMatchObject({
       status: "ready",
       revision: 1,
       ms: 12,
-      reused: false,
+      reused: true,
       diagnostics: [warning],
       error: null,
       pages: ["<svg>1</svg>", "<svg>2</svg>"],
     });
   });
 
-  it("si todas las páginas salen de una compilación anterior, lo dice", () => {
-    store().finish([rendered({ reused: true }), rendered({ reused: true })]);
-    expect(store().reused).toBe(true);
-  });
+  it("compilation:error pasa a error con sus diagnósticos y conserva las páginas buenas", () => {
+    store().finish(finished({ pages: ["<svg>bueno</svg>"] }));
+    store().fail(failed({ revision: 2 }));
 
-  it("un error pasa a error con sus diagnósticos y conserva las páginas buenas", () => {
-    store().finish([rendered({ svg: "<svg>bueno</svg>" })]);
-    store().start();
-    expect(store().pages).toEqual(["<svg>bueno</svg>"]);
-
-    store().finish([rendered({ ...typstError, revision: 2, ms: 3 })]);
     expect(store()).toMatchObject({
       status: "error",
       revision: 2,
@@ -93,72 +81,45 @@ describe("store de la compilación", () => {
   });
 
   it("tras un error, una compilación buena lo limpia", () => {
-    store().finish([rendered({ ...typstError, revision: 1 })]);
-    store().finish([rendered({ svg: "<svg>arreglado</svg>", revision: 2 })]);
-
-    expect(store()).toMatchObject({
-      status: "ready",
-      error: null,
-      diagnostics: [],
-      pages: ["<svg>arreglado</svg>"],
-    });
+    store().fail(failed({ revision: 1 }));
+    store().finish(finished({ revision: 2, pages: ["<svg>arreglado</svg>"] }));
+    expect(store()).toMatchObject({ status: "ready", error: null, diagnostics: [], pages: ["<svg>arreglado</svg>"] });
   });
 
-  it("una respuesta de una revisión anterior llega tarde y se ignora", () => {
-    store().finish([rendered({ svg: "<svg>nuevo</svg>", revision: 3 })]);
-    store().finish([rendered({ svg: "<svg>viejo</svg>", revision: 2 })]);
+  it("los eventos de una revisión anterior llegan tarde y se ignoran", () => {
+    store().finish(finished({ revision: 3, pages: ["<svg>nuevo</svg>"] }));
+    store().start({ revision: 2 });
+    store().finish(finished({ revision: 2, pages: ["<svg>viejo</svg>"] }));
+    store().fail(failed({ revision: 1 }));
 
-    expect(store()).toMatchObject({ revision: 3, pages: ["<svg>nuevo</svg>"] });
-  });
-
-  it("fail guarda el rechazo del backend", () => {
-    store().finish([rendered({ svg: "<svg>bueno</svg>" })]);
-    store().fail({ kind: "nothing_open", message: "no hay ningún proyecto abierto" });
-
-    expect(store()).toMatchObject({
-      status: "error",
-      error: { kind: "nothing_open" },
-      diagnostics: [],
-      pages: ["<svg>bueno</svg>"],
-    });
+    expect(store()).toMatchObject({ status: "ready", revision: 3, pages: ["<svg>nuevo</svg>"] });
   });
 
   it("reset vuelve al principio, sin páginas", () => {
-    store().finish([rendered()]);
+    store().finish(finished());
     store().reset();
     expect(store()).toMatchObject({ status: "idle", revision: null, pages: [] });
   });
 });
 
-describe("compileOpenDocument", () => {
-  it("pide todas las páginas a la vez y guarda el resultado", async () => {
-    const asked: number[] = [];
-    const statuses: string[] = [];
-    const unsubscribe = useCompilationStore.subscribe((state) => statuses.push(state.status));
+describe("expect: se ha abierto otro documento", () => {
+  it("quita lo del documento anterior y espera la compilación del nuevo", () => {
+    store().finish(finished({ revision: 1, pages: ["<svg>anterior</svg>"] }));
+    store().expect(2);
+    expect(store()).toMatchObject({ status: "compiling", revision: null, pages: [], error: null });
 
-    await compileOpenDocument(3, (page) => {
-      asked.push(page);
-      return Promise.resolve(rendered({ svg: `<svg>${page}</svg>`, reused: page > 0 }));
-    });
-    unsubscribe();
+    // Lo que llegue del documento anterior ya no vale.
+    store().finish(finished({ revision: 1, pages: ["<svg>anterior</svg>"] }));
+    expect(store().pages).toEqual([]);
 
-    expect(asked).toEqual([0, 1, 2]);
-    expect(statuses).toEqual(["compiling", "ready"]);
-    expect(store().pages).toEqual(["<svg>0</svg>", "<svg>1</svg>", "<svg>2</svg>"]);
+    store().finish(finished({ revision: 2, pages: ["<svg>nuevo</svg>"] }));
+    expect(store()).toMatchObject({ status: "ready", pages: ["<svg>nuevo</svg>"] });
   });
 
-  it("si el backend rechaza, queda en error con su mensaje", async () => {
-    await compileOpenDocument(1, () =>
-      Promise.reject({ kind: "nothing_open", message: "no hay ningún proyecto abierto" }),
-    );
-    expect(store()).toMatchObject({ status: "error", error: { kind: "nothing_open" } });
-  });
-
-  it("un fallo que no es del backend también queda como error", async () => {
-    await compileOpenDocument(1, () => Promise.reject(new Error("se cayó el puente")));
-    expect(store()).toMatchObject({
-      status: "error",
-      error: { kind: "unknown", message: "se cayó el puente" },
-    });
+  it("si el resultado del nuevo llegó antes que la respuesta de abrir, se conserva", () => {
+    store().start({ revision: 2 });
+    store().finish(finished({ revision: 2, pages: ["<svg>nuevo</svg>"] }));
+    store().expect(2);
+    expect(store()).toMatchObject({ status: "ready", pages: ["<svg>nuevo</svg>"] });
   });
 });

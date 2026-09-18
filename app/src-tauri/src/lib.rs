@@ -18,9 +18,12 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
 pub mod commands;
+pub mod compile_worker;
 pub mod state;
 
+use compile_worker::CompileQueue;
 use state::AppState;
+use tauri::Manager;
 
 /// Arranca la app y se queda atendiendo la ventana hasta que se cierra.
 ///
@@ -32,6 +35,19 @@ pub fn run() -> tauri::Result<()> {
         // Tauri guarda el estado y se lo pasa a cada comando que lo pida
         // con un argumento `State<'_, AppState>`.
         .manage(AppState::default())
+        .manage(CompileQueue::default())
+        // El hilo que compila en segundo plano. Ver `compile_worker`.
+        .setup(|app| {
+            let handle = app.handle().clone();
+            std::thread::Builder::new()
+                .name("galera-compile".to_owned())
+                .spawn(move || {
+                    let state = handle.state::<AppState>();
+                    let queue = handle.state::<CompileQueue>();
+                    compile_worker::run(&state, &queue, &handle);
+                })?;
+            Ok(())
+        })
         // El diálogo se usa solo desde Rust: la interfaz no tiene permiso
         // para abrirlo por su cuenta. Ver `commands::project`.
         .plugin(tauri_plugin_dialog::init())
@@ -40,6 +56,7 @@ pub fn run() -> tauri::Result<()> {
             commands::project::choose_project_folder,
             commands::project::open_project,
             commands::render::render_page,
+            commands::render::request_compilation,
             commands::export::export_pdf,
         ])
         .run(tauri::generate_context!())

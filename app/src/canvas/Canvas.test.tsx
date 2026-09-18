@@ -104,6 +104,7 @@ describe("PageSvg", () => {
 function project(): OpenedProject {
   return {
     root: "/proyectos/informe",
+    revision: 1,
     document: {
       version: 1,
       meta: { title: "Informe" },
@@ -164,10 +165,13 @@ describe("Canvas", () => {
     const { loader, finish } = controlledLoader();
     act(() => useDocumentStore.getState().open(project()));
     act(() =>
-      useCompilationStore.getState().finish([
-        { svg: "<svg>a4</svg>", diagnostics: [], error: null, ms: 1, reused: false, revision: 1 },
-        { svg: "<svg>carta</svg>", diagnostics: [], error: null, ms: 1, reused: true, revision: 1 },
-      ]),
+      useCompilationStore.getState().finish({
+        revision: 1,
+        ms: 1,
+        reused: false,
+        diagnostics: [],
+        pages: ["<svg>a4</svg>", "<svg>carta</svg>"],
+      }),
     );
     act(() => useDocumentStore.getState().setCurrentPage(1));
     act(() => root.render(<Canvas loader={loader} />));
@@ -190,10 +194,13 @@ describe("Canvas", () => {
     const { loader, finish } = controlledLoader();
     act(() => useDocumentStore.getState().open(project()));
     act(() =>
-      useCompilationStore.getState().finish([
-        { svg: "<svg>glifos</svg>", diagnostics: [], error: null, ms: 1, reused: false, revision: 1 },
-        { svg: "<svg>2</svg>", diagnostics: [], error: null, ms: 1, reused: true, revision: 1 },
-      ]),
+      useCompilationStore.getState().finish({
+        revision: 1,
+        ms: 1,
+        reused: false,
+        diagnostics: [],
+        pages: ["<svg>glifos</svg>", "<svg>2</svg>"],
+      }),
     );
     act(() => root.render(<Canvas loader={loader} />));
     await finish("blob:0:<svg>glifos</svg>");

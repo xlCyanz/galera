@@ -39,6 +39,7 @@ use tauri::{State, Window};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::commands::CommandError;
+use crate::compile_worker::CompileQueue;
 use crate::state::AppState;
 
 /// Un proyecto recién abierto, tal como lo ve la interfaz.
@@ -49,6 +50,9 @@ pub struct OpenedProject {
     pub root: PathBuf,
     /// El documento, ya validado.
     pub document: Document,
+    /// La revisión con la que queda abierto. Los resultados de compilación
+    /// de revisiones anteriores son de lo que había antes.
+    pub revision: u64,
 }
 
 /// Enseña el diálogo nativo para elegir la carpeta de un proyecto.
@@ -80,14 +84,18 @@ pub async fn choose_project_folder(
 
 /// Abre la carpeta de un proyecto elegida antes en el diálogo.
 ///
-/// Devuelve el documento validado. Si falla, devuelve el error serializado y
-/// lo que hubiera abierto sigue abierto.
+/// Devuelve el documento validado y pide compilarlo en segundo plano: el
+/// resultado llega con los eventos de [`crate::compile_worker`]. Si falla,
+/// devuelve el error serializado y lo que hubiera abierto sigue abierto.
 #[tauri::command]
 pub async fn open_project(
     path: PathBuf,
     state: State<'_, AppState>,
+    queue: State<'_, CompileQueue>,
 ) -> Result<OpenedProject, CommandError> {
-    open_chosen(&state, &path)
+    let opened = open_chosen(&state, &path)?;
+    queue.request();
+    Ok(opened)
 }
 
 /// La parte de [`open_project`] que no depende de Tauri, para poder probarla.
@@ -99,12 +107,13 @@ fn open_chosen(state: &AppState, folder: &Path) -> Result<OpenedProject, Command
     }
 
     let Opened { project, document } = galera_core::open(folder)?;
-    let opened = OpenedProject {
-        root: project.root().to_owned(),
-        document: document.clone(),
-    };
-    state.open(project, document);
-    Ok(opened)
+    let root = project.root().to_owned();
+    let revision = state.open(project, document.clone());
+    Ok(OpenedProject {
+        root,
+        document,
+        revision,
+    })
 }
 
 #[cfg(test)]
@@ -243,6 +252,7 @@ mod tests {
             json["document"],
             serde_json::to_value(&opened.document).expect("serializa")
         );
-        assert_eq!(json.as_object().map(|object| object.len()), Some(2));
+        assert_eq!(json["revision"], 1);
+        assert_eq!(json.as_object().map(|object| object.len()), Some(3));
     }
 }

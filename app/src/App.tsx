@@ -11,8 +11,8 @@ import {
 import { Canvas } from "./canvas/Canvas";
 import { compilationSummary } from "./format";
 import { exportPdfShortcutLabel, isExportPdfShortcut, isMac } from "./shortcuts";
+import { useCompilation } from "./hooks/useCompilation";
 import {
-  compileOpenDocument,
   useCompilationError,
   useCompilationMs,
   useCompilationReused,
@@ -40,6 +40,7 @@ const mac = isMac();
  * queda el estado de los propios botones y mensajes.
  */
 export function App() {
+  useCompilation();
   const title = useDocumentTitle();
   const [status, setStatus] = useState<SessionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,10 +88,11 @@ export function App() {
     try {
       const folder = await chooseProjectFolder();
       if (folder !== null) {
+        // El backend empieza a compilarlo solo; el resultado llega por
+        // eventos (ver `hooks/useCompilation.ts`).
         const opened = await openProject(folder);
         useDocumentStore.getState().open(opened);
-        useCompilationStore.getState().reset();
-        await compileOpenDocument(opened.document.pages.length);
+        useCompilationStore.getState().expect(opened.revision);
       }
     } catch (reason) {
       // Si falla, el backend conserva lo que hubiera abierto, así que aquí

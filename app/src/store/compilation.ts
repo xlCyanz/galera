@@ -2,26 +2,35 @@
  * El estado de la compilación: si se está compilando, el último resultado y
  * sus diagnósticos.
  *
+ * Lo alimentan los eventos de la compilación en segundo plano
+ * (`hooks/useCompilation.ts`), no las respuestas de los comandos.
+ *
  * # Estados
  *
  * - `idle`: no se ha pedido nada, o se ha cerrado el documento.
- * - `compiling`: hay una petición en curso.
+ * - `compiling`: hay una compilación en curso.
  * - `ready`: la última compilación salió bien.
- * - `error`: la última compilación falló, o el backend rechazó la petición.
+ * - `error`: la última compilación falló.
  *
  * Mientras se compila y cuando hay error, **se conservan las páginas de la
  * última compilación buena**: el lienzo sigue enseñando algo en vez de
  * quedarse en blanco mientras se escribe.
  *
- * # Respuestas que llegan tarde
+ * # Resultados que llegan tarde
  *
- * Cada resultado trae la revisión del documento de la que sale. Si llega uno
- * de una revisión anterior a la ya guardada, se ignora: correspondería a un
- * documento que ya no es el que hay.
+ * Cada evento trae la revisión del documento de la que sale. Se ignora todo
+ * evento de una revisión anterior a la ya guardada, o a la del documento que
+ * se acaba de abrir (`expect`): correspondería a un documento que ya no es
+ * el que hay.
  */
 import { create } from "zustand";
 
-import { type CommandError, type RenderedPage, isCommandError, renderPage } from "../commands";
+import type {
+  CommandError,
+  CompilationFailed,
+  CompilationFinished,
+  CompilationStarted,
+} from "../commands";
 import type { Diagnostic } from "../types/diagnostic";
 
 export type CompilationStatus = "idle" | "compiling" | "ready" | "error";
@@ -30,6 +39,8 @@ export interface CompilationState {
   status: CompilationStatus;
   /** La revisión del documento del último resultado guardado. */
   revision: number | null;
+  /** Por debajo de esta revisión, los eventos son de otro documento. */
+  minRevision: number;
   /** Lo que tardó la última compilación, en milisegundos. */
   ms: number | null;
   /** Si el último resultado salió de una compilación anterior. */
@@ -41,92 +52,90 @@ export interface CompilationState {
   /** El SVG de cada página de la última compilación buena. */
   pages: string[];
 
-  /** Empieza una compilación. Conserva el último resultado. */
-  start: () => void;
-  /** Guarda lo que devolvió el backend para todas las páginas pedidas. */
-  finish: (rendered: readonly RenderedPage[]) => void;
-  /** Guarda que el backend rechazó la petición. */
-  fail: (error: CommandError) => void;
+  /** `compilation:start`. Conserva el último resultado. */
+  start: (event: CompilationStarted) => void;
+  /** `compilation:finish`. */
+  finish: (event: CompilationFinished) => void;
+  /** `compilation:error`. Conserva las páginas buenas. */
+  fail: (event: CompilationFailed) => void;
+  /**
+   * Se ha abierto un documento con esta revisión: lo de antes deja de valer.
+   * Si su resultado ya llegó (la compilación puede ser más rápida que la
+   * respuesta a `open_project`), se conserva.
+   */
+  expect: (revision: number) => void;
   /** Vuelve al principio: sin resultado ni páginas. */
   reset: () => void;
 }
 
-export const useCompilationStore = create<CompilationState>()((set, get) => ({
+const empty = {
   status: "idle",
   revision: null,
+  minRevision: 0,
   ms: null,
   reused: false,
   diagnostics: [],
   error: null,
   pages: [],
+} satisfies Partial<CompilationState>;
 
-  start: () => set({ status: "compiling" }),
+export const useCompilationStore = create<CompilationState>()((set, get) => {
+  /** Si un evento de esa revisión llega tarde. */
+  const isStale = (revision: number) => {
+    const state = get();
+    return revision < Math.max(state.minRevision, state.revision ?? 0);
+  };
 
-  finish: (rendered) => {
-    const first = rendered[0];
-    if (first === undefined) {
-      set({ status: "ready", diagnostics: [], error: null, pages: [] });
-      return;
-    }
+  return {
+    ...empty,
 
-    const { revision } = get();
-    if (revision !== null && first.revision < revision) {
-      return;
-    }
+    start: ({ revision }) => {
+      if (!isStale(revision)) {
+        set({ status: "compiling" });
+      }
+    },
 
-    // Todas las páginas de una petición salen de la misma compilación.
-    const common = {
-      revision: first.revision,
-      ms: first.ms,
-      reused: rendered.every((page) => page.reused),
-      diagnostics: first.diagnostics,
-    };
-    const svgs = rendered.map((page) => page.svg);
+    finish: (event) => {
+      if (isStale(event.revision)) {
+        return;
+      }
+      set({
+        status: "ready",
+        revision: event.revision,
+        ms: event.ms,
+        reused: event.reused,
+        diagnostics: event.diagnostics,
+        error: null,
+        pages: event.pages,
+      });
+    },
 
-    if (first.error !== null || !svgs.every((svg) => svg !== null)) {
-      set({ ...common, status: "error", error: first.error });
-    } else {
-      set({ ...common, status: "ready", error: null, pages: svgs });
-    }
-  },
+    fail: (event) => {
+      if (isStale(event.revision)) {
+        return;
+      }
+      set({
+        status: "error",
+        revision: event.revision,
+        ms: event.ms,
+        reused: event.reused,
+        diagnostics: event.diagnostics,
+        error: event.error,
+      });
+    },
 
-  fail: (error) => set({ status: "error", error, diagnostics: [] }),
+    expect: (revision) => {
+      const state = get();
+      if (state.revision !== null && state.revision >= revision) {
+        set({ minRevision: revision });
+        return;
+      }
+      set({ ...empty, status: "compiling", minRevision: revision });
+    },
 
-  reset: () =>
-    set({
-      status: "idle",
-      revision: null,
-      ms: null,
-      reused: false,
-      diagnostics: [],
-      error: null,
-      pages: [],
-    }),
-}));
-
-/**
- * Compila el documento abierto y guarda el resultado en el store: pide todas
- * las páginas a la vez, y el backend compila una sola vez.
- *
- * `render` se puede sustituir en las pruebas.
- */
-export async function compileOpenDocument(
-  pageCount: number,
-  render: (page: number) => Promise<RenderedPage> = renderPage,
-): Promise<void> {
-  const store = useCompilationStore.getState();
-  store.start();
-  try {
-    const pages = Array.from({ length: pageCount }, (_, index) => index);
-    store.finish(await Promise.all(pages.map((page) => render(page))));
-  } catch (reason) {
-    store.fail(
-      isCommandError(reason)
-        ? reason
-        : { kind: "unknown", message: reason instanceof Error ? reason.message : String(reason) },
-    );
-  }
-}
+    reset: () => set({ ...empty }),
+  };
+});
 
 // Selectores: ver `store/document.ts`.
 

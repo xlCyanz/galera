@@ -23,6 +23,7 @@ use serde::Serialize;
 use tauri::State;
 
 use crate::commands::CommandError;
+use crate::compile_worker::CompileQueue;
 use crate::state::AppState;
 
 /// Una página compilada, tal como la ve la interfaz.
@@ -60,6 +61,13 @@ pub async fn render_page(
     state: State<'_, AppState>,
 ) -> Result<RenderedPage, CommandError> {
     render(&state, page)
+}
+
+/// Pide compilar el documento abierto en segundo plano. Vuelve enseguida;
+/// el resultado llega con los eventos de [`crate::compile_worker`].
+#[tauri::command]
+pub fn request_compilation(queue: State<'_, CompileQueue>) {
+    queue.request();
 }
 
 /// La parte de [`render_page`] que no depende de Tauri, para poder probarla.

@@ -131,11 +131,13 @@ pub struct Compilation {
 
 impl AppState {
     /// Abre un proyecto con su documento, sustituyendo lo que hubiera.
-    pub fn open(&self, project: Project, document: Document) {
+    /// Devuelve la revisión nueva.
+    pub fn open(&self, project: Project, document: Document) -> u64 {
         let mut session = self.write();
         session.open = Some(OpenDocument { project, document });
         session.revision += 1;
         session.compiled = None;
+        session.revision
     }
 
     /// Cierra lo que haya abierto.
