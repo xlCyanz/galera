@@ -9,6 +9,8 @@
  * alrededor de su centro, igual que hace Typst con el elemento: contorno y
  * manejadores giran con él.
  */
+import type { PointerEvent } from "react";
+
 import type { LayoutBox } from "../types/layout";
 import { BoxHandles, LineHandles } from "./Handles";
 import { type CanvasTransform, rectToCanvas } from "./transform";
@@ -18,10 +20,19 @@ export interface ControlLayerProps {
   box: LayoutBox;
   /** Dónde está la página y a qué escala. */
   transform: CanvasTransform;
+  /** Cuánto se está arrastrando el elemento, en mm. */
+  offset?: { dx: number; dy: number };
+  /** Pulsar dentro del contorno (no en un manejador): empezar a arrastrar. */
+  onBodyPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
 }
 
-export function ControlLayer({ box, transform }: ControlLayerProps) {
-  const rect = rectToCanvas(transform, box);
+export function ControlLayer({
+  box,
+  transform,
+  offset = { dx: 0, dy: 0 },
+  onBodyPointerDown,
+}: ControlLayerProps) {
+  const rect = rectToCanvas(transform, { ...box, x: box.x + offset.dx, y: box.y + offset.dy });
   const scale = transform.pxPerMm;
   const line = box.line;
 
@@ -29,6 +40,7 @@ export function ControlLayer({ box, transform }: ControlLayerProps) {
     <div
       className={line === null ? "control-layer" : "control-layer is-line"}
       data-element={box.id}
+      onPointerDown={line === null ? onBodyPointerDown : undefined}
       style={{
         width: rect.width,
         height: rect.height,

@@ -10,6 +10,7 @@
 
 mod error;
 pub mod export;
+pub mod ops;
 pub mod project;
 pub mod render;
 pub mod selection;

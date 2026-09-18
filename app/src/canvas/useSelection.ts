@@ -12,8 +12,12 @@
  *
  * Las respuestas llegan en orden de petición, pero por si no: una respuesta
  * que llega después de otro clic se descarta.
+ *
+ * Si el botón sigue pulsado cuando llega la respuesta, se empieza a
+ * arrastrar el elemento desde donde se pulsó: pulsar y arrastrar un
+ * elemento sin seleccionar lo selecciona y lo mueve de una vez.
  */
-import { type PointerEvent, useRef } from "react";
+import { type PointerEvent, useEffect, useRef } from "react";
 
 import { elementAt } from "../commands";
 import { useDocumentStore } from "../store/document";
@@ -36,12 +40,24 @@ export function wantsToGoThrough(event: { altKey: boolean; metaKey: boolean }): 
  * @param transform Dónde está la página visible y a qué escala, o `null` si
  *   no hay página.
  * @param page La página visible, contando desde 0.
+ * @param onPressed Si el botón sigue pulsado al saber qué elemento es: el
+ *   elemento y el punto de la pantalla donde se pulsó.
  */
 export function useSelection(
   transform: CanvasTransform | null,
   page: number,
+  onPressed?: (id: string, clientX: number, clientY: number) => void,
 ): (event: PointerEvent<HTMLElement>) => void {
   const latest = useRef(0);
+  const pressed = useRef(false);
+
+  useEffect(() => {
+    const release = () => {
+      pressed.current = false;
+    };
+    window.addEventListener("pointerup", release);
+    return () => window.removeEventListener("pointerup", release);
+  }, []);
 
   return (event) => {
     // Solo el botón principal, y si nadie lo ha usado ya (desplazar con
@@ -56,10 +72,15 @@ export function useSelection(
     const below = wantsToGoThrough(event) ? selectedElement : null;
 
     const request = ++latest.current;
+    const { clientX, clientY } = event;
+    pressed.current = true;
     void elementAt(page, point.x, point.y, tolerance, below)
       .then((id) => {
         if (request === latest.current) {
           select(id);
+          if (id !== null && pressed.current) {
+            onPressed?.(id, clientX, clientY);
+          }
         }
       })
       .catch(() => {

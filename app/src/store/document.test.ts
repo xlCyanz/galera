@@ -207,3 +207,42 @@ describe("ir a un elemento", () => {
     expect(store().highlightedElement).toBeNull();
   });
 });
+
+describe("replaceDocument", () => {
+  it("cambia el documento y conserva cómo se estaba mirando", () => {
+    const informe = project("Informe", 3);
+    informe.document.pages[1]!.elements.push({
+      type: "code", id: "c1", x: 1, y: 2, w: 3, h: 4, rotation: 0, source: "",
+    });
+    store().open(informe);
+    store().setCurrentPage(1);
+    store().setView(2, { x: 10, y: 20 });
+    store().select("c1");
+
+    const next = structuredClone(informe.document);
+    next.meta.title = "Cambiado";
+    store().replaceDocument(next);
+
+    expect(store()).toMatchObject({
+      currentPage: 1,
+      zoom: 2,
+      scroll: { x: 10, y: 20 },
+      selectedElement: "c1",
+      root: "/proyectos/Informe",
+    });
+    expect(store().document?.meta.title).toBe("Cambiado");
+  });
+
+  it("olvida la selección si el elemento ya no existe, y no se sale de las páginas", () => {
+    const informe = project("Informe", 3);
+    informe.document.pages[2]!.elements.push({
+      type: "code", id: "c1", x: 1, y: 2, w: 3, h: 4, rotation: 0, source: "",
+    });
+    store().open(informe);
+    store().setCurrentPage(2);
+    store().select("c1");
+
+    store().replaceDocument(project("Informe", 1).document);
+    expect(store()).toMatchObject({ currentPage: 0, selectedElement: null });
+  });
+});

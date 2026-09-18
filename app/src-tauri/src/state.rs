@@ -55,7 +55,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::{Duration, Instant};
 
-use galera_core::{Compiled, Document, GaleraError, Project};
+use galera_core::{Compiled, Document, GaleraError, Op, Project};
 
 /// El estado de la app, compartido entre todos los comandos.
 #[derive(Default)]
@@ -142,6 +142,30 @@ impl AppState {
         session.compiled = None;
         session.last_good = None;
         session.revision
+    }
+
+    /// Aplica un comando de edición al documento abierto.
+    ///
+    /// Si se aplica, el documento cambia, la revisión sube y la compilación
+    /// guardada deja de valer; la última buena se conserva, porque es la que
+    /// sigue viéndose hasta que llegue la nueva. Devuelve la revisión nueva,
+    /// el documento resultante y el comando que lo deshace.
+    ///
+    /// # Errores
+    ///
+    /// [`GaleraError::Op`] si el comando no se puede aplicar, y entonces no
+    /// cambia nada. `None` si no hay nada abierto.
+    pub fn apply(&self, op: &Op) -> Option<Result<(u64, Document, Op), GaleraError>> {
+        let mut session = self.write();
+        let open = session.open.as_mut()?;
+        let applied = match op.apply(&open.document) {
+            Ok(applied) => applied,
+            Err(error) => return Some(Err(error.into())),
+        };
+        open.document = applied.document.clone();
+        session.revision += 1;
+        session.compiled = None;
+        Some(Ok((session.revision, applied.document, applied.undo)))
     }
 
     /// Cierra lo que haya abierto.
@@ -555,6 +579,58 @@ mod tests {
             state.last_good_compilation().is_none(),
             "una que falla no la crea"
         );
+    }
+
+    #[test]
+    fn applying_a_command_changes_the_document_and_the_revision() {
+        let state = AppState::default();
+        let (_dir, project, document) = project_and_document("Informe");
+        state.open(project, document);
+        let good = state
+            .compilation()
+            .expect("hay documento")
+            .result
+            .expect("compila");
+
+        let op = Op::Move {
+            id: "r1".to_owned(),
+            dx: 5.0,
+            dy: 0.0,
+        };
+        let (revision, document, undo) =
+            state.apply(&op).expect("hay documento").expect("se aplica");
+        assert_eq!(revision, 2);
+        assert_eq!(
+            document.element("r1").and_then(|e| e.base()).map(|b| b.x),
+            Some(5.0)
+        );
+        assert_eq!(undo.describe(), "Restaurar r1");
+
+        // La compilación guardada ya no vale, pero la buena se sigue viendo.
+        assert!(!state.summary().compiled_is_current);
+        assert!(Arc::ptr_eq(
+            &state.last_good_compilation().expect("se conserva"),
+            &good
+        ));
+
+        // Y compilar ahora compila lo nuevo.
+        let next = state.compilation().expect("hay documento");
+        assert_eq!(next.revision, 2);
+        assert!(!next.reused);
+    }
+
+    #[test]
+    fn a_command_that_does_not_apply_changes_nothing() {
+        let state = AppState::default();
+        let (_dir, project, document) = project_and_document("Informe");
+        state.open(project, document);
+
+        let op = Op::Delete {
+            id: "nadie".to_owned(),
+        };
+        assert!(matches!(state.apply(&op), Some(Err(GaleraError::Op(_)))));
+        assert_eq!(state.summary().revision, 1);
+        assert!(AppState::default().apply(&op).is_none(), "sin documento");
     }
 
     #[test]

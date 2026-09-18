@@ -213,6 +213,22 @@ body {
 /* Una línea no tiene caja que contornear: solo sus extremos. */
 .control-layer.is-line {
   outline: none;
+  pointer-events: none;
+}
+
+/* Dentro del contorno se agarra el elemento para moverlo. */
+.control-layer:not(.is-line) {
+  pointer-events: auto;
+  cursor: move;
+}
+
+/* La copia que se mueve durante el arrastre: los píxeles de Typst. */
+.drag-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  user-select: none;
 }
 
 .handle {

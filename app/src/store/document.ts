@@ -67,6 +67,12 @@ export interface DocumentState {
   open: (opened: OpenedProject) => void;
   /** Olvida el documento abierto. */
   close: () => void;
+  /**
+   * Sustituye el documento abierto por su versión nueva tras un comando de
+   * edición. Conserva la página, el zoom, el desplazamiento y la selección,
+   * salvo lo que ya no exista.
+   */
+  replaceDocument: (document: Document) => void;
   /** Cambia la página visible, sin salirse de las que hay. */
   setCurrentPage: (page: number) => void;
   /** Cambia el zoom, dentro de sus límites. */
@@ -158,6 +164,18 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
     })),
 
   toggleRulers: () => set((state) => ({ rulersVisible: !state.rulersVisible })),
+
+  replaceDocument: (document) =>
+    set((state) => {
+      const exists = (id: string | null) =>
+        id !== null && document.pages.some((page) => page.elements.some((element) => element.id === id));
+      return {
+        document,
+        currentPage: clampPage(state.currentPage, document.pages.length),
+        selectedElement: exists(state.selectedElement) ? state.selectedElement : null,
+        highlightedElement: exists(state.highlightedElement) ? state.highlightedElement : null,
+      };
+    }),
 
   focusElement: (id) => {
     const { document } = get();
