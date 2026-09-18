@@ -77,6 +77,9 @@ struct Session {
     revision: u64,
     /// La última compilación guardada.
     compiled: Option<Stored>,
+    /// La última compilación que salió bien del documento abierto: la que se
+    /// ve en el lienzo, también mientras hay errores.
+    last_good: Option<Arc<Compiled>>,
 }
 
 /// Una compilación guardada.
@@ -137,6 +140,7 @@ impl AppState {
         session.open = Some(OpenDocument { project, document });
         session.revision += 1;
         session.compiled = None;
+        session.last_good = None;
         session.revision
     }
 
@@ -146,6 +150,7 @@ impl AppState {
         session.open = None;
         session.revision += 1;
         session.compiled = None;
+        session.last_good = None;
     }
 
     /// Un resumen del estado, para la interfaz.
@@ -224,6 +229,9 @@ impl AppState {
         let mut session = self.write();
         let is_current = session.revision == revision;
         if is_current {
+            if let Ok(compiled) = &result {
+                session.last_good = Some(Arc::clone(compiled));
+            }
             session.compiled = Some(Stored {
                 revision,
                 result: result.clone(),
@@ -254,6 +262,13 @@ impl AppState {
                 reused: true,
                 is_current: true,
             })
+    }
+
+    /// La última compilación buena del documento abierto, o `None` si todavía
+    /// no ha compilado bien ninguna. Es la que muestra el lienzo: con errores,
+    /// el lienzo sigue enseñándola, así que es con la que hay que medir.
+    pub fn last_good_compilation(&self) -> Option<Arc<Compiled>> {
+        self.read().last_good.clone()
     }
 
     /// Anota una carpeta que quien usa la app ha elegido en el diálogo de
@@ -510,6 +525,36 @@ mod tests {
         assert!(second.reused);
         assert!(second.result.is_err());
         assert_eq!(compiles.load(Ordering::SeqCst), 1);
+    }
+
+    /// La última compilación buena se guarda al compilar bien, una que falla
+    /// no la pisa, y se olvida al abrir otro documento.
+    #[test]
+    fn the_last_good_compilation_is_kept_until_another_document_opens() {
+        let state = AppState::default();
+        let (_dir, project, document) = project_and_document("Informe");
+        state.open(project.clone(), document.clone());
+        assert!(state.last_good_compilation().is_none());
+
+        let good = state
+            .compilation()
+            .expect("hay documento")
+            .result
+            .expect("compila");
+        assert!(Arc::ptr_eq(
+            &state.last_good_compilation().expect("guardada"),
+            &good
+        ));
+
+        let mut broken = document;
+        broken.pages[0].id = "no vale".to_owned();
+        state.open(project, broken);
+        assert!(state.last_good_compilation().is_none(), "otro documento");
+        assert!(state.compilation().is_some_and(|c| c.result.is_err()));
+        assert!(
+            state.last_good_compilation().is_none(),
+            "una que falla no la crea"
+        );
     }
 
     #[test]

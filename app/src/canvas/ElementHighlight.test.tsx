@@ -129,6 +129,7 @@ describe("ir a un elemento", () => {
           h: 12.5,
           rotation: 0,
           bounds: { x: 20, y: 30, w: 100, h: 12.5 },
+          line: null,
         },
       ]),
     );

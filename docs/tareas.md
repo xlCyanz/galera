@@ -8,14 +8,14 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 |---|---|---|
 | [Fase 0 — Núcleo por terminal](https://github.com/xlCyanz/galera/milestone/1) | 16 | 16 |
 | [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 12 |
-| [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 2 |
+| [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 3 |
 | [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 0 |
 | [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 0 |
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 0 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **30** |
+| **Total** | **95** | **31** |
 
 
 ---
@@ -81,7 +81,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 |:--:|---|:--:|---|
 | ✅ | **F2-01** — Módulo layout: extraer la caja real de cada elemento | [#30](https://github.com/xlCyanz/galera/issues/30) | #12, #5 |
 | ✅ | **F2-02** — Exponer el layout a la interfaz | [#31](https://github.com/xlCyanz/galera/issues/31) | #30, #20 |
-| ⬜ | **F2-03** — Hit-testing: del clic al elemento | [#32](https://github.com/xlCyanz/galera/issues/32) | #31 |
+| ✅ | **F2-03** — Hit-testing: del clic al elemento | [#32](https://github.com/xlCyanz/galera/issues/32) | #31 |
 | ⬜ | **F2-04** — Capa de controles: contorno y ocho manejadores | [#33](https://github.com/xlCyanz/galera/issues/33) | #32 |
 | ⬜ | **F2-05** — Mover elementos con arrastre optimista | [#34](https://github.com/xlCyanz/galera/issues/34) | #33, #37 |
 | ⬜ | **F2-06** — Redimensionar con los ocho manejadores | [#35](https://github.com/xlCyanz/galera/issues/35) | #34 |

@@ -64,6 +64,7 @@ describe("useCompilation", () => {
           h: 4,
           rotation: 0,
           bounds: { x: 1, y: 2, w: 3, h: 4 },
+          line: null,
         },
       ],
     });

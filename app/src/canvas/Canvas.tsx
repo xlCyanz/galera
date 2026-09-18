@@ -26,6 +26,7 @@ import {
   useHighlightedElement,
   useOpenDocument,
   useRulersVisible,
+  useSelectedElement,
 } from "../store/document";
 import { useElementBox } from "../store/layout";
 import { ElementHighlight } from "./ElementHighlight";
@@ -36,6 +37,7 @@ import { PX_PER_MM, pageSizeInPx, toMillimeters } from "./geometry";
 import { canvasTransform, rectToCanvas } from "./transform";
 import { findElement } from "./elements";
 import { useCanvasNavigation } from "./useCanvasNavigation";
+import { useSelection } from "./useSelection";
 import { centerOn } from "./zoom";
 
 export interface CanvasProps {
@@ -49,6 +51,8 @@ export function Canvas({ loader }: CanvasProps) {
   const pages = useRenderedPages();
   const rulersVisible = useRulersVisible();
   const highlighted = useHighlightedElement();
+  const selected = useSelectedElement();
+  const selectedBox = useElementBox(selected);
   const focusRequests = useFocusRequests();
 
   const viewport = useRef<HTMLDivElement>(null);
@@ -73,6 +77,7 @@ export function Canvas({ loader }: CanvasProps) {
   // que declara el documento.
   const found = document === null || highlighted === null ? null : findElement(document, highlighted);
   const measured = useElementBox(highlighted);
+  const onSelect = useSelection(transform, currentPage);
   const highlight =
     measured !== null
       ? { pageIndex: measured.page, box: { ...measured } }
@@ -104,8 +109,9 @@ export function Canvas({ loader }: CanvasProps) {
     if (isToggleRulersShortcut(event)) {
       event.preventDefault();
       useDocumentStore.getState().toggleRulers();
-    } else if (event.key === "Escape" && highlighted !== null) {
+    } else if (event.key === "Escape") {
       useDocumentStore.getState().clearHighlight();
+      useDocumentStore.getState().select(null);
     }
   });
   useEffect(() => {
@@ -129,7 +135,16 @@ export function Canvas({ loader }: CanvasProps) {
         <Rulers viewport={viewport} transform={transform} size={viewportSize} />
       )}
       <div className="canvas-area">
-        <div ref={viewport} className={viewportClass} {...viewportHandlers}>
+        <div
+          ref={viewport}
+          className={viewportClass}
+          {...viewportHandlers}
+          onPointerDown={(event) => {
+            // Primero desplazar (Espacio o botón central); si no, seleccionar.
+            viewportHandlers.onPointerDown(event);
+            onSelect(event);
+          }}
+        >
           {document !== null && sheet !== null && (
             <PageSvg
               width={sheet.width}
@@ -140,6 +155,9 @@ export function Canvas({ loader }: CanvasProps) {
               label={`Página ${currentPage + 1} de ${document.pages.length}`}
               {...(loader === undefined ? {} : { loader })}
             />
+          )}
+          {selectedBox !== null && selectedBox.page === currentPage && transform !== null && (
+            <ElementHighlight box={selectedBox} transform={transform} variant="selection" />
           )}
           {highlight !== null && highlight.pageIndex === currentPage && transform !== null && (
             <ElementHighlight box={highlight.box} transform={transform} />

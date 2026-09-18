@@ -57,6 +57,7 @@ pub fn run() -> tauri::Result<()> {
             commands::project::open_project,
             commands::render::render_page,
             commands::render::request_compilation,
+            commands::selection::element_at,
             commands::export::export_pdf,
         ])
         .run(tauri::generate_context!())

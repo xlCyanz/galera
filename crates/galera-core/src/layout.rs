@@ -41,10 +41,18 @@
 //! y el giro va en su transformación. De ahí salen las dos cajas de
 //! [`LayoutBox`]: `x`, `y`, `w`, `h` sin girar más `rotation`, y `bounds`, la
 //! que ocupa en la página ya girado.
+//!
+//! # Del punto al elemento
+//!
+//! [`hit`] decide qué elemento hay bajo un punto de la página a partir de
+//! estas cajas.
+
+pub mod hit;
 
 use serde::Serialize;
 use typst::introspection::{Location, Tag};
 use typst::layout::{Abs, Frame, FrameItem, Point, Size, Transform};
+use typst::visualize::Geometry;
 use typst_layout::PagedDocument;
 
 use crate::compile::{Compiled, compile};
@@ -70,6 +78,21 @@ pub struct MmRect {
     pub h: f64,
 }
 
+/// Un segmento, en milímetros, con el origen arriba a la izquierda de la
+/// página.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "layout.ts"))]
+pub struct MmSegment {
+    /// Primer extremo.
+    pub x1: f64,
+    /// Primer extremo.
+    pub y1: f64,
+    /// Segundo extremo.
+    pub x2: f64,
+    /// Segundo extremo.
+    pub y2: f64,
+}
+
 /// Dónde quedó un elemento al componer el documento.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "layout.ts"))]
@@ -93,6 +116,9 @@ pub struct LayoutBox {
     /// La caja que ocupa en la página tal como se dibuja, ya girada,
     /// alineada con los bordes de la página. Sin giro, es la misma.
     pub bounds: MmRect,
+    /// Si lo que dibuja el elemento es una sola línea, sus dos extremos
+    /// **sin girar**, en mm. Su caja no dice en qué diagonal está: esto sí.
+    pub line: Option<MmSegment>,
 }
 
 impl Compiled {
@@ -190,6 +216,10 @@ struct Extent {
     drawn: Option<Bounds>,
     /// El giro, si algún grupo lo lleva.
     rotation: Option<f64>,
+    /// Cuántas cosas ha dibujado.
+    pieces: usize,
+    /// Las líneas que ha dibujado, sin girar.
+    lines: Vec<(Point, Point)>,
 }
 
 impl Extent {
@@ -216,6 +246,22 @@ impl Extent {
             // es la del grupo.
             FrameItem::Text(_) | FrameItem::Link(..) | FrameItem::Tag(_) => return,
         };
+
+        self.pieces += 1;
+        match item {
+            FrameItem::Shape(shape, _) => self.lines.extend(line_of(position, &shape.geometry)),
+            // Una línea girada va dentro del grupo de `rotate`, en sus
+            // coordenadas sin girar.
+            FrameItem::Group(group) => {
+                for (local, inner) in group.frame.items() {
+                    if let FrameItem::Shape(shape, _) = inner {
+                        self.lines
+                            .extend(line_of(position + *local, &shape.geometry));
+                    }
+                }
+            }
+            _ => {}
+        }
 
         self.unrotated = Some(Bounds::union(self.unrotated, local));
 
@@ -244,6 +290,15 @@ impl Extent {
     fn into_box(self, id: String, page: usize) -> Option<LayoutBox> {
         let unrotated = self.unrotated?;
         let drawn = self.drawn.unwrap_or(unrotated);
+        let line = match self.lines.as_slice() {
+            [(start, end)] if self.pieces == 1 => Some(MmSegment {
+                x1: start.x.to_mm(),
+                y1: start.y.to_mm(),
+                x2: end.x.to_mm(),
+                y2: end.y.to_mm(),
+            }),
+            _ => None,
+        };
         Some(LayoutBox {
             id,
             page,
@@ -253,7 +308,16 @@ impl Extent {
             h: unrotated.height().to_mm(),
             rotation: self.rotation.unwrap_or(0.0),
             bounds: drawn.to_mm(),
+            line,
         })
+    }
+}
+
+/// Los extremos de una forma si es una línea.
+fn line_of(position: Point, geometry: &Geometry) -> Option<(Point, Point)> {
+    match geometry {
+        Geometry::Line(end) => Some((position, position + *end)),
+        _ => None,
     }
 }
 
@@ -549,12 +613,37 @@ mod tests {
         assert_box(find(&boxes, "c1"), (10.0, 10.0, 50.0, 20.0));
     }
 
-    /// Una línea ocupa la caja de sus dos extremos, vaya hacia donde vaya.
+    /// Una línea ocupa la caja de sus dos extremos, vaya hacia donde vaya, y
+    /// además dice cuáles son: la caja sola no dice en qué diagonal está.
     #[test]
-    fn a_line_box_spans_both_ends() {
+    fn a_line_box_spans_both_ends_and_keeps_them() {
         let boxes = boxes_of(&fixture("linea"));
         assert_box(find(&boxes, "horizontal"), (20.0, 20.0, 170.0, 0.0));
         assert_box(find(&boxes, "hacia-atras"), (20.0, 40.0, 170.0, 80.0));
+
+        let ends = |id: &str| {
+            let line = find(&boxes, id)
+                .line
+                .unwrap_or_else(|| panic!("{id} es una línea"));
+            [line.x1, line.y1, line.x2, line.y2]
+        };
+        for (id, expected) in [
+            ("horizontal", [20.0, 20.0, 190.0, 20.0]),
+            ("hacia-atras", [190.0, 120.0, 20.0, 40.0]),
+            // La girada, sin girar: sale de su primer extremo.
+            ("girada", [20.0, 150.0, 120.0, 150.0]),
+        ] {
+            for (value, want) in ends(id).into_iter().zip(expected) {
+                assert_close(value, want, id);
+            }
+        }
+
+        // Lo que no es una línea no tiene extremos.
+        assert!(
+            boxes_of(&fixture("rectangulo"))
+                .iter()
+                .all(|b| b.line.is_none())
+        );
     }
 
     /// El criterio de la tarea: un elemento girado devuelve su caja sin
@@ -655,7 +744,8 @@ mod tests {
             json,
             serde_json::json!({
                 "id": "r1", "page": 0, "x": 0.0, "y": 0.0, "w": 210.0, "h": 15.0, "rotation": 0.0,
-                "bounds": { "x": 0.0, "y": 0.0, "w": 210.0, "h": 15.0 }
+                "bounds": { "x": 0.0, "y": 0.0, "w": 210.0, "h": 15.0 },
+                "line": null
             })
         );
     }

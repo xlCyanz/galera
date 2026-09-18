@@ -38,7 +38,12 @@ rotation: number,
  * La caja que ocupa en la página tal como se dibuja, ya girada,
  * alineada con los bordes de la página. Sin giro, es la misma.
  */
-bounds: MmRect, };
+bounds: MmRect, 
+/**
+ * Si lo que dibuja el elemento es una sola línea, sus dos extremos
+ * **sin girar**, en mm. Su caja no dice en qué diagonal está: esto sí.
+ */
+line: MmSegment | null, };
 
 /**
  * Un rectángulo en milímetros, con el origen arriba a la izquierda de la
@@ -61,3 +66,25 @@ w: number,
  * Alto.
  */
 h: number, };
+
+/**
+ * Un segmento, en milímetros, con el origen arriba a la izquierda de la
+ * página.
+ */
+export type MmSegment = { 
+/**
+ * Primer extremo.
+ */
+x1: number, 
+/**
+ * Primer extremo.
+ */
+y1: number, 
+/**
+ * Segundo extremo.
+ */
+x2: number, 
+/**
+ * Segundo extremo.
+ */
+y2: number, };

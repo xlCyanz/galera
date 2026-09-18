@@ -12,6 +12,7 @@ mod error;
 pub mod export;
 pub mod project;
 pub mod render;
+pub mod selection;
 pub mod session;
 
 pub use error::CommandError;
