@@ -26,6 +26,7 @@ import {
   usePageCount,
   useProjectRoot,
 } from "./store/document";
+import { Inspector } from "./ui/Inspector";
 import { StatusBar } from "./ui/StatusBar";
 
 const mac = isMac();
@@ -156,7 +157,10 @@ export function App() {
         </button>
       </div>
       {title !== null && <ProjectInfo title={title} />}
-      <Canvas />
+      <div className="workspace">
+        <Canvas />
+        <Inspector />
+      </div>
       {status !== null && (
         <dl className="ok">
           <dt>galera-core</dt>
