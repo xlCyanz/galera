@@ -192,7 +192,7 @@ describe("seleccionar con un clic", () => {
     answer = () => "r1";
     await click(500, 300);
 
-    const outline = container.querySelector<HTMLElement>(".element-selection");
+    const outline = container.querySelector<HTMLElement>(".control-layer");
     expect(outline).not.toBeNull();
     expect(parseFloat(outline!.style.width)).toBeCloseTo(30 * PX_PER_MM, 6);
     expect(parseFloat(outline!.style.height)).toBeCloseTo(15 * PX_PER_MM, 6);
@@ -201,7 +201,7 @@ describe("seleccionar con un clic", () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     });
     expect(selected()).toBeNull();
-    expect(container.querySelector(".element-selection")).toBeNull();
+    expect(container.querySelector(".control-layer")).toBeNull();
   });
 });
 

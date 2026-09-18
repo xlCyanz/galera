@@ -1,7 +1,7 @@
 /**
- * Un recuadro sobre un elemento del lienzo, para señalarlo: al llegar a él
- * desde un error (`highlight`, discontinuo) o porque está seleccionado
- * (`selection`, continuo; los manejadores llegan con F2-04).
+ * Un recuadro sobre un elemento del lienzo, para señalarlo: por ejemplo, al
+ * llegar a él desde un error. El seleccionado lleva además manejadores: ver
+ * `ControlLayer.tsx`.
  *
  * Usa la caja que midió Typst (`store/layout.ts`) cuando ya la hay, y si no,
  * la que declara el documento (ver `elements.ts`). En ese caso, si el alto lo
@@ -19,23 +19,16 @@ export interface ElementHighlightProps {
   box: ElementBounds;
   /** Dónde está la página y a qué escala. */
   transform: CanvasTransform;
-  /** Para qué se señala. */
-  variant?: "highlight" | "selection";
 }
 
-export function ElementHighlight({ box, transform, variant = "highlight" }: ElementHighlightProps) {
+export function ElementHighlight({ box, transform }: ElementHighlightProps) {
   const open = box.h === null;
   const rect = rectToCanvas(transform, { x: box.x, y: box.y, w: box.w, h: box.h ?? 0 });
   const height = open ? OPEN_HEIGHT : rect.height;
 
   return (
     <div
-      className={[
-        variant === "selection" ? "element-selection" : "element-highlight",
-        open ? "is-open" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      className={open ? "element-highlight is-open" : "element-highlight"}
       aria-hidden="true"
       style={{
         width: rect.width,

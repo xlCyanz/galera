@@ -199,14 +199,40 @@ body {
   border-bottom: none;
 }
 
-/* El elemento seleccionado: contorno continuo. Los manejadores, en F2-04. */
-.element-selection {
+/* La capa de controles del elemento seleccionado: contorno continuo y
+   manejadores de tamaño fijo en pantalla (ver `canvas/ControlLayer.tsx`). */
+.control-layer {
   position: absolute;
   top: 0;
   left: 0;
   box-sizing: border-box;
-  border: 1.5px solid var(--ruler-pointer);
+  outline: 1.5px solid var(--ruler-pointer);
   pointer-events: none;
+}
+
+/* Una línea no tiene caja que contornear: solo sus extremos. */
+.control-layer.is-line {
+  outline: none;
+}
+
+.handle {
+  position: absolute;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1.5px solid var(--ruler-pointer);
+  border-radius: 1px;
+  pointer-events: auto;
+}
+
+.rotate-handle {
+  border-radius: 50%;
+}
+
+.rotate-stem {
+  position: absolute;
+  width: 0;
+  border-left: 1.5px solid var(--ruler-pointer);
+  transform: translateX(-0.75px);
 }
 
 /* Panel de problemas y barra de estado, abajo del todo. */

@@ -29,6 +29,7 @@ import {
   useSelectedElement,
 } from "../store/document";
 import { useElementBox } from "../store/layout";
+import { ControlLayer } from "./ControlLayer";
 import { ElementHighlight } from "./ElementHighlight";
 import { type ImageLoader, PageSvg } from "./PageSvg";
 import { Rulers } from "./Rulers";
@@ -157,7 +158,7 @@ export function Canvas({ loader }: CanvasProps) {
             />
           )}
           {selectedBox !== null && selectedBox.page === currentPage && transform !== null && (
-            <ElementHighlight box={selectedBox} transform={transform} variant="selection" />
+            <ControlLayer box={selectedBox} transform={transform} />
           )}
           {highlight !== null && highlight.pageIndex === currentPage && transform !== null && (
             <ElementHighlight box={highlight.box} transform={transform} />
