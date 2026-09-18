@@ -189,12 +189,13 @@ describe("arrastrar el elemento seleccionado", () => {
     const op = ops[0]!;
     expect(op.op).toBe("move");
     expect(op.id).toBe("r1");
-    expect(op.dx).toBe(37 / PX_PER_MM);
-    expect(op.dy).toBe(-11 / PX_PER_MM);
+    // Redondeado al micrómetro para el documento…
+    expect(op.dx).toBe(Math.round((37 / PX_PER_MM) * 1000) / 1000);
+    expect(op.dy).toBe(Math.round((-11 / PX_PER_MM) * 1000) / 1000);
 
-    // Lo que se veía: la hoja más el desplazamiento en píxeles.
+    // …y lo que se veía, a menos de una centésima de píxel.
     const sheet = translate(container.querySelector(".canvas-page"));
-    expect(shownOffset.x - sheet.x).toBeCloseTo((op.dx as number) * PX_PER_MM, 9);
+    expect(Math.abs(shownOffset.x - sheet.x - (op.dx as number) * PX_PER_MM)).toBeLessThan(0.01);
 
     // Hasta que llegan las cajas de la revisión nueva, la copia sigue ahí.
     expect(ghost()).not.toBeNull();
@@ -242,7 +243,7 @@ describe("arrastrar el elemento seleccionado", () => {
     press(layer()!, 400, 300);
     moveTo(460, 320, { shiftKey: true });
     await release(460, 320);
-    expect(ops[0]).toMatchObject({ dx: 60 / PX_PER_MM, dy: 0 });
+    expect(ops[0]).toMatchObject({ dx: Math.round((60 / PX_PER_MM) * 1000) / 1000, dy: 0 });
   });
 
   it("pulsar y soltar sin mover no es un cambio", async () => {
@@ -261,7 +262,7 @@ describe("arrastrar el elemento seleccionado", () => {
     expect(useDocumentStore.getState().selectedElement).toBe("r1");
     moveTo(420, 300);
     await release(420, 300);
-    expect(ops).toEqual([{ op: "move", id: "r1", dx: 20 / PX_PER_MM, dy: 0 }]);
+    expect(ops).toEqual([{ op: "move", id: "r1", dx: Math.round((20 / PX_PER_MM) * 1000) / 1000, dy: 0 }]);
   });
 });
 

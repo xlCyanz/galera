@@ -19,7 +19,7 @@ import { applyOp } from "../commands";
 import { useCompilationStore } from "../store/compilation";
 import { useDocumentStore } from "../store/document";
 import { useLayoutStore } from "../store/layout";
-import { type Delta, dragDelta, isStill } from "./dragGeometry";
+import { type Delta, dragDelta, isStill, roundMm } from "./dragGeometry";
 
 export type DragState =
   | { phase: "idle" }
@@ -63,7 +63,7 @@ export function useDrag(pxPerMm: number | null): Drag {
       return;
     }
     setState({ phase: "committing", id, delta, revision: null });
-    applyOp({ op: "move", id, dx: delta.dx, dy: delta.dy })
+    applyOp({ op: "move", id, dx: roundMm(delta.dx), dy: roundMm(delta.dy) })
       .then((applied) => {
         useDocumentStore.getState().replaceDocument(applied.document);
         setState((current) =>

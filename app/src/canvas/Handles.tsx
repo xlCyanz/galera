@@ -6,8 +6,9 @@
  * aquí se colocan en píxeles sobre la caja sin girar, y el giro lo pone la
  * capa. Miden siempre `HANDLE_SIZE` píxeles, a cualquier zoom.
  *
- * Todavía no se arrastran (F2-05 y siguientes). Pulsarlos no llega al lienzo,
- * así que no deseleccionan el elemento.
+ * Los ocho de redimensionado avisan con `onResizeStart` (ver `useResize.ts`);
+ * el de rotación y los extremos de una línea, todavía no hacen nada. Pulsar
+ * cualquiera no llega al lienzo, así que no deselecciona el elemento.
  */
 import type { PointerEvent } from "react";
 
@@ -16,6 +17,7 @@ import {
   HANDLE_SIZE,
   RESIZE_HANDLES,
   ROTATE_HANDLE_OFFSET,
+  type ResizeHandle,
   resizeCursor,
 } from "./handleGeometry";
 
@@ -41,10 +43,12 @@ export interface BoxHandlesProps {
   height: number;
   /** El giro del elemento, para elegir los cursores. */
   rotation: number;
+  /** Se ha pulsado un manejador de redimensionado. */
+  onResizeStart?: (handle: ResizeHandle, event: PointerEvent<HTMLElement>) => void;
 }
 
 /** Los ocho de redimensionado y el de rotación, por encima del borde superior. */
-export function BoxHandles({ width, height, rotation }: BoxHandlesProps) {
+export function BoxHandles({ width, height, rotation, onResizeStart }: BoxHandlesProps) {
   return (
     <>
       <div
@@ -68,7 +72,12 @@ export function BoxHandles({ width, height, rotation }: BoxHandlesProps) {
               ...at(position.x * width, position.y * height),
               cursor: resizeCursor(handle, rotation),
             }}
-            onPointerDown={keepFromCanvas}
+            onPointerDown={(event) => {
+              keepFromCanvas(event);
+              if (event.button === 0) {
+                onResizeStart?.(handle, event);
+              }
+            }}
           />
         );
       })}

@@ -13,6 +13,8 @@ import type { PointerEvent } from "react";
 
 import type { LayoutBox } from "../types/layout";
 import { BoxHandles, LineHandles } from "./Handles";
+import type { ResizeHandle } from "./handleGeometry";
+import { formatSize } from "./resizeGeometry";
 import { type CanvasTransform, rectToCanvas } from "./transform";
 
 export interface ControlLayerProps {
@@ -24,6 +26,10 @@ export interface ControlLayerProps {
   offset?: { dx: number; dy: number };
   /** Pulsar dentro del contorno (no en un manejador): empezar a arrastrar. */
   onBodyPointerDown?: (event: PointerEvent<HTMLDivElement>) => void;
+  /** Pulsar un manejador de redimensionado. */
+  onResizeStart?: (handle: ResizeHandle, event: PointerEvent<HTMLElement>) => void;
+  /** Enseñar las medidas de la caja: durante un redimensionado. */
+  showSize?: boolean;
 }
 
 export function ControlLayer({
@@ -31,6 +37,8 @@ export function ControlLayer({
   transform,
   offset = { dx: 0, dy: 0 },
   onBodyPointerDown,
+  onResizeStart,
+  showSize = false,
 }: ControlLayerProps) {
   const rect = rectToCanvas(transform, { ...box, x: box.x + offset.dx, y: box.y + offset.dy });
   const scale = transform.pxPerMm;
@@ -49,7 +57,19 @@ export function ControlLayer({
       }}
     >
       {line === null ? (
-        <BoxHandles width={rect.width} height={rect.height} rotation={box.rotation} />
+        <>
+          <BoxHandles
+            width={rect.width}
+            height={rect.height}
+            rotation={box.rotation}
+            {...(onResizeStart === undefined ? {} : { onResizeStart })}
+          />
+          {showSize && (
+            <div className="size-label" role="status">
+              {formatSize(box.w, box.h)}
+            </div>
+          )}
+        </>
       ) : (
         <LineHandles
           start={{ x: (line.x1 - box.x) * scale, y: (line.y1 - box.y) * scale }}
