@@ -65,7 +65,7 @@ export function useDrag(pxPerMm: number | null): Drag {
     setState({ phase: "committing", id, delta, revision: null });
     applyOp({ op: "move", id, dx: roundMm(delta.dx), dy: roundMm(delta.dy) })
       .then((applied) => {
-        useDocumentStore.getState().replaceDocument(applied.document);
+        useDocumentStore.getState().applyEdit(applied);
         setState((current) =>
           current.phase === "committing" && current.id === id
             ? { ...current, revision: applied.revision }

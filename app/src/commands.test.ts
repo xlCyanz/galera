@@ -2,6 +2,7 @@ import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  type AppliedOp,
   type OpenedProject,
   type RenderedPage,
   type SessionStatus,
@@ -9,9 +10,12 @@ import {
   errorMessage,
   exportPdf,
   isCommandError,
+  applyOp,
   openProject,
+  redo,
   renderPage,
   sessionStatus,
+  undo,
 } from "./commands";
 
 afterEach(() => {
@@ -210,5 +214,43 @@ describe("exportPdf", () => {
 
     const reason: unknown = await exportPdf().catch((error: unknown) => error);
     expect(errorMessage(reason)).toBe("no se pudo guardar /x.pdf: permiso denegado");
+  });
+});
+
+describe("applyOp, undo y redo", () => {
+  const document = {
+    version: 1,
+    meta: { title: "x" },
+    fonts: [],
+    assets: {},
+    variables: {},
+    pages: [],
+  } satisfies AppliedOp["document"];
+  const applied: AppliedOp = { revision: 2, document, description: "Mover r1", undo: "Mover r1", redo: null };
+
+  it("applyOp manda el grupo, o `null` si no hay", async () => {
+    const calls: Array<{ command: string; args: unknown }> = [];
+    mockIPC((command, args) => {
+      calls.push({ command, args });
+      return applied;
+    });
+    const op = { op: "move", id: "r1", dx: 1, dy: 0 } as const;
+    await expect(applyOp(op)).resolves.toEqual(applied);
+    await applyOp(op, "nudge-r1-1");
+    expect(calls).toEqual([
+      { command: "apply_op", args: { op, group: null } },
+      { command: "apply_op", args: { op, group: "nudge-r1-1" } },
+    ]);
+  });
+
+  it("undo y redo llaman a su comando y devuelven `null` si no había nada", async () => {
+    const calls: string[] = [];
+    mockIPC((command) => {
+      calls.push(command);
+      return command === "undo" ? applied : null;
+    });
+    await expect(undo()).resolves.toEqual(applied);
+    await expect(redo()).resolves.toBeNull();
+    expect(calls).toEqual(["undo", "redo"]);
   });
 });

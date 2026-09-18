@@ -59,6 +59,7 @@ const AREA = { left: 0, top: 0, width: 1000, height: 600 };
 let container: HTMLDivElement;
 let root: Root;
 let ops: Array<Record<string, unknown>>;
+let groups: Array<string | null>;
 let hit: string | null;
 const restore: Array<() => void> = [];
 
@@ -80,14 +81,18 @@ beforeEach(async () => {
 
   ops = [];
   hit = null;
+  groups = [];
   mockIPC((command, args) => {
     if (command === "apply_op") {
       const op = (args as { op: Record<string, unknown> }).op;
       ops.push(op);
+      groups.push((args as { group: string | null }).group);
       const applied: AppliedOp = {
         revision: 1 + ops.length,
         document: structuredClone(project.document),
         description: `Mover ${String(op.id)}`,
+        undo: `Mover ${String(op.id)}`,
+        redo: null,
       };
       return applied;
     }
@@ -281,6 +286,20 @@ describe("flechas", () => {
       { op: "move", id: "r1", dx: 1, dy: 0 },
       { op: "move", id: "r1", dx: 0, dy: -10 },
     ]);
+  });
+
+  it("seguidas son un único paso del historial, y el historial dice qué se desharía", async () => {
+    select();
+    for (let i = 0; i < 3; i += 1) {
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", cancelable: true }));
+      });
+      await settle();
+    }
+    expect(groups).toHaveLength(3);
+    expect(groups[0]).toMatch(/^nudge-r1-/);
+    expect(new Set(groups).size).toBe(1);
+    expect(useDocumentStore.getState().history).toEqual({ undo: "Mover r1", redo: null });
   });
 
   it("sin nada seleccionado no hacen nada", async () => {

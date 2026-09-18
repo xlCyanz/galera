@@ -39,7 +39,7 @@ import { Rulers } from "./Rulers";
 import { ZoomControls } from "./ZoomControls";
 import { PX_PER_MM, pageSizeInPx, toMillimeters } from "./geometry";
 import { canvasTransform, rectToCanvas, toCanvas } from "./transform";
-import { arrowNudge, rotatedCorners } from "./dragGeometry";
+import { type NudgeBurst, arrowNudge, nudgeBurst, rotatedCorners } from "./dragGeometry";
 import { findElement } from "./elements";
 import { useCanvasNavigation } from "./useCanvasNavigation";
 import { useDrag } from "./useDrag";
@@ -129,6 +129,9 @@ export function Canvas({ loader }: CanvasProps) {
     }
   }, [focusRequests]);
 
+  // Los empujones seguidos con las flechas son un único paso del historial.
+  const burst = useRef<NudgeBurst | null>(null);
+
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (page === undefined || isTypingTarget(event.target)) {
       return;
@@ -148,8 +151,9 @@ export function Canvas({ loader }: CanvasProps) {
       useDocumentStore.getState().select(null);
     } else if (nudge !== null && selected !== null && drag.state.phase === "idle") {
       event.preventDefault();
-      void applyOp({ op: "move", id: selected, ...nudge })
-        .then((applied) => useDocumentStore.getState().replaceDocument(applied.document))
+      burst.current = nudgeBurst(burst.current, selected, event.timeStamp);
+      void applyOp({ op: "move", id: selected, ...nudge }, burst.current.group)
+        .then((applied) => useDocumentStore.getState().applyEdit(applied))
         .catch(() => undefined);
     }
   });

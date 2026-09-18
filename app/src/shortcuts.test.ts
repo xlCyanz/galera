@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   type KeyPress,
   exportPdfShortcutLabel,
+  historyShortcut,
+  historyShortcutLabel,
   isExportPdfShortcut,
   isMac,
   isToggleRulersShortcut,
@@ -92,5 +94,37 @@ describe("isToggleRulersShortcut", () => {
     expect(isToggleRulersShortcut(press({ key: "R", ctrlKey: true }))).toBe(false);
     expect(isToggleRulersShortcut(press({ key: "R", altKey: true }))).toBe(false);
     expect(isToggleRulersShortcut(press({ key: "E" }))).toBe(false);
+  });
+});
+
+describe("historyShortcut", () => {
+  const key = (k: string, overrides: Partial<KeyPress> = {}) => press({ key: k, shiftKey: false, ...overrides });
+
+  it("en macOS, ⌘Z deshace y ⌘⇧Z rehace", () => {
+    expect(historyShortcut(key("z", { metaKey: true }), true)).toBe("undo");
+    // Con Shift, el navegador da la mayúscula.
+    expect(historyShortcut(key("Z", { metaKey: true, shiftKey: true }), true)).toBe("redo");
+    expect(historyShortcut(key("z", { ctrlKey: true }), true)).toBeNull();
+    expect(historyShortcut(key("y", { metaKey: true }), true)).toBeNull();
+  });
+
+  it("en Windows y Linux, Ctrl+Z deshace y Ctrl+Shift+Z o Ctrl+Y rehacen", () => {
+    expect(historyShortcut(key("z", { ctrlKey: true }), false)).toBe("undo");
+    expect(historyShortcut(key("Z", { ctrlKey: true, shiftKey: true }), false)).toBe("redo");
+    expect(historyShortcut(key("y", { ctrlKey: true }), false)).toBe("redo");
+    expect(historyShortcut(key("z", { metaKey: true }), false)).toBeNull();
+  });
+
+  it("no se dispara sin modificador, con Alt o con otra tecla", () => {
+    expect(historyShortcut(key("z"), true)).toBeNull();
+    expect(historyShortcut(key("z", { metaKey: true, altKey: true }), true)).toBeNull();
+    expect(historyShortcut(key("x", { metaKey: true }), true)).toBeNull();
+  });
+
+  it("se enseña con el modificador de cada sistema", () => {
+    expect(historyShortcutLabel("undo", true)).toBe("⌘Z");
+    expect(historyShortcutLabel("redo", true)).toBe("⌘⇧Z");
+    expect(historyShortcutLabel("undo", false)).toBe("Ctrl+Z");
+    expect(historyShortcutLabel("redo", false)).toBe("Ctrl+Shift+Z");
   });
 });

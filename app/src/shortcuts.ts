@@ -67,6 +67,36 @@ export function zoomShortcutLabel(command: ZoomCommand, mac: boolean): string {
   return mac ? `⌘${key}` : `Ctrl+${key}`;
 }
 
+/** Lo que pide un atajo del historial. */
+export type HistoryCommand = "undo" | "redo";
+
+/**
+ * Deshacer y rehacer: ⌘Z y ⌘⇧Z en macOS; Ctrl+Z y Ctrl+Shift+Z (o Ctrl+Y)
+ * en Windows y Linux.
+ */
+export function historyShortcut(event: KeyPress, mac: boolean): HistoryCommand | null {
+  const modifier = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+  if (!modifier || event.altKey) {
+    return null;
+  }
+  const key = event.key.toLowerCase();
+  if (key === "z") {
+    return event.shiftKey ? "redo" : "undo";
+  }
+  if (key === "y" && !mac && !event.shiftKey) {
+    return "redo";
+  }
+  return null;
+}
+
+/** Cómo se escribe cada atajo del historial, para enseñarlo en la interfaz. */
+export function historyShortcutLabel(command: HistoryCommand, mac: boolean): string {
+  if (command === "undo") {
+    return mac ? "⌘Z" : "Ctrl+Z";
+  }
+  return mac ? "⌘⇧Z" : "Ctrl+Shift+Z";
+}
+
 /**
  * Enseñar u ocultar las reglas: ⇧R, como en otros editores de diseño. Sin
  * ⌘ ni Ctrl, así que quien lo atiende tiene que ignorarlo mientras se

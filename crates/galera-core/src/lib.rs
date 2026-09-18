@@ -55,6 +55,7 @@ pub use model::{
     ValidationError, ValidationErrors,
 };
 pub use open::{DOCUMENT_FILE, OpenError, Opened, open};
+pub use ops::history::History;
 pub use ops::{Applied, Op, OpError, Property};
 pub use project::{AccessError, Project, ProjectError};
 pub use world::{GaleraWorld, WorldError};
