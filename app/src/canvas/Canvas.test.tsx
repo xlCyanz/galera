@@ -182,6 +182,34 @@ describe("Canvas", () => {
     expect(image()?.getAttribute("src")).toBe("blob:0:<svg>carta</svg>");
   });
 
+  it("con errores, sigue enseñando la última compilación buena", async () => {
+    const { loader, finish } = controlledLoader();
+    act(() => useDocumentStore.getState().open(project()));
+    act(() =>
+      useCompilationStore.getState().finish({
+        revision: 1,
+        ms: 1,
+        reused: false,
+        diagnostics: [],
+        pages: ["<svg>bueno</svg>", "<svg>2</svg>"],
+      }),
+    );
+    act(() => root.render(<Canvas loader={loader} />));
+    await finish("blob:0:<svg>bueno</svg>");
+
+    act(() =>
+      useCompilationStore.getState().fail({
+        revision: 2,
+        ms: 1,
+        reused: false,
+        diagnostics: [{ severity: "error", message: "unclosed delimiter", hints: [], element_id: "t1" }],
+        error: { kind: "typst", message: "Typst encontró 1 error" },
+      }),
+    );
+    expect(useCompilationStore.getState().status).toBe("error");
+    expect(image()?.getAttribute("src")).toBe("blob:0:<svg>bueno</svg>");
+  });
+
   it("mientras no hay SVG se ve la hoja en blanco, ya con su tamaño", () => {
     act(() => useDocumentStore.getState().open(project()));
     act(() => root.render(<Canvas loader={controlledLoader().loader} />));

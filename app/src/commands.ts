@@ -53,6 +53,21 @@ export function sessionStatus(): Promise<SessionStatus> {
 export interface CommandError {
   kind: string;
   message: string;
+  /** Si es un error de validación (`kind: "invalid"`), cada problema. */
+  problems?: ValidationProblem[];
+  /** Si es un error de Typst (`kind: "typst"`), cada diagnóstico. */
+  diagnostics?: Diagnostic[];
+}
+
+/**
+ * Un problema de validación, tal como lo serializa `ValidationError` de
+ * `galera-core` (`model/validate.rs`). Solo lo que usa la interfaz.
+ */
+export interface ValidationProblem {
+  /** Dónde está: una página o un elemento, por su id. */
+  location: { kind: "page" | "element"; id: string };
+  /** El problema, en español y sin el lugar. */
+  message: string;
 }
 
 /** Un proyecto recién abierto, tal como lo devuelve `open_project`. */

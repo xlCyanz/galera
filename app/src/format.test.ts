@@ -1,17 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import { compilationSummary } from "./format";
+import { compilationStatusText, formatMs } from "./format";
 
-describe("compilationSummary", () => {
-  it("dice cuántas páginas y cuánto tardó", () => {
-    expect(compilationSummary(3, 12.34, false)).toBe("3 páginas · compilado en 12,3 ms");
+describe("formatMs", () => {
+  it("un decimal como mucho, con coma", () => {
+    expect(formatMs(12.34)).toBe("12,3 ms");
+    expect(formatMs(8)).toBe("8 ms");
+  });
+});
+
+describe("compilationStatusText", () => {
+  it("enseña el tiempo de la última compilación", () => {
+    expect(compilationStatusText("ready", 12.34, false)).toBe("Compilado en 12,3 ms");
+    expect(compilationStatusText("ready", 8, true)).toBe("Compilado en 8 ms (sin cambios)");
+    expect(compilationStatusText("error", 3, false)).toBe("No compila (3 ms)");
   });
 
-  it("dice si se reutilizó", () => {
-    expect(compilationSummary(1, 8, true)).toBe("1 página · compilado en 8 ms, reutilizada");
-  });
-
-  it("sin compilación no hay tiempo", () => {
-    expect(compilationSummary(0, null, false)).toBe("Sin compilar");
+  it("sin compilación, lo dice", () => {
+    expect(compilationStatusText("idle", null, false)).toBe("Sin documento");
+    expect(compilationStatusText("compiling", 5, false)).toBe("Compilando…");
+    expect(compilationStatusText("error", null, false)).toBe("No compila");
   });
 });

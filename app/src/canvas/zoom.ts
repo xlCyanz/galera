@@ -188,6 +188,25 @@ export function zoomAround(
   return { zoom, scroll: clampScroll(scroll, viewport, page) };
 }
 
+/**
+ * La vista con el mismo zoom y la página movida para que `pointAt100` (un
+ * punto de la página, en px al 100 %) quede en el centro del área.
+ */
+export function centerOn(
+  zoom: number,
+  pointAt100: Point,
+  viewport: PixelSize,
+  pageAt100: PixelSize,
+): View {
+  const page = scaled(pageAt100, zoom);
+  const centered = pageOrigin(viewport, page, { x: 0, y: 0 });
+  const scroll = {
+    x: viewport.width / 2 - pointAt100.x * zoom - centered.x,
+    y: viewport.height / 2 - pointAt100.y * zoom - centered.y,
+  };
+  return { zoom, scroll: clampScroll(scroll, viewport, page) };
+}
+
 /** Cómo se escribe un zoom: «100 %», con espacio fino como en español. */
 export function formatZoom(zoom: number): string {
   return `${Math.round(zoom * 100)} %`;

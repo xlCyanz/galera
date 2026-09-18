@@ -164,3 +164,46 @@ describe("límites", () => {
     expect(clampPage(2, 3)).toBe(2);
   });
 });
+
+describe("ir a un elemento", () => {
+  function withCode(): OpenedProject {
+    const opened = project("Informe", 3);
+    opened.document.pages[2]!.elements.push({
+      type: "code",
+      id: "c1",
+      x: 10,
+      y: 20,
+      w: 30,
+      h: 40,
+      rotation: 0,
+      source: "#table(",
+    });
+    return opened;
+  }
+
+  it("cambia a su página, lo resalta y pide centrarlo", () => {
+    store().open(withCode());
+    expect(store().focusElement("c1")).toBe(true);
+    expect(store()).toMatchObject({ currentPage: 2, highlightedElement: "c1", focusRequests: 1 });
+
+    store().focusElement("c1");
+    expect(store().focusRequests).toBe(2);
+  });
+
+  it("un id que no existe no cambia nada", () => {
+    store().open(withCode());
+    expect(store().focusElement("nadie")).toBe(false);
+    expect(store()).toMatchObject({ currentPage: 0, highlightedElement: null, focusRequests: 0 });
+  });
+
+  it("abrir otro documento o quitar el resaltado lo olvidan", () => {
+    store().open(withCode());
+    store().focusElement("c1");
+    store().clearHighlight();
+    expect(store().highlightedElement).toBeNull();
+
+    store().focusElement("c1");
+    store().open(project("Carta", 1));
+    expect(store().highlightedElement).toBeNull();
+  });
+});
