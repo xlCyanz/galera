@@ -362,6 +362,18 @@ impl Element {
             Element::Line { .. } => None,
         }
     }
+
+    /// Como [`Element::base`], para modificarla.
+    pub fn base_mut(&mut self) -> Option<&mut ElementBox> {
+        match self {
+            Element::Text { base, .. }
+            | Element::Rect { base, .. }
+            | Element::Ellipse { base, .. }
+            | Element::Image { base, .. }
+            | Element::Code { base, .. } => Some(base),
+            Element::Line { .. } => None,
+        }
+    }
 }
 
 /// Un tramo de texto con el mismo formato.
