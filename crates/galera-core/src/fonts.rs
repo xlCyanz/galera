@@ -60,6 +60,7 @@ pub fn default_text_style(document: &Document, families: &[String]) -> Option<Te
             color: DEFAULT_TEXT_COLOR.to_owned(),
             align: Align::Left,
             leading: 0.65,
+            spacing: None,
         })
     })
 }
@@ -103,6 +104,7 @@ pub fn sample_document(font: &str, family: &str) -> Document {
                     color: "#1f2733".to_owned(),
                     align: Align::Left,
                     leading: 0.65,
+                    spacing: None,
                 },
             }],
         }],
@@ -256,6 +258,7 @@ mod tests {
                 color: DEFAULT_TEXT_COLOR.into(),
                 align: Align::Left,
                 leading: 0.65,
+                spacing: None,
             }
         );
     }
