@@ -34,6 +34,7 @@
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod archive;
 pub mod assets;
 pub mod codegen;
 pub mod compile;
@@ -48,7 +49,11 @@ pub mod project;
 #[cfg(test)]
 mod testing;
 pub mod world;
+pub mod zip;
 
+pub use archive::{
+    ARCHIVE_EXTENSION, ArchiveError, ProjectFormat, pack, save_as_folder, save_document, unpack,
+};
 pub use assets::{
     AssetSummary, ImageFormat, ImportImageError, ImportedImage, asset_summaries, import_image,
 };

@@ -18,6 +18,7 @@ const text: Extract<Element, { type: "text" }> = {
 
 const project: OpenedProject = {
   root: "/p",
+  archive: null,
   revision: 1,
   document: { version: 1, meta: { title: "x" }, fonts: ["fonts/Inter-Regular.ttf"], assets: {}, variables: {}, pages: [{ id: "p1", size: { width: 10, height: 10, unit: "mm" }, elements: [text] }] },
 };

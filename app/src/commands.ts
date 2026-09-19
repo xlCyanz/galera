@@ -84,6 +84,20 @@ export interface OpenedProject {
    * revisiones anteriores son de lo que había antes.
    */
   revision: number;
+  /** El `.galera` del que sale y al que se guarda, o `null` si es una carpeta. */
+  archive: string | null;
+}
+
+/** Un proyecto recién guardado. */
+export interface SavedProject {
+  /** Dónde se ha guardado: la carpeta o el `.galera`. */
+  path: string;
+  /** La carpeta de trabajo del proyecto. */
+  root: string;
+  /** El `.galera` al que se guarda de ahora en adelante, si lo hay. */
+  archive: string | null;
+  /** La revisión guardada. */
+  revision: number;
 }
 
 /**
@@ -107,6 +121,30 @@ export function chooseProjectFolder(): Promise<string | null> {
  */
 export function openProject(path: string): Promise<OpenedProject> {
   return invoke<OpenedProject>("open_project", { path });
+}
+
+/**
+ * Enseña el diálogo nativo para elegir un archivo `.galera`. Devuelve el
+ * elegido, o `null` si se cancela.
+ */
+export function chooseProjectFile(): Promise<string | null> {
+  return invoke<string | null>("choose_project_file");
+}
+
+/**
+ * Guarda el proyecto abierto donde ya estaba: el `document.json` de su
+ * carpeta y, si vino de un `.galera`, también el archivo.
+ */
+export function saveProject(): Promise<SavedProject> {
+  return invoke<SavedProject>("save_project");
+}
+
+/**
+ * Guarda el proyecto en otro sitio y sigue guardando ahí: un `.galera`
+ * (`archive`) o una carpeta vacía. `null` si se cancela el diálogo.
+ */
+export function saveProjectAs(archive: boolean): Promise<SavedProject | null> {
+  return invoke<SavedProject | null>("save_project_as", { archive });
 }
 
 /** Si un valor recibido del backend es un `CommandError`. */

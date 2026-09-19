@@ -77,6 +77,11 @@ pub struct AppState {
 struct Session {
     /// El proyecto y su documento, si hay uno abierto.
     open: Option<OpenDocument>,
+    /// El `.galera` del que salió y al que se guarda, si viene de uno.
+    archive: Option<PathBuf>,
+    /// La revisión con la que se guardó por última vez: si no es la actual,
+    /// hay cambios sin guardar.
+    saved_revision: u64,
     /// El historial de deshacer y rehacer del documento abierto.
     history: History,
     /// Se incrementa con cada cambio del documento abierto.
@@ -134,6 +139,10 @@ pub struct Summary {
     pub page_count: usize,
     /// La revisión actual.
     pub revision: u64,
+    /// El `.galera` al que se guarda, si el proyecto viene de uno.
+    pub archive: Option<PathBuf>,
+    /// Si hay cambios sin guardar.
+    pub dirty: bool,
     /// Si la última compilación guardada corresponde a la revisión actual.
     pub compiled_is_current: bool,
 }
@@ -157,13 +166,48 @@ impl AppState {
     /// Abre un proyecto con su documento, sustituyendo lo que hubiera.
     /// Devuelve la revisión nueva.
     pub fn open(&self, project: Project, document: Document) -> u64 {
+        self.open_from(project, document, None)
+    }
+
+    /// Como [`AppState::open`], diciendo además de qué `.galera` sale, si
+    /// sale de uno: es a donde se guardará.
+    pub fn open_from(&self, project: Project, document: Document, archive: Option<PathBuf>) -> u64 {
         let mut session = self.write();
         session.open = Some(OpenDocument { project, document });
+        session.archive = archive;
         session.history.clear();
         session.revision += 1;
+        session.saved_revision = session.revision;
         session.compiled = None;
         session.last_good = None;
         session.revision
+    }
+
+    /// Cambia dónde se guarda el proyecto abierto, sin tocar el documento ni
+    /// el historial: es lo que hace «Guardar como».
+    ///
+    /// `None` en `archive` significa que se guarda como carpeta.
+    pub fn save_to(&self, project: Project, archive: Option<PathBuf>) -> Option<u64> {
+        let mut session = self.write();
+        let open = session.open.as_mut()?;
+        open.project = project;
+        session.archive = archive;
+        session.saved_revision = session.revision;
+        Some(session.revision)
+    }
+
+    /// Anota que el documento se ha guardado tal como está ahora.
+    /// Devuelve la revisión guardada.
+    pub fn mark_saved(&self) -> Option<u64> {
+        let mut session = self.write();
+        session.open.as_ref()?;
+        session.saved_revision = session.revision;
+        Some(session.revision)
+    }
+
+    /// El `.galera` al que se guarda, si lo hay.
+    pub fn archive(&self) -> Option<PathBuf> {
+        self.read().archive.clone()
     }
 
     /// Aplica un comando de edición al documento abierto y lo apunta en el
@@ -270,8 +314,10 @@ impl AppState {
     pub fn close(&self) {
         let mut session = self.write();
         session.open = None;
+        session.archive = None;
         session.history.clear();
         session.revision += 1;
+        session.saved_revision = session.revision;
         session.compiled = None;
         session.last_good = None;
     }
@@ -293,6 +339,8 @@ impl AppState {
                 .as_ref()
                 .map_or(0, |open| open.document.pages.len()),
             revision: session.revision,
+            archive: session.archive.clone(),
+            dirty: session.open.is_some() && session.saved_revision != session.revision,
             compiled_is_current: session
                 .compiled
                 .as_ref()
@@ -541,6 +589,8 @@ mod tests {
                 root: None,
                 page_count: 0,
                 revision: 0,
+                archive: None,
+                dirty: false,
                 compiled_is_current: false,
             }
         );
@@ -896,5 +946,46 @@ mod tests {
         assert_eq!(state.summary().title, None);
         assert!(!state.summary().compiled_is_current);
         assert!(state.compilation().is_none());
+    }
+
+    #[test]
+    fn saving_and_saving_elsewhere_are_visible_in_the_summary() {
+        let state = AppState::default();
+        let (_dir, project, document) = project_and_document("Informe");
+        state.open(project.clone(), document);
+        assert!(!state.summary().dirty, "recién abierto no hay cambios");
+        assert_eq!(state.archive(), None);
+
+        let op = Op::Move {
+            id: "r1".to_owned(),
+            dx: 1.0,
+            dy: 0.0,
+        };
+        state.apply(&op, None).expect("abierto").expect("se aplica");
+        assert!(state.summary().dirty);
+
+        state.mark_saved().expect("abierto");
+        assert!(!state.summary().dirty);
+
+        // «Guardar como» cambia dónde se guarda, sin tocar documento ni historial.
+        let before = state.summary().revision;
+        let archive = PathBuf::from("/tmp/informe.galera");
+        state
+            .save_to(project, Some(archive.clone()))
+            .expect("abierto");
+        assert_eq!(
+            state.summary().revision,
+            before,
+            "no es un cambio del documento"
+        );
+        assert_eq!(state.archive(), Some(archive));
+        assert!(!state.summary().dirty);
+        assert!(
+            state.undo().expect("abierto").is_some(),
+            "el historial sigue"
+        );
+
+        state.close();
+        assert_eq!(state.archive(), None);
     }
 }

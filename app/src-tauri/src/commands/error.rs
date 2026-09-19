@@ -9,7 +9,7 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use galera_core::{GaleraError, ImportFontError};
+use galera_core::{ArchiveError, GaleraError, ImportFontError};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
@@ -45,6 +45,10 @@ pub enum CommandError {
     /// direcciones `content://`.
     #[error("lo elegido no es una ruta del disco")]
     NotALocalPath,
+
+    /// No se pudo guardar o abrir un proyecto (carpeta o `.galera`).
+    #[error(transparent)]
+    Archive(#[from] ArchiveError),
 
     /// No se pudo añadir una fuente al proyecto.
     #[error(transparent)]
@@ -83,6 +87,7 @@ impl CommandError {
             CommandError::FolderNotChosen { .. } => "folder_not_chosen",
             CommandError::NothingOpen => "nothing_open",
             CommandError::NotALocalPath => "not_a_local_path",
+            CommandError::Archive(_) => "archive",
             CommandError::Font(_) => "font",
             CommandError::FontInUse { .. } => "font_in_use",
             CommandError::Write { .. } => "write",

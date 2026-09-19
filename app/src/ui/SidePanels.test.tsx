@@ -17,6 +17,7 @@ beforeEach(() => {
   useDocumentStore.getState().open({
     root: "/p",
     revision: 1,
+    archive: null,
     document: { version: 1, meta: { title: "x" }, fonts: [], assets: {}, variables: {}, pages: [{ id: "p1", size: { width: 1, height: 1, unit: "mm" }, elements: [] }] },
   });
   container = document.createElement("div");

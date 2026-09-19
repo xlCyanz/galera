@@ -27,6 +27,7 @@ const AREA = { width: 1000, height: 600 };
 const size = { width: 200, height: 100, unit: "mm" } as const;
 const project: OpenedProject = {
   root: "/p",
+  archive: null,
   revision: 1,
   document: { version: 1, meta: { title: "x" }, fonts: [], assets: {}, variables: {}, pages: [{ id: "p1", size, elements: [] }] },
 };

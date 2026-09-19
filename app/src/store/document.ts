@@ -17,7 +17,7 @@
 import { create } from "zustand";
 
 import { findElement } from "../canvas/elements";
-import type { AppliedOp, OpenedProject } from "../commands";
+import type { AppliedOp, OpenedProject, SavedProject } from "../commands";
 import type { Document } from "../types/model";
 
 /** El zoom mínimo: 25 %. */
@@ -56,6 +56,10 @@ export interface DocumentState {
   selectedElement: string | null;
   /** Qué se desharía y rehacería ahora, según el backend: «Mover r1». */
   history: EditHistory;
+  /** El `.galera` al que se guarda, o `null` si el proyecto es una carpeta. */
+  archive: string | null;
+  /** Si hay cambios sin guardar. */
+  dirty: boolean;
   /**
    * Cuántas veces se ha pedido llevar el lienzo a un elemento. El lienzo
    * mira este número: cada vez que cambia, centra el elemento resaltado.
@@ -105,6 +109,8 @@ export interface DocumentState {
   clearHighlight: () => void;
   /** Selecciona un elemento, o ninguno con `null`. */
   select: (id: string | null) => void;
+  /** El proyecto se ha guardado: dónde, y ya no hay cambios pendientes. */
+  saved: (saved: SavedProject) => void;
 }
 
 /** Lo que se puede deshacer y rehacer. */
@@ -126,6 +132,8 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   highlightedElement: null,
   selectedElement: null,
   history: noHistory,
+  archive: null,
+  dirty: false,
   focusRequests: 0,
 
   open: (opened) =>
@@ -137,6 +145,8 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
       highlightedElement: null,
       selectedElement: null,
       history: noHistory,
+      archive: opened.archive,
+      dirty: false,
     }),
 
   close: () =>
@@ -148,6 +158,8 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
       highlightedElement: null,
       selectedElement: null,
       history: noHistory,
+      archive: null,
+      dirty: false,
     }),
 
   setCurrentPage: (page) =>
@@ -197,8 +209,10 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
 
   applyEdit: (applied) => {
     get().replaceDocument(applied.document);
-    set({ history: { undo: applied.undo, redo: applied.redo } });
+    set({ history: { undo: applied.undo, redo: applied.redo }, dirty: true });
   },
+
+  saved: (saved) => set({ root: saved.root, archive: saved.archive, dirty: false }),
 
   focusElement: (id) => {
     const { document } = get();
@@ -259,3 +273,7 @@ export const useHighlightedElement = () => useDocumentStore((state) => state.hig
 export const useFocusRequests = () => useDocumentStore((state) => state.focusRequests);
 /** Qué se puede deshacer y rehacer. */
 export const useEditHistory = () => useDocumentStore((state) => state.history);
+/** Si hay cambios sin guardar. */
+export const useDirty = () => useDocumentStore((state) => state.dirty);
+/** El `.galera` al que se guarda, si el proyecto viene de uno. */
+export const useArchive = () => useDocumentStore((state) => state.archive);
