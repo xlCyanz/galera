@@ -114,7 +114,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F3-11** — Formato .galera: guardar y abrir | [#51](https://github.com/xlCyanz/galera/issues/51) | #19, #44 |
 | ✅ | **F3-12** — Guardado automático y recuperación | [#52](https://github.com/xlCyanz/galera/issues/52) | #51 |
 | ✅ | **F3-13** — Atajos de teclado | [#53](https://github.com/xlCyanz/galera/issues/53) | #41, #38 |
-| ⬜ | **F3-14** — Criterio de fase: reproducir el documento de ejemplo del brief | [#54](https://github.com/xlCyanz/galera/issues/54) | #41, #42, #43, #44, #49, #50, #51 |
+| 🟡 | **F3-14** — Criterio de fase: reproducir el documento de ejemplo del brief ([análisis](criterio-fase-3.md)) | [#54](https://github.com/xlCyanz/galera/issues/54) | #41, #42, #43, #44, #49, #50, #51 |
 
 ---
 
