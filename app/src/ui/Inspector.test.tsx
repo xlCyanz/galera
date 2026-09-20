@@ -114,7 +114,10 @@ describe("inspector", () => {
     expect(container.textContent).toContain("Página 1");
     expect(container.textContent).toContain("portada");
     expect(container.textContent).toContain("210 × 297 mm");
-    expect(container.querySelector("input")).toBeNull();
+    // Sin selección solo se edita el título del documento (ver `TitleField`).
+    expect([...container.querySelectorAll("input")].map((input) => input.getAttribute("aria-label"))).toEqual([
+      "Título del documento",
+    ]);
   });
 
   it("con un elemento seleccionado enseña sus cinco valores reales", () => {

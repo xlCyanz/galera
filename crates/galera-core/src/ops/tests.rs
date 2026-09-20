@@ -753,3 +753,28 @@ fn a_font_is_declared_and_removed_back_in_its_place() {
         "Quitar la fuente b.ttf"
     );
 }
+
+#[test]
+fn the_title_changes_and_comes_back() {
+    let changed = apply_and_check_undo(&Op::SetTitle {
+        title: "  Informe anual 2026  ".into(),
+    });
+    assert_eq!(
+        changed.meta.title, "Informe anual 2026",
+        "sin espacios de más"
+    );
+    assert_eq!(
+        Op::SetTitle { title: "x".into() }.describe(),
+        "Cambiar el título"
+    );
+
+    for empty in ["", "   "] {
+        assert_eq!(
+            Op::SetTitle {
+                title: empty.into()
+            }
+            .apply(&document()),
+            Err(OpError::EmptyTitle)
+        );
+    }
+}

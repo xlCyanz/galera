@@ -39,7 +39,7 @@ los compara. Lleva, en una página A4:
 | Orden de capas, nombres, ocultar y bloquear | ✅ | Panel de capas ([#45](https://github.com/xlCyanz/galera/issues/45), [#46](https://github.com/xlCyanz/galera/issues/46)) |
 | Guardar como carpeta o `.galera` | ✅ | ⌘S y «Guardar como…» ([#51](https://github.com/xlCyanz/galera/issues/51)) |
 | Empezar un proyecto nuevo | ✅ | «Nuevo proyecto…» / «Nuevo .galera…» ([#155](https://github.com/xlCyanz/galera/issues/155)) |
-| **Título del documento** | ❌ | [#156](https://github.com/xlCyanz/galera/issues/156) |
+| Título del documento | ✅ | Campo «Título» del inspector, sin selección ([#156](https://github.com/xlCyanz/galera/issues/156)) |
 | **Bloque de código** | ❌ | [#157](https://github.com/xlCyanz/galera/issues/157) |
 | **Variables del documento** | ❌ | [#158](https://github.com/xlCyanz/galera/issues/158) |
 | **Ids cortos (`r1`, `t1`…)** | ❌ | [#159](https://github.com/xlCyanz/galera/issues/159) |
@@ -47,7 +47,7 @@ los compara. Lleva, en una página A4:
 
 Es decir: **la maqueta se construye entera desde la app** (fondo, texto,
 imagen, fuentes, medidas, capas y guardado), y lo que obliga a tocar el JSON
-son las cuatro cosas de arriba, cada una con su issue.
+son las tres cosas de arriba, cada una con su issue.
 
 ## Cómo hacer la sesión
 

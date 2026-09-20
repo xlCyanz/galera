@@ -123,6 +123,12 @@ pub enum Op {
         key: String,
     },
 
+    /// Cambia el título del documento (`meta.title`).
+    SetTitle {
+        /// El título nuevo, sin espacios sobrantes a los lados.
+        title: String,
+    },
+
     /// Declara una fuente del proyecto en `fonts`. Es lo que deshace
     /// [`Op::RemoveFont`].
     AddFont {
@@ -239,6 +245,10 @@ pub enum OpError {
         /// La clave repetida.
         key: String,
     },
+    /// Un documento sin título no dice qué es.
+    #[error("el documento tiene que tener un título")]
+    EmptyTitle,
+
     /// El documento ya declara esa fuente.
     #[error("el documento ya declara la fuente {path:?}")]
     FontAlreadyDeclared {
@@ -301,6 +311,7 @@ impl Op {
             Op::AddAsset { key, .. } => format!("Añadir el recurso {key}"),
             Op::RemoveAsset { key } => format!("Quitar el recurso {key}"),
             Op::RenameAsset { from, to } => format!("Renombrar el recurso {from} a {to}"),
+            Op::SetTitle { .. } => "Cambiar el título".to_owned(),
             Op::AddFont { path, .. } => format!("Añadir la fuente {}", file_name(path)),
             Op::RemoveFont { path } => format!("Quitar la fuente {}", file_name(path)),
         }
@@ -317,7 +328,8 @@ impl Op {
             | Op::Delete { id }
             | Op::Reorder { id, .. } => Some(id),
             Op::Create { element, .. } | Op::Restore { element } => Some(element.id()),
-            Op::AddAsset { .. }
+            Op::SetTitle { .. }
+            | Op::AddAsset { .. }
             | Op::RemoveAsset { .. }
             | Op::RenameAsset { .. }
             | Op::AddFont { .. }
@@ -461,6 +473,15 @@ impl Op {
                     key: key.clone(),
                     path,
                 })
+            }
+
+            Op::SetTitle { title } => {
+                let title = title.trim();
+                if title.is_empty() {
+                    return Err(OpError::EmptyTitle);
+                }
+                let previous = std::mem::replace(&mut document.meta.title, title.to_owned());
+                Ok(Op::SetTitle { title: previous })
             }
 
             Op::AddFont { path, index } => {
