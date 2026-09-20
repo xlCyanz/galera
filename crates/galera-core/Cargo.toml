@@ -10,6 +10,7 @@ authors.workspace = true
 
 [dependencies]
 # Solo para comprimir y descomprimir dentro del `.galera` (ver `zip.rs`).
+comemo.workspace = true
 miniz_oxide.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -25,3 +26,9 @@ insta.workspace = true
 tempfile.workspace = true
 ts-rs.workspace = true
 typst-assets = { workspace = true, features = ["fonts"] }
+
+# El banco de pruebas de compilación (`cargo bench -p galera-core`). Sin
+# `harness`: es un programa normal que imprime lo que mide, no `#[bench]`.
+[[bench]]
+name = "compile"
+harness = false

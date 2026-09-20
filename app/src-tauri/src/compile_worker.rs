@@ -203,7 +203,9 @@ fn emit<R: Runtime, T: Serialize + Clone>(app: &AppHandle<R>, name: &str, payloa
 /// El bucle del hilo de compilación, con `galera-core`. Termina cuando se
 /// cierra la cola.
 pub fn run(state: &AppState, queue: &CompileQueue, events: &impl CompileEvents) {
-    run_with(state, queue, events, galera_core::compile);
+    run_with(state, queue, events, |document, project| {
+        state.compile_cached(document, project)
+    });
 }
 
 /// Como [`run`], con la función de compilar dada, para las pruebas.
@@ -237,9 +239,8 @@ where
                 ms,
                 reused: compilation.reused,
                 diagnostics: compiled.warnings().to_vec(),
-                pages: (0..compiled.page_count())
-                    .filter_map(|page| compiled.to_svg(page).ok())
-                    .collect(),
+                // Solo se vuelven a dibujar las páginas que han cambiado.
+                pages: state.page_svgs(&compiled),
                 boxes: compiled.layout(),
             }),
             Err(error) => events.failed(Failed {

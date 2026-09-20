@@ -38,6 +38,10 @@ insta = "1.43"
 # Genera los tipos TypeScript del modelo desde las pruebas de galera-core.
 ts-rs = "12.0"
 
+# La memoización de Typst: reutilizar entre compilaciones lo que no cambia
+# (ver `compile/cache.rs`). La versión es la que trae Typst.
+comemo = "=0.5.1"
+
 # Typst se fija con `=`: su API cambia entre versiones menores, así que
 # subirla es una decisión deliberada con su propio PR, nunca un efecto
 # secundario de `cargo update`. Todas van siempre a la par.

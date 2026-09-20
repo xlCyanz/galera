@@ -167,7 +167,7 @@ cargo test -p galera-core export_bindings
 - Núcleo: `cargo test`, con instantáneas `insta` para el código Typst generado.
 - Cualquier corrección de bug entra con una prueba que falle antes del arreglo.
 - Interfaz: Vitest para lógica pura; no se testean píxeles.
-- Rendimiento: las mediciones se anotan en la issue con el documento y la máquina usados.
+- Rendimiento: `cargo bench -p galera-core` mide lo que cuesta una tecla —compilar y dibujar las páginas— desde cero y con el compilador guardado. Las mediciones se anotan en la issue, y las de la compilación en [docs/decisiones/compilacion-incremental.md](docs/decisiones/compilacion-incremental.md), con el documento y la máquina usados.
 
 ## 6. Reportar bugs y proponer ideas
 

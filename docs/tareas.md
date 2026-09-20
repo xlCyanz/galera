@@ -10,12 +10,12 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 12 |
 | [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 11 |
 | [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 13 |
-| [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 3 |
+| [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 4 |
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 0 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **55** |
+| **Total** | **95** | **56** |
 
 
 ---
@@ -129,7 +129,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | 🟡 | **F4-01** — Spike: entrada de teclado e IME dentro del webview ([decisión](decisiones/ime.md)) | [#55](https://github.com/xlCyanz/galera/issues/55) | #17 |
 | ✅ | **F4-02** — Campo invisible que captura teclado, IME y pegado | [#56](https://github.com/xlCyanz/galera/issues/56) | #55 |
 | ✅ | **F4-03** — Modelo de texto enriquecido por runs y sus operaciones | [#57](https://github.com/xlCyanz/galera/issues/57) | #2, #37 |
-| ⬜ | **F4-04** — Compilación incremental y caché por página | [#58](https://github.com/xlCyanz/galera/issues/58) | #27, #12 |
+| ✅ | **F4-04** — Compilación incremental y caché por página ([medidas](decisiones/compilacion-incremental.md)) | [#58](https://github.com/xlCyanz/galera/issues/58) | #27, #12 |
 | ✅ | **F4-05** — Extraer posiciones de glifos del layout de Typst | [#59](https://github.com/xlCyanz/galera/issues/59) | #30 |
 | ⬜ | **F4-06** — Dibujar el cursor a partir de las posiciones de glifos | [#60](https://github.com/xlCyanz/galera/issues/60) | #59, #56 |
 | ⬜ | **F4-07** — Selección de texto con clic y arrastre | [#61](https://github.com/xlCyanz/galera/issues/61) | #60 |
@@ -250,7 +250,7 @@ Al terminar cada fase se anota aquí qué se hizo, qué quedó pendiente y qué 
 **Qué queda pendiente o diferido**
 
 - La negrita, cursiva y subrayado **por tramos** no se emiten todavía: es F4-08 (#62). El título del ejemplo sale en redonda.
-- Se prepara un `World` nuevo en cada compilación; reutilizarlo es F4-04 (#58).
+- El `World` se reutiliza entre compilaciones desde F4-04 (#58); el dibujo de cada página también, si la página no ha cambiado. Recomponer sigue costando el documento entero: ver [decisiones/compilacion-incremental.md](decisiones/compilacion-incremental.md).
 - `today()` usa UTC cuando Typst pide la fecha local.
 - Las imágenes con ancho y alto usan el ajuste por defecto de Typst (`cover`); no hay campo para elegir otro.
 - Que la etiqueta detrás de `place` permite localizar la caja del contenido quedó comprobado en F2-01 (#30): Typst deja marcas de inicio y fin del `place` etiquetado en la página. Para ello, un rectángulo o una elipse sin relleno ni borde se emiten dentro de `#block(…)`, que no dibuja nada pero deja su caja.

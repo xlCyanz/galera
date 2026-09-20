@@ -55,7 +55,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::{Duration, Instant};
 
-use galera_core::{Compiled, Document, GaleraError, History, Op, Project};
+use galera_core::{Compiled, Compiler, Document, GaleraError, History, Op, Project};
 
 /// El estado de la app, compartido entre todos los comandos.
 #[derive(Default)]
@@ -64,6 +64,10 @@ pub struct AppState {
     /// Lo coge quien compila, para que dos peticiones a la vez no compilen
     /// lo mismo dos veces. Ver el módulo.
     compiling: Mutex<()>,
+    /// El compilador del proyecto abierto, que guarda entre compilaciones
+    /// las fuentes, el entorno y el dibujo de cada página. Ver
+    /// `galera_core::Compiler`.
+    compiler: Mutex<Option<Compiler>>,
     /// Las carpetas elegidas en el diálogo de abrir, con su ruta real.
     chosen_folders: Mutex<HashSet<PathBuf>>,
     /// Los archivos soltados sobre la ventana o elegidos en un diálogo, con
@@ -177,6 +181,7 @@ impl AppState {
     /// Como [`AppState::open`], diciendo además de qué `.galera` sale, si
     /// sale de uno: es a donde se guardará.
     pub fn open_from(&self, project: Project, document: Document, archive: Option<PathBuf>) -> u64 {
+        self.forget_compiler();
         let mut session = self.write();
         session.open = Some(OpenDocument { project, document });
         session.archive = archive;
@@ -195,6 +200,9 @@ impl AppState {
     ///
     /// `None` en `archive` significa que se guarda como carpeta.
     pub fn save_to(&self, project: Project, archive: Option<PathBuf>) -> Option<u64> {
+        // El proyecto puede quedar en otra carpeta: el compilador guarda la
+        // suya dentro, así que se hace otro.
+        self.forget_compiler();
         let mut session = self.write();
         let open = session.open.as_mut()?;
         open.project = project;
@@ -371,6 +379,7 @@ impl AppState {
 
     /// Cierra lo que haya abierto.
     pub fn close(&self) {
+        self.forget_compiler();
         let mut session = self.write();
         session.open = None;
         session.archive = None;
@@ -415,7 +424,64 @@ impl AppState {
     /// Devuelve `None` si no hay nada abierto. Ver
     /// [`AppState::compilation_with`].
     pub fn compilation(&self) -> Option<Compilation> {
-        self.compilation_with(galera_core::compile)
+        self.compilation_with(|document, project| self.compile_cached(document, project))
+    }
+
+    /// Compila con el compilador del proyecto abierto, que reutiliza entre
+    /// compilaciones las fuentes, el entorno y lo que Typst ya calculó.
+    ///
+    /// Si lo que se compila es otro proyecto —se ha abierto otro, o se ha
+    /// guardado en otra carpeta—, se empieza uno nuevo.
+    pub fn compile_cached(
+        &self,
+        document: &Document,
+        project: &Project,
+    ) -> Result<Compiled, GaleraError> {
+        let mut compiler = self.compiler.lock().unwrap_or_else(PoisonError::into_inner);
+        if !compiler
+            .as_ref()
+            .is_some_and(|compiler| compiler.project().root() == project.root())
+        {
+            *compiler = Some(Compiler::new(project.clone()));
+        }
+        match compiler.as_mut() {
+            Some(compiler) => compiler.compile(document),
+            // Se acaba de poner.
+            None => galera_core::compile(document, project),
+        }
+    }
+
+    /// El SVG de cada página de una compilación, reutilizando el de la
+    /// anterior en las páginas que no han cambiado.
+    pub fn page_svgs(&self, compiled: &Compiled) -> Vec<String> {
+        let mut compiler = self.compiler.lock().unwrap_or_else(PoisonError::into_inner);
+        match compiler.as_mut() {
+            Some(compiler) => compiler.page_svgs(compiled),
+            // Sin compilador guardado —en las pruebas—, se dibujan todas.
+            None => (0..compiled.page_count())
+                .filter_map(|page| compiled.to_svg(page).ok())
+                .collect(),
+        }
+    }
+
+    /// Olvida los archivos del proyecto que el compilador ya había leído.
+    ///
+    /// Hace falta cuando cambian en disco con el proyecto abierto: una
+    /// imagen que se importa, una fuente que se añade.
+    pub fn forget_project_files(&self) {
+        if let Some(compiler) = self
+            .compiler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_ref()
+        {
+            compiler.forget_files();
+        }
+    }
+
+    /// Tira el compilador guardado: el siguiente cambio empieza otro.
+    fn forget_compiler(&self) {
+        *self.compiler.lock().unwrap_or_else(PoisonError::into_inner) = None;
     }
 
     /// Como [`AppState::compilation`], con la función de compilar dada.
@@ -639,6 +705,66 @@ mod tests {
             compiles.fetch_add(1, Ordering::SeqCst);
             galera_core::compile(document, project)
         }
+    }
+
+    /// El compilador guardado es el del proyecto abierto: al abrir otro, se
+    /// empieza uno nuevo, y lo que se dibuja es lo del documento de ahora.
+    #[test]
+    fn the_compiler_follows_the_open_project() {
+        let (_one, project, document) = project_and_document("Uno");
+        let state = AppState::default();
+        state.open(project.clone(), document.clone());
+
+        let first = state.compilation().expect("compila").result;
+        let first = first.expect("sale bien");
+        let pages = state.page_svgs(&first);
+        assert_eq!(pages.len(), 1);
+        // Otra vez el mismo documento: el dibujo se reutiliza, y es el mismo.
+        assert_eq!(state.page_svgs(&first), pages);
+
+        let (_two, other, other_document) = project_and_document("Otro");
+        state.open(other, other_document);
+        let second = state.compilation().expect("compila").result;
+        let second = second.expect("sale bien");
+        assert_eq!(state.page_svgs(&second).len(), 1);
+    }
+
+    /// Escribir en el documento abierto vuelve a compilar con el mismo
+    /// compilador, y el resultado es el del documento nuevo.
+    #[test]
+    fn typing_recompiles_with_the_same_compiler() {
+        let (_dir, project, document) = project_and_document("Escribir");
+        let state = AppState::default();
+        state.open(project, document);
+
+        let before = state
+            .compilation()
+            .expect("compila")
+            .result
+            .expect("sale bien");
+        let before = state.page_svgs(&before);
+
+        state
+            .apply(
+                &Op::Resize {
+                    id: "r1".to_owned(),
+                    x: 0.0,
+                    y: 0.0,
+                    w: 50.0,
+                    h: Some(50.0),
+                },
+                None,
+            )
+            .expect("hay documento")
+            .expect("se aplica");
+
+        let after = state
+            .compilation()
+            .expect("compila")
+            .result
+            .expect("sale bien");
+        let after = state.page_svgs(&after);
+        assert_ne!(before, after, "el rectángulo ahora es más grande");
     }
 
     #[test]
