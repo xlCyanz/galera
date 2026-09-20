@@ -154,7 +154,8 @@ body {
 
 .canvas-viewport[data-tool="rect"],
 .canvas-viewport[data-tool="ellipse"],
-.canvas-viewport[data-tool="line"] {
+.canvas-viewport[data-tool="line"],
+.canvas-viewport[data-tool="code"] {
   cursor: crosshair;
 }
 

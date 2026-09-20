@@ -131,7 +131,7 @@ async function up() {
   });
 }
 
-function tool(name: "rect" | "ellipse" | "line" | "text") {
+function tool(name: "rect" | "ellipse" | "line" | "text" | "code") {
   act(() => useToolStore.getState().setTool(name));
 }
 
@@ -284,5 +284,18 @@ describe("crear texto", () => {
     expect(notice()).toBeNull();
     expect(ops).toHaveLength(0);
     expect(calls).not.toContain("add_font");
+  });
+});
+
+describe("crear un bloque de código", () => {
+  it("se crea arrastrando, como una forma, y queda seleccionado", async () => {
+    tool("code");
+    down(20, 30);
+    move(100, 70);
+    expect(preview()!.dataset.shape).toBe("code");
+    await up();
+    expect(ops[0]!.element).toMatchObject({ type: "code", id: "code-1", x: 20, y: 30, w: 80, h: 40 });
+    expect(useDocumentStore.getState().selectedElement).toBe("code-1");
+    expect(useToolStore.getState().tool).toBe("select");
   });
 });

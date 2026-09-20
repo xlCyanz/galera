@@ -5,6 +5,7 @@ import {
   DEFAULT_FILL,
   DEFAULT_SIZE,
   DEFAULT_STROKE,
+  PLACEHOLDER_CODE,
   MIN_TEXT_WIDTH_MM,
   PLACEHOLDER_TEXT,
   defaultShape,
@@ -113,5 +114,31 @@ describe("texto", () => {
       style,
     });
     expect(() => shapeElement("text-1", { kind: "text", x: 1, y: 2, w: 50 })).toThrow();
+  });
+});
+
+describe("bloque de código", () => {
+  it("se arrastra como una caja y nace con un código que compila sin fuentes", () => {
+    expect(shapeFromDrag("code", { x: 10, y: 20 }, { x: 90, y: 60 }, false)).toEqual({
+      kind: "code",
+      x: 10,
+      y: 20,
+      w: 80,
+      h: 40,
+    });
+    expect(defaultShape("code", { x: 5, y: 6 })).toEqual({ kind: "code", x: 5, y: 6, ...DEFAULT_SIZE.code });
+    expect(shapeElement("code-1", { kind: "code", x: 1, y: 2, w: 80, h: 40 })).toEqual({
+      type: "code",
+      id: "code-1",
+      x: 1,
+      y: 2,
+      w: 80,
+      h: 40,
+      rotation: 0,
+      source: PLACEHOLDER_CODE,
+    });
+    // Un marco, nada de texto: no necesita ninguna fuente declarada.
+    expect(PLACEHOLDER_CODE).toContain("#rect(");
+    expect(PLACEHOLDER_CODE).not.toContain("lorem");
   });
 });

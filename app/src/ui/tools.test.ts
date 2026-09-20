@@ -14,12 +14,21 @@ const press = (key: string, modifiers: Partial<KeyboardEvent> = {}) => ({
 });
 
 describe("herramientas", () => {
-  it("son siete, cada una con su atajo, sin repetir", () => {
+  it("son ocho, cada una con su atajo, sin repetir", () => {
     expect(TOOLS.map((tool) => tool.id)).toEqual([...TOOL_IDS]);
-    expect(new Set(TOOLS.map((tool) => tool.shortcut)).size).toBe(7);
+    expect(new Set(TOOLS.map((tool) => tool.shortcut)).size).toBe(TOOLS.length);
     expect(TOOLS.every((tool) => tool.label.length > 0)).toBe(true);
     // Cada atajo es una tecla suelta.
-    expect(TOOLS.map((tool) => shortcutLabel(tool.shortcut, true))).toEqual(["V", "T", "R", "O", "L", "I", "H"]);
+    expect(TOOLS.map((tool) => shortcutLabel(tool.shortcut, true))).toEqual([
+      "V",
+      "T",
+      "R",
+      "O",
+      "L",
+      "I",
+      "C",
+      "H",
+    ]);
   });
 
   it("una tecla sola activa su herramienta, en mayúscula o minúscula", () => {
@@ -37,7 +46,7 @@ describe("herramientas", () => {
   });
 
   it("solo crean elementos las de texto, formas, línea e imagen", () => {
-    expect(TOOL_IDS.filter(createsElements)).toEqual(["text", "rect", "ellipse", "line", "image"]);
+    expect(TOOL_IDS.filter(createsElements)).toEqual(["text", "rect", "ellipse", "line", "image", "code"]);
     expect(toolInfo("hand").cursor).toBe("grab");
   });
 

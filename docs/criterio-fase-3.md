@@ -40,14 +40,14 @@ los compara. Lleva, en una página A4:
 | Guardar como carpeta o `.galera` | ✅ | ⌘S y «Guardar como…» ([#51](https://github.com/xlCyanz/galera/issues/51)) |
 | Empezar un proyecto nuevo | ✅ | «Nuevo proyecto…» / «Nuevo .galera…» ([#155](https://github.com/xlCyanz/galera/issues/155)) |
 | Título del documento | ✅ | Campo «Título» del inspector, sin selección ([#156](https://github.com/xlCyanz/galera/issues/156)) |
-| **Bloque de código** | ❌ | [#157](https://github.com/xlCyanz/galera/issues/157) |
+| Bloque de código | ✅ | Herramienta `C` y campo «Código Typst» del inspector ([#157](https://github.com/xlCyanz/galera/issues/157)) |
 | **Variables del documento** | ❌ | [#158](https://github.com/xlCyanz/galera/issues/158) |
 | **Ids cortos (`r1`, `t1`…)** | ❌ | [#159](https://github.com/xlCyanz/galera/issues/159) |
 | **Negrita dentro del texto** | ❌ | Ya planificado: F4-08 ([#62](https://github.com/xlCyanz/galera/issues/62)) |
 
 Es decir: **la maqueta se construye entera desde la app** (fondo, texto,
 imagen, fuentes, medidas, capas y guardado), y lo que obliga a tocar el JSON
-son las tres cosas de arriba, cada una con su issue.
+son las dos cosas de arriba, cada una con su issue.
 
 ## Cómo hacer la sesión
 
@@ -64,11 +64,14 @@ Con la app abierta (`pnpm tauri dev`), y guardando una captura en cada paso en
    Y 30, An 170; fuente Inter, 28 pt, color `#1F2733`, alineado a la izquierda.
    El texto se escribe en la Fase 4; por ahora queda el de relleno, y la
    **negrita** es [#62](https://github.com/xlCyanz/galera/issues/62).
-5. **Logotipo.** Arrastrar `fixtures/assets/logo.png` sobre el lienzo (o `I` +
+5. **Bloque de código.** Herramienta `C`, arrastrar su caja y, en el
+   inspector, escribir `#table(columns: 2)[A][B]`; medidas X 20, Y 200,
+   An 170, Al 40.
+6. **Logotipo.** Arrastrar `fixtures/assets/logo.png` sobre el lienzo (o `I` +
    clic) y dejarlo en X 20, Y 60, An 80, alto automático.
-6. **Guardar.** ⌘S, y **Guardar como .galera…** para comprobar que el archivo
+7. **Guardar.** ⌘S, y **Guardar como .galera…** para comprobar que el archivo
    se abre luego en otro sitio.
-7. **Comparar.** Guardar el resultado como `fixtures/fase3.json` y comparar con
+8. **Comparar.** Guardar el resultado como `fixtures/fase3.json` y comparar con
    `fixtures/informe.json`: lo que quede distinto tiene que ser exactamente lo
    de las issues de arriba, nada más.
 

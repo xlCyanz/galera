@@ -42,6 +42,7 @@ En macOS el modificador es ⌘; en Windows y Linux, Ctrl.
 | Elipse | `O` | `O` |
 | Línea | `L` | `L` |
 | Imagen | `I` | `I` |
+| Bloque de código | `C` | `C` |
 | Mano | `H` | `H` |
 
 ### Vista
