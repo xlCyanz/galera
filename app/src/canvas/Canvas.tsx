@@ -22,6 +22,10 @@
  * imágenes desde el sistema funciona con cualquier herramienta. Escape
  * vuelve a la de selección.
  *
+ * Doble clic en un bloque de texto entra a escribirlo: el teclado va a un
+ * campo invisible (`text/HiddenInput.tsx`) y cada cambio es un comando.
+ * Escape o pulsar en el lienzo salen.
+ *
  * Un elemento bloqueado no se acierta con el clic (lo decide el núcleo); si
  * se selecciona desde el panel de capas, su contorno se ve pero no se
  * agarra, y las flechas no lo mueven.
@@ -41,8 +45,11 @@ import {
   useRulersVisible,
   useSelectedElement,
 } from "../store/document";
+import { useEditingElement, useEditingStore } from "../store/editing";
 import { useElementBox } from "../store/layout";
 import { useTool, useToolStore } from "../store/tool";
+import { HiddenInput } from "../text/HiddenInput";
+import { useTextEditing } from "../text/useTextEditing";
 import { ControlLayer } from "./ControlLayer";
 import { CreatePreview } from "./CreatePreview";
 import { DragGhost } from "./DragGhost";
@@ -81,6 +88,10 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const focusRequests = useFocusRequests();
   const tool = useTool();
   const selecting = tool === "select";
+  // Escribir en un texto: doble clic para entrar, Escape o pulsar fuera
+  // para salir (`text/HiddenInput.tsx`).
+  const editing = useEditingElement();
+  const editingBox = useElementBox(editing);
   // Un elemento bloqueado se selecciona desde el panel de capas, pero en el
   // lienzo no se agarra ni se empuja con las flechas.
   const selectedLocked =
@@ -111,6 +122,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const found = document === null || highlighted === null ? null : findElement(document, highlighted);
   const measured = useElementBox(highlighted);
   const drag = useDrag(transform?.pxPerMm ?? null);
+  const onDoubleClick = useTextEditing(transform, currentPage);
   // Pulsar un elemento y arrastrar sin soltar lo selecciona y lo mueve.
   const onSelect = useSelection(transform, currentPage, drag.start);
   // La imagen que enseña la hoja, para la copia que se arrastra.
@@ -155,6 +167,13 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
       centerHighlighted();
     }
   }, [focusRequests]);
+
+  // Con cualquier herramienta que no sea la de selección no se escribe.
+  useEffect(() => {
+    if (tool !== "select") {
+      useEditingStore.getState().stop();
+    }
+  }, [tool]);
 
   // Los empujones seguidos con las flechas son un único paso del historial.
   const burst = useRef<NudgeBurst | null>(null);
@@ -222,7 +241,11 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
           className={viewportClass}
           data-tool={tool}
           {...viewportHandlers}
+          onDoubleClick={onDoubleClick}
           onPointerDown={(event) => {
+            // Pulsar en el lienzo deja de escribir: el doble clic vuelve a
+            // entrar, ya sobre el texto que se haya pulsado.
+            useEditingStore.getState().stop();
             // Primero desplazar (Espacio, botón central o la mano); si no,
             // seleccionar, si es la herramienta de selección.
             viewportHandlers.onPointerDown(event);
@@ -329,6 +352,9 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
                 drag.start(selectedBox.id, event.clientX, event.clientY);
               }}
             />
+          )}
+          {editing !== null && editingBox !== null && editingBox.page === currentPage && transform !== null && (
+            <HiddenInput id={editing} box={editingBox} transform={transform} />
           )}
           {create.state.phase !== "idle" && transform !== null && (
             <CreatePreview shape={create.state.shape} transform={transform} />
