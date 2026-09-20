@@ -8,8 +8,8 @@
  * interlineado y espacio entre párrafos (`TextInspector.tsx`);
  * en una forma, su relleno, borde y radio (`ShapeInspector.tsx`).
  *
- * Sin selección, enseña la página que se ve: su id, su tamaño y cuántos
- * elementos tiene.
+ * Sin selección, enseña el título del documento (editable) y la página que
+ * se ve: su id, su tamaño y cuántos elementos tiene.
  */
 import { applyOp } from "../commands";
 import { toMillimeters } from "../canvas/geometry";
@@ -18,6 +18,7 @@ import { useElementBox } from "../store/layout";
 import type { Element, Page } from "../types/model";
 import { MeasureField } from "./MeasureField";
 import { ShapeInspector } from "./ShapeInspector";
+import { TitleField } from "./TitleField";
 import { TextInspector } from "./TextInspector";
 import { formatNumber } from "./fieldValue";
 import { type FieldName, fieldOp, inspectorFields } from "./inspectorFields";
@@ -51,7 +52,9 @@ export function Inspector() {
       {element !== undefined ? (
         <ElementInspector element={element} measured={measured} />
       ) : (
-        page !== undefined && <PageInspector page={page} index={currentPage} />
+        page !== undefined && (
+          <PageInspector page={page} index={currentPage} title={document.meta.title} />
+        )
       )}
     </aside>
   );
@@ -106,13 +109,14 @@ function ElementInspector({ element, measured }: { element: Element; measured: R
   );
 }
 
-function PageInspector({ page, index }: { page: Page; index: number }) {
+function PageInspector({ page, index, title }: { page: Page; index: number; title: string }) {
   const mm = (value: number) => formatNumber(toMillimeters(value, page.size.unit));
   return (
     <section>
       <h2>
         Página {index + 1} <span className="inspector-id">{page.id}</span>
       </h2>
+      <TitleField title={title} />
       <dl className="inspector-page">
         <dt>Tamaño</dt>
         <dd>

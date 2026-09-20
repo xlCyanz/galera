@@ -1170,3 +1170,11 @@ body {
   font-size: 12px;
   opacity: 0.7;
 }
+
+.title-field {
+  margin-bottom: 0.5rem;
+}
+
+.title-field .font-select {
+  margin-top: 0;
+}

@@ -92,7 +92,11 @@ path: string, } | { "op": "remove_asset",
 /**
  * La clave.
  */
-key: string, } | { "op": "add_font", 
+key: string, } | { "op": "set_title", 
+/**
+ * El título nuevo, sin espacios sobrantes a los lados.
+ */
+title: string, } | { "op": "add_font", 
 /**
  * La ruta del archivo, relativa a la raíz del proyecto.
  */
