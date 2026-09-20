@@ -12,6 +12,8 @@ En macOS el modificador es ⌘; en Windows y Linux, Ctrl.
 
 | Qué hace | macOS | Windows y Linux |
 |---|---|---|
+| Nuevo proyecto en una carpeta | `⌘N` | `Ctrl+N` |
+| Nuevo proyecto .galera | `⌘⇧N` | `Ctrl+Shift+N` |
 | Abrir una carpeta de proyecto | `⌘O` | `Ctrl+O` |
 | Abrir un archivo .galera | `⌘⇧O` | `Ctrl+Shift+O` |
 | Guardar | `⌘S` | `Ctrl+S` |

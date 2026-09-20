@@ -39,7 +39,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use galera_core::{
-    ARCHIVE_EXTENSION, Document, Opened, Project, ProjectFormat, pack, save_as_folder,
+    ARCHIVE_EXTENSION, Document, Opened, Project, ProjectFormat, create, pack, save_as_folder,
     save_document, unpack,
 };
 use serde::Serialize;
@@ -106,6 +106,67 @@ pub async fn choose_project_folder(
 
     state.choose_folder(&folder);
     Ok(Some(folder))
+}
+
+/// El título con el que nace un documento nuevo.
+pub const NEW_TITLE: &str = "Sin título";
+
+/// Crea un proyecto vacío donde se diga en el diálogo nativo —una carpeta o
+/// un `.galera`— y lo abre.
+///
+/// Devuelve `None` si se cancela el diálogo.
+///
+/// # Errores
+///
+/// El error del núcleo si ya hay algo donde se pidió crearlo, o si no se
+/// puede escribir.
+#[tauri::command]
+pub async fn new_project(
+    archive: bool,
+    window: Window,
+    state: State<'_, AppState>,
+    queue: State<'_, CompileQueue>,
+) -> Result<Option<OpenedProject>, CommandError> {
+    let dialog = window.dialog().file().set_parent(&window);
+    let chosen = if archive {
+        dialog
+            .set_title("Nuevo proyecto .galera")
+            .set_file_name(format!("{NEW_TITLE}.{ARCHIVE_EXTENSION}"))
+            .add_filter("Proyectos de Galera", &[ARCHIVE_EXTENSION])
+            .blocking_save_file()
+    } else {
+        dialog
+            .set_title("Nuevo proyecto en una carpeta")
+            .blocking_pick_folder()
+    };
+    let Some(chosen) = chosen else {
+        return Ok(None);
+    };
+    let path = chosen
+        .into_path()
+        .map_err(|_| CommandError::NotALocalPath)?;
+
+    let opened = create_in(&state, &path)?;
+    queue.request();
+    Ok(Some(opened))
+}
+
+/// La parte de [`new_project`] que no depende de Tauri, para poder probarla.
+///
+/// Crea el proyecto y lo abre; como lo acaba de crear quien usa la app, la
+/// ruta queda autorizada para abrirse.
+fn create_in(state: &AppState, path: &Path) -> Result<OpenedProject, CommandError> {
+    let title = path
+        .file_stem()
+        .map(|stem| stem.to_string_lossy().into_owned())
+        .filter(|stem| !stem.trim().is_empty())
+        .unwrap_or_else(|| NEW_TITLE.to_owned());
+    create(path, &Document::new(title))?;
+    match ProjectFormat::of(path) {
+        ProjectFormat::Folder => state.choose_folder(path),
+        ProjectFormat::Archive => state.offer_files(std::slice::from_ref(&path.to_owned())),
+    }
+    open_path(state, path)
 }
 
 /// Enseña el diálogo nativo para elegir un archivo `.galera`.
@@ -538,5 +599,44 @@ mod tests {
             save_in(&AppState::default(), copies.path()),
             Err(CommandError::NothingOpen)
         ));
+    }
+
+    #[test]
+    fn a_new_project_opens_ready_to_edit() {
+        let state = AppState::default();
+        let dir = TempDir::new().expect("carpeta temporal");
+
+        let folder = dir.path().join("Informe");
+        let opened = create_in(&state, &folder).expect("se crea");
+        assert_eq!(
+            opened.document.meta.title, "Informe",
+            "el nombre da el título"
+        );
+        assert_eq!(opened.document.pages.len(), 1);
+        assert!(opened.archive.is_none());
+        assert!(folder.join("fonts").is_dir());
+        assert!(!state.summary().dirty, "recién creado no hay cambios");
+
+        let archive = dir.path().join("Otro.galera");
+        let from_archive = create_in(&state, &archive).expect("se crea");
+        assert_eq!(from_archive.archive.as_deref(), Some(archive.as_path()));
+        assert_eq!(from_archive.document.meta.title, "Otro");
+        assert_ne!(from_archive.root, archive, "se trabaja en una copia");
+    }
+
+    #[test]
+    fn a_new_project_does_not_overwrite_and_keeps_what_was_open() {
+        let state = AppState::default();
+        let dir = chosen_project(&state, &document_json(10.0));
+        let opened = open_chosen(&state, dir.path()).expect("se abre");
+
+        let error = create_in(&state, dir.path()).expect_err("ya hay algo");
+        let json = serde_json::to_value(&error).expect("serializa");
+        assert_eq!(json["kind"], "archive");
+        assert_eq!(
+            state.summary().root.as_deref(),
+            Some(opened.root.as_path()),
+            "lo que había abierto sigue abierto"
+        );
     }
 }

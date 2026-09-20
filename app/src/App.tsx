@@ -1,9 +1,11 @@
 import { useState } from "react";
 
 import {
+  type OpenedProject,
   type SessionStatus,
   chooseProjectFile,
   chooseProjectFolder,
+  newProject,
   errorMessage,
   exportPdf,
   openProject,
@@ -103,8 +105,35 @@ export function App() {
   useShortcut("exportPdf", () => void exportToPdf(), canExport);
   useShortcut("save", () => void save(), canSave);
   useShortcut("saveAs", () => void save("archive"), canSave);
+  useShortcut("newProject", () => void create(false), !opening);
+  useShortcut("newArchive", () => void create(true), !opening);
   useShortcut("openFolder", () => void open("folder"), !opening);
   useShortcut("openArchive", () => void open("archive"), !opening);
+
+  /** Enseña un proyecto recién abierto o creado, y espera su compilación. */
+  function show(opened: OpenedProject) {
+    useDocumentStore.getState().open(opened);
+    useCompilationStore.getState().expect(opened.revision);
+    useLayoutStore.getState().expect(opened.revision);
+  }
+
+  /** Crea un proyecto vacío y lo abre, como si se acabara de abrir. */
+  async function create(archive: boolean) {
+    setError(null);
+    setNotice(null);
+    setOpening(true);
+    try {
+      const created = await newProject(archive);
+      if (created !== null) {
+        show(created);
+        setNotice(`Proyecto nuevo en ${created.archive ?? created.root}`);
+      }
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setOpening(false);
+    }
+  }
 
   async function open(from: "folder" | "archive") {
     setError(null);
@@ -115,10 +144,7 @@ export function App() {
       if (folder !== null) {
         // El backend empieza a compilarlo solo; el resultado llega por
         // eventos (ver `hooks/useCompilation.ts`).
-        const opened = await openProject(folder);
-        useDocumentStore.getState().open(opened);
-        useCompilationStore.getState().expect(opened.revision);
-        useLayoutStore.getState().expect(opened.revision);
+        show(await openProject(folder));
       }
     } catch (reason) {
       // Si falla, el backend conserva lo que hubiera abierto, así que aquí
@@ -154,6 +180,23 @@ export function App() {
       />
       <CloseDialog />
       <div className="actions">
+        <button
+          type="button"
+          onClick={() => void create(false)}
+          disabled={opening}
+          aria-keyshortcuts={mac ? "Meta+N" : "Control+N"}
+          title={`Crear un proyecto vacío en una carpeta (${shortcutLabel("newProject", mac)})`}
+        >
+          Nuevo proyecto… <kbd>{shortcutLabel("newProject", mac)}</kbd>
+        </button>
+        <button
+          type="button"
+          onClick={() => void create(true)}
+          disabled={opening}
+          title={`Crear un proyecto vacío como archivo (${shortcutLabel("newArchive", mac)})`}
+        >
+          Nuevo .galera…
+        </button>
         <button type="button" onClick={() => void open("folder")} disabled={opening}>
           Abrir carpeta…
         </button>

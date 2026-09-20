@@ -125,6 +125,17 @@ export function openProject(path: string): Promise<OpenedProject> {
 }
 
 /**
+ * Crea un proyecto vacío donde se diga en el diálogo nativo —una carpeta o
+ * un `.galera`— y lo abre. `null` si se cancela el diálogo.
+ *
+ * El proyecto nace con una página A4 vacía y el nombre de lo elegido como
+ * título.
+ */
+export function newProject(archive: boolean): Promise<OpenedProject | null> {
+  return invoke<OpenedProject | null>("new_project", { archive });
+}
+
+/**
  * Enseña el diálogo nativo para elegir un archivo `.galera`. Devuelve el
  * elegido, o `null` si se cancela.
  */

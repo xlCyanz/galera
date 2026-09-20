@@ -38,7 +38,7 @@ los compara. Lleva, en una página A4:
 | Colocar y medir todo (X, Y, ancho, alto, giro) | ✅ | Inspector ([#39](https://github.com/xlCyanz/galera/issues/39)) |
 | Orden de capas, nombres, ocultar y bloquear | ✅ | Panel de capas ([#45](https://github.com/xlCyanz/galera/issues/45), [#46](https://github.com/xlCyanz/galera/issues/46)) |
 | Guardar como carpeta o `.galera` | ✅ | ⌘S y «Guardar como…» ([#51](https://github.com/xlCyanz/galera/issues/51)) |
-| **Empezar un proyecto nuevo** | ❌ | [#155](https://github.com/xlCyanz/galera/issues/155) |
+| Empezar un proyecto nuevo | ✅ | «Nuevo proyecto…» / «Nuevo .galera…» ([#155](https://github.com/xlCyanz/galera/issues/155)) |
 | **Título del documento** | ❌ | [#156](https://github.com/xlCyanz/galera/issues/156) |
 | **Bloque de código** | ❌ | [#157](https://github.com/xlCyanz/galera/issues/157) |
 | **Variables del documento** | ❌ | [#158](https://github.com/xlCyanz/galera/issues/158) |
@@ -47,16 +47,15 @@ los compara. Lleva, en una página A4:
 
 Es decir: **la maqueta se construye entera desde la app** (fondo, texto,
 imagen, fuentes, medidas, capas y guardado), y lo que obliga a tocar el JSON
-son las cinco cosas de arriba, cada una con su issue.
+son las cuatro cosas de arriba, cada una con su issue.
 
 ## Cómo hacer la sesión
 
 Con la app abierta (`pnpm tauri dev`), y guardando una captura en cada paso en
 `docs/capturas/fase-3/`:
 
-1. **Proyecto vacío.** Hoy hay que crearlo a mano ([#155](https://github.com/xlCyanz/galera/issues/155)):
-   una carpeta con un `document.json` de una página A4 sin elementos. Abrirla
-   con **Abrir carpeta…**.
+1. **Proyecto vacío.** **Nuevo proyecto…** (⌘N) y elegir una carpeta vacía:
+   nace con una página A4, `fonts/` y `assets/`, y queda abierto.
 2. **Fuentes.** Pestaña **Fuentes** → **Añadir…** → `fixtures/fonts/Inter-Regular.ttf`;
    repetir con `Inter-Bold.ttf`. Se copian a `fonts/` del proyecto.
 3. **Banda azul.** Herramienta `R`, arrastrar cualquier rectángulo y, en el

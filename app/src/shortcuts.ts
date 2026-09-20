@@ -60,6 +60,8 @@ export type Group = (typeof GROUPS)[number];
  * lo atienda lo registra con `useShortcut(id, …)`.
  */
 export const SHORTCUTS = [
+  { id: "newProject", label: "Nuevo proyecto en una carpeta", group: "Archivo", keys: { key: "n", mod: true } },
+  { id: "newArchive", label: "Nuevo proyecto .galera", group: "Archivo", keys: { key: "n", mod: true, shift: true } },
   { id: "openFolder", label: "Abrir una carpeta de proyecto", group: "Archivo", keys: { key: "o", mod: true } },
   { id: "openArchive", label: "Abrir un archivo .galera", group: "Archivo", keys: { key: "o", mod: true, shift: true } },
   { id: "save", label: "Guardar", group: "Archivo", keys: { key: "s", mod: true } },

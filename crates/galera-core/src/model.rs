@@ -99,6 +99,29 @@ impl Document {
         serde_json::to_string_pretty(self)
     }
 
+    /// Un documento vacío: una página A4 sin elementos. Es con lo que nace
+    /// un proyecto nuevo.
+    pub fn new(title: impl Into<String>) -> Self {
+        Self {
+            version: crate::DOCUMENT_VERSION,
+            meta: Meta {
+                title: title.into(),
+            },
+            fonts: Vec::new(),
+            assets: Default::default(),
+            variables: Default::default(),
+            pages: vec![Page {
+                id: "p1".to_owned(),
+                size: PageSize {
+                    width: 210.0,
+                    height: 297.0,
+                    unit: Unit::Mm,
+                },
+                elements: Vec::new(),
+            }],
+        }
+    }
+
     /// Busca un elemento por su id, en cualquier página.
     pub fn element(&self, id: &str) -> Option<&Element> {
         self.pages
