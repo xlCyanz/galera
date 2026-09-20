@@ -68,7 +68,15 @@ element: Element, } | { "op": "delete",
 /**
  * El elemento.
  */
-id: string, } | { "op": "reorder", 
+id: string, } | { "op": "rename", 
+/**
+ * El elemento.
+ */
+id: string, 
+/**
+ * Su id nuevo.
+ */
+to: string, } | { "op": "reorder", 
 /**
  * El elemento.
  */

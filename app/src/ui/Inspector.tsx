@@ -7,7 +7,8 @@
  * En un texto, además, su estilo: fuente, tamaño, color, alineación,
  * interlineado y espacio entre párrafos (`TextInspector.tsx`);
  * en una forma, su relleno, borde y radio (`ShapeInspector.tsx`); en un
- * bloque de código, su código (`CodeInspector.tsx`).
+ * bloque de código, su código (`CodeInspector.tsx`). El id se cambia con
+ * doble clic (`IdField.tsx`).
  *
  * Sin selección, enseña el título del documento (editable) y la página que
  * se ve: su id, su tamaño y cuántos elementos tiene.
@@ -18,6 +19,7 @@ import { useCurrentPage, useDocumentStore, useOpenDocument, useSelectedElement }
 import { useElementBox } from "../store/layout";
 import type { Element, Page } from "../types/model";
 import { CodeInspector } from "./CodeInspector";
+import { IdField } from "./IdField";
 import { MeasureField } from "./MeasureField";
 import { ShapeInspector } from "./ShapeInspector";
 import { TitleField } from "./TitleField";
@@ -84,7 +86,7 @@ function ElementInspector({ element, measured }: { element: Element; measured: R
   return (
     <section>
       <h2>
-        {ELEMENT_KIND[element.type]} <span className="inspector-id">{element.id}</span>
+        {ELEMENT_KIND[element.type]} <IdField id={element.id} />
       </h2>
       <div className="inspector-grid">
         {FIELDS.map(({ name, label, title, unit }) => {
