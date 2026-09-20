@@ -1,0 +1,122 @@
+/* Estilos del spike de entrada (#55). No entran en la aplicación
+   construida: solo los carga la página del spike. */
+
+/* El spike se ve igual tanto en su propia página como dentro de la
+   aplicación (`VITE_SPIKE=ime`), que trae su propio tema oscuro. */
+body {
+  margin: 0;
+  background: #fff;
+  color-scheme: light;
+}
+
+.spike {
+  min-height: 100vh;
+  background: #fff;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+  font: 14px/1.5 system-ui, sans-serif;
+  color: #1f2733;
+}
+
+.spike-lead {
+  color: #4a5568;
+}
+
+/* El lienzo de mentira: donde se ve el texto del modelo. */
+.spike-canvas {
+  position: relative;
+  min-height: 8rem;
+  padding: 1rem;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  background: #fff;
+  cursor: text;
+}
+
+.spike-text {
+  margin: 0;
+  font: 16px/1.6 ui-serif, Georgia, serif;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Lo que el IME lleva compuesto y todavía no ha dado por bueno. */
+.spike-composing {
+  text-decoration: underline dotted;
+}
+
+.spike-caret {
+  display: inline-block;
+  width: 0;
+  height: 1.6em;
+  vertical-align: text-bottom;
+  border-left: 2px solid #1f2733;
+  animation: spike-blink 1s step-end infinite;
+}
+
+@keyframes spike-blink {
+  50% {
+    border-color: transparent;
+  }
+}
+
+/* El campo que recibe de verdad el teclado: invisible, de un píxel, y
+   colocado en el cursor para que la ventana del IME salga ahí. */
+.spike-input {
+  position: absolute;
+  width: 1px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  resize: none;
+  overflow: hidden;
+}
+
+.spike-state dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+}
+
+.spike-state dt {
+  color: #4a5568;
+}
+
+.spike-state dd {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+  word-break: break-word;
+}
+
+.spike-ok {
+  color: #1a7f4b;
+  font-weight: 600;
+}
+
+.spike-bad {
+  color: #c53030;
+  font-weight: 600;
+}
+
+.spike-checks ul {
+  padding-left: 1.2rem;
+}
+
+.spike-log table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.spike-log th,
+.spike-log td {
+  padding: 0.15rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #edf2f7;
+  white-space: nowrap;
+}
