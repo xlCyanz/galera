@@ -32,6 +32,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+pub mod text;
 pub mod validate;
 
 pub use validate::{

@@ -327,6 +327,25 @@ fn every_command_on_a_missing_id_is_an_error() {
             id: "nadie".into(),
             property: Property::Radius(1.0),
         },
+        Op::InsertText {
+            id: "nadie".into(),
+            at: 0,
+            text: "x".into(),
+        },
+        Op::DeleteText {
+            id: "nadie".into(),
+            from: 0,
+            to: 1,
+        },
+        Op::FormatText {
+            id: "nadie".into(),
+            from: 0,
+            to: 1,
+            format: Format {
+                bold: Some(true),
+                ..Format::default()
+            },
+        },
         Op::Delete { id: "nadie".into() },
         Op::Reorder {
             id: "nadie".into(),
@@ -467,6 +486,34 @@ fn commands_serialize_and_deserialize() {
                 index: 2,
             },
             json!({ "op": "reorder", "id": "r1", "index": 2 }),
+        ),
+        (
+            Op::InsertText {
+                id: "t1".into(),
+                at: 4,
+                text: "!".into(),
+            },
+            json!({ "op": "insert_text", "id": "t1", "at": 4, "text": "!" }),
+        ),
+        (
+            Op::DeleteText {
+                id: "t1".into(),
+                from: 0,
+                to: 2,
+            },
+            json!({ "op": "delete_text", "id": "t1", "from": 0, "to": 2 }),
+        ),
+        (
+            Op::FormatText {
+                id: "t1".into(),
+                from: 0,
+                to: 4,
+                format: Format {
+                    bold: Some(true),
+                    ..Format::default()
+                },
+            },
+            json!({ "op": "format_text", "id": "t1", "from": 0, "to": 4, "format": { "bold": true } }),
         ),
     ];
     for (op, expected) in cases {
@@ -979,4 +1026,121 @@ fn an_id_has_to_be_free_and_valid() {
     .apply(&original)
     .expect("se aplica");
     assert_eq!(same.document, original);
+}
+
+/// El criterio de la tarea: escribir, borrar y dar formato son comandos, y
+/// deshacer devuelve el texto exactamente como estaba.
+#[test]
+fn writing_deleting_and_formatting_are_commands() {
+    let written = apply_and_check_undo(&Op::InsertText {
+        id: "t1".into(),
+        at: 4,
+        text: ", mundo".into(),
+    });
+    assert_eq!(content(&written, "t1"), vec![("Hola, mundo", false)]);
+
+    let deleted = apply_and_check_undo(&Op::DeleteText {
+        id: "t1".into(),
+        from: 0,
+        to: 2,
+    });
+    assert_eq!(content(&deleted, "t1"), vec![("la", false)]);
+
+    let formatted = apply_and_check_undo(&Op::FormatText {
+        id: "t1".into(),
+        from: 0,
+        to: 2,
+        format: Format {
+            bold: Some(true),
+            ..Format::default()
+        },
+    });
+    assert_eq!(content(&formatted, "t1"), vec![("Ho", true), ("la", false)]);
+}
+
+/// Las posiciones se cuentan en caracteres, no en bytes: un emoji es uno.
+#[test]
+fn text_positions_are_counted_in_characters() {
+    let original = document();
+    let with_emoji = Op::InsertText {
+        id: "t1".into(),
+        at: 4,
+        text: " 👩‍🌾".into(),
+    }
+    .apply(&original)
+    .expect("se aplica")
+    .document;
+    assert_eq!(text_of(&with_emoji, "t1"), "Hola 👩‍🌾");
+
+    // El emoji está en la posición 5 y ocupa una: borrarlo lo quita entero.
+    let without = Op::DeleteText {
+        id: "t1".into(),
+        from: 5,
+        to: 6,
+    }
+    .apply(&with_emoji)
+    .expect("se aplica")
+    .document;
+    assert_eq!(text_of(&without, "t1"), "Hola ");
+}
+
+/// Los comandos de texto solo valen en un bloque de texto, y solo dentro
+/// del texto que hay.
+#[test]
+fn text_commands_only_work_on_text_and_inside_it() {
+    assert_eq!(
+        Op::InsertText {
+            id: "r1".into(),
+            at: 0,
+            text: "x".into(),
+        }
+        .apply(&document()),
+        Err(OpError::NotApplicable {
+            id: "r1".into(),
+            kind: "rect",
+            what: "Escribir".into(),
+        })
+    );
+
+    assert_eq!(
+        Op::DeleteText {
+            id: "t1".into(),
+            from: 0,
+            to: 9,
+        }
+        .apply(&document()),
+        Err(OpError::Text(TextError::OutOfRange { at: 9, length: 4 }))
+    );
+
+    assert_eq!(
+        Op::FormatText {
+            id: "t1".into(),
+            from: 3,
+            to: 1,
+            format: Format {
+                italic: Some(true),
+                ..Format::default()
+            },
+        }
+        .apply(&document()),
+        Err(OpError::Text(TextError::Backwards { from: 3, to: 1 }))
+    );
+}
+
+/// El texto y el formato de un bloque, para leerlos de un vistazo.
+fn content<'a>(document: &'a Document, id: &str) -> Vec<(&'a str, bool)> {
+    match element(document, id) {
+        Element::Text { content, .. } => content
+            .iter()
+            .map(|run| (run.text.as_str(), run.bold))
+            .collect(),
+        other => panic!("{} no es un texto", other.id()),
+    }
+}
+
+fn text_of(document: &Document, id: &str) -> String {
+    content(document, id)
+        .into_iter()
+        .map(|(text, _)| text)
+        .collect()
 }

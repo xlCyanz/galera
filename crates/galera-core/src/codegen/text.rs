@@ -171,6 +171,20 @@ mod tests {
         generate_with(&text_element(content, "left", "null"))
     }
 
+    /// Un texto se puede quedar sin tramos: borrar todo lo que tenía
+    /// (`ops::text`) deja el contenido vacío, y eso también tiene que
+    /// generar código.
+    #[test]
+    fn a_text_without_runs_is_an_empty_block() {
+        let typst = generate_with(
+            r##"{ "id": "t1", "type": "text", "x": 20, "y": 30, "w": 170, "h": null,
+                  "content": [],
+                  "style": { "font": "Inter", "size": 28, "color": "#1F2733",
+                             "align": "left", "leading": 0.65 } }"##,
+        );
+        assert!(typst.contains("align(left)[]"), "{typst}");
+    }
+
     #[test]
     fn the_block_takes_the_element_width_and_the_style() {
         let typst = plain("Informe anual");

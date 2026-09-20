@@ -1441,6 +1441,7 @@ dependencies = [
  "typst-layout",
  "typst-pdf",
  "typst-svg",
+ "unicode-segmentation",
 ]
 
 [[package]]

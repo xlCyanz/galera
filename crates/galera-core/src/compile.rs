@@ -318,6 +318,30 @@ mod tests {
         document
     }
 
+    /// Borrar todo el texto de un bloque (`ops::text`) lo deja sin tramos,
+    /// y eso tiene que seguir compilando: un marco vacío.
+    #[test]
+    fn a_text_without_runs_compiles() {
+        let dir = project_dir();
+        let mut document = guide_example(&dir);
+        for page in &mut document.pages {
+            for element in &mut page.elements {
+                if let Element::Text { content, .. } = element {
+                    content.clear();
+                }
+            }
+        }
+
+        let compiled = compile(&document, &open(&dir))
+            .unwrap_or_else(|error| panic!("un texto vacío debe compilar: {error}"));
+        assert_eq!(compiled.page_count(), 1);
+        assert!(
+            compiled.warnings().is_empty(),
+            "sin avisos: {:#?}",
+            compiled.warnings()
+        );
+    }
+
     /// El criterio de la tarea: el ejemplo compila a un PDF.
     #[test]
     fn the_guide_example_compiles_to_pdf() {

@@ -73,6 +73,30 @@ const transform = canvasTransform({ width: 800, height: 600 }, { width: 210, hei
   y: 0,
 });
 
+/** Los comandos de texto que manda el campo. */
+type TextOp =
+  | { op: "insert_text"; id: string; at: number; text: string }
+  | { op: "delete_text"; id: string; from: number; to: number };
+
+/** Dónde empieza cada carácter, en unidades de JavaScript. */
+const starts = (text: string) => [
+  ...[...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(text)].map(
+    (segment) => segment.index,
+  ),
+  text.length,
+];
+
+function applyToText(text: string, op: TextOp): string {
+  const bounds = starts(text);
+  if (op.op === "insert_text") {
+    const at = bounds[op.at] ?? text.length;
+    return text.slice(0, at) + op.text + text.slice(at);
+  }
+  const from = bounds[op.from] ?? text.length;
+  const to = bounds[op.to] ?? text.length;
+  return text.slice(0, from) + text.slice(to);
+}
+
 let container: HTMLDivElement;
 let root: Root;
 /** Los comandos que llegaron al backend. */
@@ -89,11 +113,20 @@ beforeEach(() => {
       if (refuse) {
         throw { kind: "op", message: "no" };
       }
-      const op = (args as { op: { property: { value: Run[] } } }).op;
+      // El núcleo de mentira: aplica el comando al texto entero. El reparto
+      // en tramos de verdad se prueba en Rust (`model::text`).
+      const op = (args as { op: TextOp }).op;
       const document = structuredClone(useDocumentStore.getState().document!);
       const element = document.pages[0]!.elements[0]!;
       if (element.type === "text") {
-        element.content = op.property.value;
+        element.content = [
+          {
+            text: applyToText(element.content.map((run) => run.text).join(""), op),
+            bold: false,
+            italic: false,
+            underline: false,
+          },
+        ];
       }
       const applied: AppliedOp = {
         revision: 2,
@@ -127,26 +160,31 @@ const field = () => container.querySelector("textarea")!;
 const ops = () =>
   calls
     .filter((call) => call.command === "apply_op")
-    .map((call) => call.args as { op: { property: { value: Run[] } }; group: string | null });
+    .map((call) => call.args as { op: TextOp; group: string | null });
 
 const content = () => {
   const element = useDocumentStore.getState().document?.pages[0]?.elements[0];
   return element?.type === "text" ? element.content : [];
 };
 
+const text = () => content().map((run) => run.text).join("");
+
 /** Escribe en el campo como lo haría el navegador. */
 async function type(text: string) {
   await act(async () => {
     field().value = text;
     field().dispatchEvent(new Event("input", { bubbles: true }));
-    await Promise.resolve();
+    await settle();
   });
 }
+
+/** Espera a que los comandos de camino al backend lleguen y vuelvan. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 async function key(init: KeyboardEventInit) {
   await act(async () => {
     field().dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }));
-    await Promise.resolve();
+    await settle();
   });
 }
 
@@ -159,13 +197,34 @@ describe("el campo invisible", () => {
     expect(field().getAttribute("aria-label")).toBe("Texto de t1");
   });
 
-  it("escribir manda el contenido y conserva el formato de los tramos", async () => {
+  it("escribir manda un comando con la posición en caracteres", async () => {
     await type("Hola mundos");
-    expect(ops()).toHaveLength(1);
-    expect(content()).toEqual([
-      { text: "Hola ", bold: false, italic: false, underline: false },
-      { text: "mundos", bold: true, italic: false, underline: false },
+    expect(ops().map((call) => call.op)).toEqual([
+      { op: "insert_text", id: "t1", at: 10, text: "s" },
     ]);
+    expect(text()).toBe("Hola mundos");
+  });
+
+  it("borrar manda el trozo que se quita, y cambiar lo seleccionado manda los dos", async () => {
+    await type("Hola");
+    expect(ops().map((call) => call.op)).toEqual([{ op: "delete_text", id: "t1", from: 4, to: 10 }]);
+
+    calls = [];
+    await type("Hola tú");
+    expect(ops().map((call) => call.op)).toEqual([{ op: "insert_text", id: "t1", at: 4, text: " tú" }]);
+  });
+
+  it("un emoji va como un solo carácter", async () => {
+    await type("Hola mundo 👩‍🌾");
+    expect(ops().map((call) => call.op)).toEqual([
+      { op: "insert_text", id: "t1", at: 10, text: " 👩‍🌾" },
+    ]);
+    expect(text()).toBe("Hola mundo 👩‍🌾");
+
+    calls = [];
+    await type("Hola mundo ");
+    // Once unidades UTF-16, un solo carácter: de la 11 a la 12.
+    expect(ops().map((call) => call.op)).toEqual([{ op: "delete_text", id: "t1", from: 11, to: 12 }]);
   });
 
   it("teclear seguido es un solo paso del historial", async () => {
@@ -190,7 +249,7 @@ describe("el campo invisible", () => {
       await Promise.resolve();
     });
     expect(ops()).toHaveLength(1);
-    expect(content().map((run) => run.text).join("")).toBe("Hola mundoé");
+    expect(text()).toBe("Hola mundoé");
   });
 
   it("lo que se pega entra como texto, y el HTML se queda sin etiquetas", async () => {
@@ -205,14 +264,14 @@ describe("el campo invisible", () => {
     await act(async () => {
       field().setSelectionRange(10, 10);
       field().dispatchEvent(paste({ "text/html": "<p>y <b>más</b></p>" }));
-      await Promise.resolve();
+      await settle();
     });
     expect(field().value).toBe("Hola mundoy más");
-    expect(content().map((run) => run.text).join("")).toBe("Hola mundoy más");
+    expect(text()).toBe("Hola mundoy más");
 
     await act(async () => {
       field().dispatchEvent(paste({ "text/plain": "!", "text/html": "<b>!</b>" }));
-      await Promise.resolve();
+      await settle();
     });
     expect(field().value).toBe("Hola mundoy más!");
   });
@@ -246,7 +305,7 @@ describe("el campo invisible", () => {
         element.content = [{ text: "Otro texto", bold: false, italic: false, underline: false }];
       }
       useDocumentStore.getState().replaceDocument(document);
-      await Promise.resolve();
+      await settle();
     });
     expect(field().value).toBe("Otro texto");
   });
@@ -256,7 +315,7 @@ describe("el campo invisible", () => {
       const document = structuredClone(useDocumentStore.getState().document!);
       document.pages[0]!.elements = [];
       useDocumentStore.getState().replaceDocument(document);
-      await Promise.resolve();
+      await settle();
     });
     expect(useEditingStore.getState().element).toBeNull();
   });
@@ -265,7 +324,7 @@ describe("el campo invisible", () => {
     refuse = true;
     await type("Hola mundos");
     await act(async () => {
-      await Promise.resolve();
+      await settle();
     });
     expect(field().value).toBe("Hola mundo");
   });

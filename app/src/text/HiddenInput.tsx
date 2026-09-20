@@ -21,11 +21,22 @@
  * candidatos del IME— no se manda nada: compilar a medias enseñaría el
  * acento suelto. Se manda al confirmarse.
  *
+ * # Un comando por cambio, no el texto entero
+ *
+ * Lo que se manda no es el contenido completo: es «borra este trozo» y
+ * «escribe esto aquí» (`ops::text`), con las posiciones en caracteres. El
+ * reparto en tramos —qué formato hereda lo que se escribe, qué tramos se
+ * parten— lo hace el núcleo (principio 5). Aquí solo se compara lo que
+ * enseña el campo con lo que dice el documento (`change.ts`).
+ *
+ * Los cambios van de uno en uno: hasta que el backend no contesta no se
+ * manda el siguiente, y el siguiente se calcula con lo que haya entonces.
+ * Así, teclear rápido no manda posiciones de un texto que ya ha cambiado.
+ *
  * # Lo que todavía no
  *
  * El cursor y la selección se dibujarán a partir de las posiciones de
  * glifos en F4-06 (#60) y F4-07 (#61); aquí solo se guarda por dónde van.
- * El reparto del texto en tramos lo hará el núcleo en F4-03 (#57).
  */
 import { useEffect, useEffectEvent, useRef } from "react";
 
@@ -37,13 +48,30 @@ import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
 import type { LayoutBox } from "../types/layout";
 import type { Run } from "../types/model";
-import { textOf, withText } from "./runs";
+import { change, textOf } from "./change";
 
 /** Teclear seguido es un solo paso del historial; tras esta pausa, en
  * milisegundos, empieza otro. */
 const BURST_MS = 1500;
 
 let bursts = 0;
+/** La ráfaga a la que pertenece lo que se escribe ahora. */
+let burst: { group: string; at: number } | null = null;
+
+/**
+ * El grupo del historial para este cambio: el mismo que el anterior si no
+ * ha pasado [`BURST_MS`] desde entonces, y si no, uno nuevo.
+ */
+function burstGroup(id: string): string {
+  const now = performance.now();
+  if (burst === null || now - burst.at > BURST_MS) {
+    bursts += 1;
+    burst = { group: `text-${id}-${bursts}`, at: now };
+  } else {
+    burst = { group: burst.group, at: now };
+  }
+  return burst.group;
+}
 
 export interface HiddenInputProps {
   /** El texto que se está escribiendo. */
@@ -56,36 +84,39 @@ export interface HiddenInputProps {
 
 export function HiddenInput({ id, box, transform }: HiddenInputProps) {
   const field = useRef<HTMLTextAreaElement>(null);
-  /** El texto que se mandó por última vez: lo que el backend ya tiene. */
-  const sent = useRef<string | null>(null);
-  const burst = useRef<{ group: string; at: number } | null>(null);
+  /** Los cambios que están de camino al backend, uno detrás de otro. */
+  const queue = useRef<Promise<void>>(Promise.resolve());
 
-  const commit = useEffectEvent((text: string) => {
-    if (text === sent.current) {
-      return;
-    }
+  const commit = useEffectEvent(() => {
+    // Un cambio detrás de otro: el siguiente se calcula cuando el anterior
+    // ya está en el documento.
+    queue.current = queue.current.then(push).catch(() => {
+      // El núcleo no lo ha aceptado: la copia vuelve a lo que hay.
+      sync();
+    });
+  });
+
+  /** Manda al backend lo que el campo tiene y el documento todavía no. */
+  const push = useEffectEvent(async () => {
+    const element = field.current;
     const runs = runsOf(id);
-    if (runs === null) {
+    if (element === null || runs === null) {
       return;
     }
-    sent.current = text;
-    const now = performance.now();
-    if (burst.current === null || now - burst.current.at > BURST_MS) {
-      bursts += 1;
-      burst.current = { group: `text-${id}-${bursts}`, at: now };
-    } else {
-      burst.current = { ...burst.current, at: now };
+    const edit = change(textOf(runs), element.value);
+    if (edit === null) {
+      return;
     }
-    void applyOp(
-      { op: "set_property", id, property: { name: "content", value: withText(runs, text) } },
-      burst.current.group,
-    )
-      .then((applied) => useDocumentStore.getState().applyEdit(applied))
-      .catch(() => {
-        // El núcleo no lo ha aceptado: la copia vuelve a lo que hay.
-        sent.current = null;
-        sync();
-      });
+
+    const group = burstGroup(id);
+    const apply = (applied: Awaited<ReturnType<typeof applyOp>>) =>
+      useDocumentStore.getState().applyEdit(applied);
+    if (edit.to > edit.from) {
+      apply(await applyOp({ op: "delete_text", id, from: edit.from, to: edit.to }, group));
+    }
+    if (edit.text !== "") {
+      apply(await applyOp({ op: "insert_text", id, at: edit.from, text: edit.text }, group));
+    }
   });
 
   /** Pone la copia al día con el documento, si han dejado de coincidir. */
@@ -108,7 +139,6 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
     const at = Math.min(element.selectionStart, text.length);
     element.value = text;
     element.setSelectionRange(at, at);
-    sent.current = text;
     remember();
   });
 
@@ -129,7 +159,6 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
     const runs = runsOf(id);
     const text = runs === null ? "" : textOf(runs);
     element.value = text;
-    sent.current = text;
     element.setSelectionRange(text.length, text.length);
     element.focus();
     remember();
@@ -164,16 +193,16 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
       autoCapitalize="off"
       autoCorrect="off"
       style={position(box, transform)}
-      onInput={(event) => {
+      onInput={() => {
         if (!useEditingStore.getState().composing) {
-          commit(event.currentTarget.value);
+          commit();
         }
         remember();
       }}
       onCompositionStart={() => useEditingStore.getState().setComposing(true)}
-      onCompositionEnd={(event) => {
+      onCompositionEnd={() => {
         useEditingStore.getState().setComposing(false);
-        commit(event.currentTarget.value);
+        commit();
         remember();
       }}
       onPaste={(event) => {
@@ -188,7 +217,7 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
         element.value = value.slice(0, from) + text + value.slice(to);
         const at = from + text.length;
         element.setSelectionRange(at, at);
-        commit(element.value);
+        commit();
         remember();
       }}
       onKeyDown={(event) => {

@@ -23,9 +23,11 @@
 //! aplicar: un id que no existe, una propiedad que el elemento no tiene.
 
 pub mod history;
+mod text;
 
 use serde::{Deserialize, Serialize};
 
+use crate::model::text::{Format, TextError};
 use crate::model::{Document, Element, Run, Stroke, TextStyle, is_valid_id};
 
 /// Un cambio del documento.
@@ -65,6 +67,42 @@ pub enum Op {
         id: String,
         /// El giro nuevo.
         rotation: f64,
+    },
+
+    /// Mete texto en un bloque de texto.
+    ///
+    /// `at` se cuenta en caracteres, no en bytes: ver
+    /// [`crate::model::text`]. Lo que se escribe sigue el formato del tramo
+    /// que tiene a la izquierda.
+    InsertText {
+        /// El elemento.
+        id: String,
+        /// Dónde se mete, en caracteres desde el principio del texto.
+        at: usize,
+        /// Lo que se escribe.
+        text: String,
+    },
+
+    /// Borra un trozo de un bloque de texto: el tramo `[from, to)`.
+    DeleteText {
+        /// El elemento.
+        id: String,
+        /// Dónde empieza, en caracteres.
+        from: usize,
+        /// Dónde acaba, sin incluirlo.
+        to: usize,
+    },
+
+    /// Cambia el formato de un trozo de un bloque de texto.
+    FormatText {
+        /// El elemento.
+        id: String,
+        /// Dónde empieza, en caracteres.
+        from: usize,
+        /// Dónde acaba, sin incluirlo.
+        to: usize,
+        /// Qué se cambia. Lo que no se diga se queda como estaba.
+        format: Format,
     },
 
     /// Cambia una propiedad de un elemento.
@@ -338,6 +376,10 @@ pub enum OpError {
         id: String,
     },
 
+    /// El trozo de texto que se pide no está en el texto.
+    #[error("{0}")]
+    Text(#[from] TextError),
+
     /// El elemento no admite ese cambio.
     #[error("{what} no se puede aplicar a {id:?}, que es un elemento de tipo {kind}")]
     NotApplicable {
@@ -365,6 +407,9 @@ impl Op {
                 Property::Locked(false) => format!("Desbloquear {id}"),
                 other => format!("Cambiar {} de {id}", other.label()),
             },
+            Op::InsertText { id, .. } => format!("Escribir en {id}"),
+            Op::DeleteText { id, .. } => format!("Borrar texto de {id}"),
+            Op::FormatText { id, .. } => format!("Dar formato a {id}"),
             Op::Create { element, .. } => format!("Crear {}", element.id()),
             Op::Delete { id } => format!("Eliminar {id}"),
             Op::Rename { id, to } => format!("Renombrar {id} a {to}"),
@@ -390,6 +435,9 @@ impl Op {
             | Op::Resize { id, .. }
             | Op::Rotate { id, .. }
             | Op::SetProperty { id, .. }
+            | Op::InsertText { id, .. }
+            | Op::DeleteText { id, .. }
+            | Op::FormatText { id, .. }
             | Op::Delete { id }
             | Op::Rename { id, .. }
             | Op::Reorder { id, .. } => Some(id),
@@ -469,6 +517,23 @@ impl Op {
             Op::SetProperty { id, property } => {
                 edit(document, id, |element| set_property(element, id, property))
             }
+
+            Op::InsertText { id, at, text } => {
+                edit(document, id, |element| text::insert(element, id, *at, text))
+            }
+
+            Op::DeleteText { id, from, to } => edit(document, id, |element| {
+                text::delete(element, id, *from, *to)
+            }),
+
+            Op::FormatText {
+                id,
+                from,
+                to,
+                format,
+            } => edit(document, id, |element| {
+                text::format(element, id, *from, *to, format)
+            }),
 
             Op::Create {
                 page,

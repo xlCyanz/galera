@@ -18,6 +18,7 @@ typst.workspace = true
 typst-layout.workspace = true
 typst-pdf.workspace = true
 typst-svg.workspace = true
+unicode-segmentation.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
