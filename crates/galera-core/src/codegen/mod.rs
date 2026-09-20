@@ -287,7 +287,8 @@ fn emit_body(element: &Element, document: &Document, out: &mut String) -> Result
             base,
             content,
             style,
-        } => text::emit_text(base, content, style, out),
+            lines,
+        } => text::emit_text(base, content, style, lines, out),
         Element::Image { base, asset } => image::emit_image(base, asset, document, out),
         Element::Code { base, source } => {
             code::emit_code(base, source, out);

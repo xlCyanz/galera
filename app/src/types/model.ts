@@ -67,6 +67,14 @@ content: Array<Run>,
  */
 style: TextStyle, 
 /**
+ * Cómo se compone cada línea del bloque: si es un elemento de una
+ * lista y con cuánto anidado. Las líneas son las que separan los
+ * saltos de línea del contenido, contando desde 0; una línea sin
+ * entrada aquí es texto normal, y la lista puede ser más corta que
+ * el número de líneas.
+ */
+lines?: Array<Line>, 
+/**
  * Identificador único dentro del documento.
  *
  * Es también la etiqueta `<el-ID>` que el codegen deja en el código
@@ -440,6 +448,30 @@ hidden?: boolean,
  * el panel de capas.
  */
 locked?: boolean, };
+
+/**
+ * Cómo se compone una línea de un bloque de texto.
+ *
+ * El contenido de un bloque es texto con saltos de línea; lo que hace de
+ * una línea un elemento de lista no está en el texto, sino aquí: así el
+ * texto se sigue leyendo tal cual y el guion de una viñeta no se confunde
+ * con un guion escrito.
+ */
+export type Line = { 
+/**
+ * La lista de la que es elemento, si lo es.
+ */
+list?: ListKind | null, 
+/**
+ * Cuánto se anida dentro de la lista, desde 0. Sin lista no significa
+ * nada.
+ */
+level?: number, };
+
+/**
+ * Qué clase de lista.
+ */
+export type ListKind = "bullet" | "numbered";
 
 /**
  * Metadatos del documento.

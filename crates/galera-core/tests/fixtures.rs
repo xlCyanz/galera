@@ -24,6 +24,7 @@ const FIXTURES: &[&str] = &[
     "imagen",
     "informe",
     "linea",
+    "listas",
     "multipagina",
     "rectangulo",
     "texto",

@@ -260,6 +260,19 @@ const BREAKS: [&str; 2] = ["#linebreak();", "#parbreak();"];
 /// entre `[` y `]` sí es texto del documento; el envoltorio, no.
 const WRAPPERS: [&str; 5] = ["#emph[", "#strong[", "#underline[", "#text(", "#link("];
 
+/// Lo que el codegen escribe para abrir una lista.
+const LISTS: [&str; 2] = ["#list(", "#enum("];
+
+/// Qué hay abierto mientras se recorre el código generado.
+#[derive(PartialEq, Eq)]
+enum Open {
+    /// Un envoltorio de formato: su `]` no consume nada del texto.
+    Wrapper,
+    /// Un elemento de una lista: entre uno y el siguiente hay un salto de
+    /// línea del documento que el código no escribe.
+    Item,
+}
+
 impl TextMap {
     /// Recorre el contenido del elemento `id` en `source` junto a su `text`.
     /// `None` si el elemento no está en el código o si los dos no van de la
@@ -276,9 +289,32 @@ impl TextMap {
         let mut indices = Vec::new();
         let mut rest = &code[start..];
         let mut at = 0;
-        // Cuántos envoltorios de formato hay abiertos: sus `]` no acaban el
+        // Lo que hay abierto: mientras quede algo, un `]` no acaba el
         // contenido.
-        let mut open = 0usize;
+        let mut open: Vec<Open> = Vec::new();
+
+        /// Se salta `count` bytes del código, que no son texto del
+        /// documento.
+        macro_rules! skip {
+            ($count:expr) => {{
+                let count = $count;
+                indices.extend(std::iter::repeat_n(at, count));
+                rest = &rest[count..];
+            }};
+        }
+
+        /// Consume los saltos de línea que haya ahora en el texto: los que
+        /// el código no escribe porque los separa la propia lista.
+        macro_rules! swallow_newlines {
+            ($most:expr) => {{
+                let newlines = text[at..]
+                    .bytes()
+                    .take_while(|byte| matches!(byte, b'\n' | b'\r'))
+                    .count()
+                    .min($most);
+                at += newlines;
+            }};
+        }
 
         loop {
             if let Some(brk) = BREAKS.iter().find(|brk| rest.starts_with(**brk)) {
@@ -300,28 +336,59 @@ impl TextMap {
             // El marcado del formato no es texto del documento: se salta
             // entero, hasta el `[` que abre el tramo.
             if let Some(wrapper) = WRAPPERS.iter().find(|wrapper| rest.starts_with(**wrapper)) {
-                let skip = if wrapper.ends_with('(') {
+                let count = if wrapper.ends_with('(') {
                     // `#text(fill: …)[` y `#link("…")[`: el argumento lo
                     // escribió el codegen, no el documento.
                     opening_bracket(rest)? + 1
                 } else {
                     wrapper.len()
                 };
-                indices.extend(std::iter::repeat_n(at, skip));
-                rest = &rest[skip..];
-                open += 1;
+                skip!(count);
+                open.push(Open::Wrapper);
+                continue;
+            }
+
+            // Una lista: el salto de línea que la separa de lo de antes no
+            // está en el código, pero sí en el texto.
+            if let Some(list) = LISTS.iter().find(|list| rest.starts_with(**list)) {
+                skip!(list.len());
+                swallow_newlines!(usize::MAX);
+                if !rest.starts_with('[') {
+                    return None;
+                }
+                skip!(1);
+                open.push(Open::Item);
                 continue;
             }
 
             let character = rest.chars().next()?;
             if character == ']' {
-                if open == 0 {
+                let Some(frame) = open.pop() else {
+                    // Aquí acaba el contenido del elemento.
                     break;
+                };
+                skip!(1);
+                if frame == Open::Wrapper {
+                    continue;
                 }
-                // Cierra un envoltorio, no el contenido.
-                open -= 1;
-                indices.push(at);
-                rest = &rest[1..];
+
+                // Se ha cerrado un elemento de lista: o viene otro, o se
+                // cierra la lista.
+                if rest.starts_with(", [") {
+                    skip!(", [".len());
+                    // Entre dos elementos hay un salto de línea y solo uno.
+                    swallow_newlines!(1);
+                    open.push(Open::Item);
+                } else if rest.starts_with(')') {
+                    skip!(1);
+                    // Al acabar una lista de las de fuera, lo que sigue es
+                    // texto normal: el salto que las separa tampoco está.
+                    if open.is_empty() {
+                        swallow_newlines!(usize::MAX);
+                    }
+                } else {
+                    return None;
+                }
                 continue;
             }
 
@@ -634,6 +701,42 @@ mod tests {
             .expect("hay glifos")
             .line;
         assert_eq!(lines, 1);
+    }
+
+    /// El criterio de la tarea: dentro de una lista, el cursor y la
+    /// selección siguen cuadrando. El separador entre dos elementos es un
+    /// salto de línea del documento que el código generado no escribe.
+    #[test]
+    fn the_glyphs_of_a_list_still_point_at_the_document() {
+        for id in ["vinetas", "numerada"] {
+            let text = text_of("listas", id);
+            let found = glyphs_of("listas", id);
+            assert!(!found.is_empty(), "{id} dibuja algo");
+            // Lo que componen todos los glifos es el texto entero, sin los
+            // saltos de línea, que no se dibujan.
+            assert_eq!(
+                pieces(&text, &found).concat().replace('\n', ""),
+                text.replace('\n', ""),
+                "{id}"
+            );
+
+            // Y cada elemento empieza en su línea.
+            let lines: Vec<usize> = found
+                .iter()
+                .enumerate()
+                .filter(|(at, glyph)| *at == 0 || found[at - 1].line != glyph.line)
+                .map(|(_, glyph)| glyph.text_index)
+                .collect();
+            let starts: Vec<usize> = text
+                .split('\n')
+                .scan(0, |at, line| {
+                    let start = *at;
+                    *at += line.len() + 1;
+                    Some(start)
+                })
+                .collect();
+            assert_eq!(lines, starts, "{id}: una línea por elemento");
+        }
     }
 
     /// Lo que no es un bloque de texto no tiene glifos: ni un rectángulo, ni

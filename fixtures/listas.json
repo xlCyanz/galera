@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "meta": { "title": "Listas" },
+  "fonts": ["fonts/Inter-Regular.ttf"],
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "vinetas", "type": "text", "x": 20, "y": 20, "w": 170, "h": null,
+          "content": [
+            { "text": "Lo que trae la cooperativa:\nTrigo\nCebada\nDe secano\nDe regadío\nCenteno\nY hasta aquí." }
+          ],
+          "lines": [
+            {},
+            { "list": "bullet" },
+            { "list": "bullet" },
+            { "list": "bullet", "level": 1 },
+            { "list": "bullet", "level": 1 },
+            { "list": "bullet" }
+          ],
+          "style": { "font": "Inter", "size": 11, "color": "#1F2733", "align": "left", "leading": 0.65 } },
+        { "id": "numerada", "type": "text", "x": 20, "y": 80, "w": 170, "h": null,
+          "content": [
+            { "text": "Primero\n" },
+            { "text": "Segundo", "bold": true },
+            { "text": "\nSegundo bis\nTercero" }
+          ],
+          "lines": [
+            { "list": "numbered" },
+            { "list": "numbered" },
+            { "list": "numbered", "level": 1 },
+            { "list": "numbered" }
+          ],
+          "style": { "font": "Inter", "size": 11, "color": "#1F2733", "align": "left", "leading": 0.65 } }
+      ]
+    }
+  ]
+}

@@ -28,7 +28,7 @@ mod text;
 use serde::{Deserialize, Serialize};
 
 use crate::model::text::{Format, TextError};
-use crate::model::{Document, Element, Run, Stroke, TextStyle, is_valid_id};
+use crate::model::{Document, Element, Line, Run, Stroke, TextStyle, is_valid_id};
 
 /// Un cambio del documento.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -91,6 +91,20 @@ pub enum Op {
         from: usize,
         /// Dónde acaba, sin incluirlo.
         to: usize,
+    },
+
+    /// Cambia cómo se componen las líneas de un bloque de texto que toca
+    /// el tramo `[from, to)`: si son elementos de una lista y con cuánto
+    /// anidado.
+    SetLines {
+        /// El elemento.
+        id: String,
+        /// Dónde empieza, en caracteres.
+        from: usize,
+        /// Dónde acaba, sin incluirlo.
+        to: usize,
+        /// Cómo quedan esas líneas.
+        line: Line,
     },
 
     /// Cambia el formato de un trozo de un bloque de texto.
@@ -410,6 +424,10 @@ impl Op {
             Op::InsertText { id, .. } => format!("Escribir en {id}"),
             Op::DeleteText { id, .. } => format!("Borrar texto de {id}"),
             Op::FormatText { id, .. } => format!("Dar formato a {id}"),
+            Op::SetLines { id, line, .. } => match line.list {
+                Some(_) => format!("Hacer lista en {id}"),
+                None => format!("Quitar la lista de {id}"),
+            },
             Op::Create { element, .. } => format!("Crear {}", element.id()),
             Op::Delete { id } => format!("Eliminar {id}"),
             Op::Rename { id, to } => format!("Renombrar {id} a {to}"),
@@ -438,6 +456,7 @@ impl Op {
             | Op::InsertText { id, .. }
             | Op::DeleteText { id, .. }
             | Op::FormatText { id, .. }
+            | Op::SetLines { id, .. }
             | Op::Delete { id }
             | Op::Rename { id, .. }
             | Op::Reorder { id, .. } => Some(id),
@@ -533,6 +552,10 @@ impl Op {
                 format,
             } => edit(document, id, |element| {
                 text::format(element, id, *from, *to, format)
+            }),
+
+            Op::SetLines { id, from, to, line } => edit(document, id, |element| {
+                text::set_lines(element, id, *from, *to, *line)
             }),
 
             Op::Create {

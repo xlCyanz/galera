@@ -12,8 +12,8 @@
 //! siempre sería el mismo.
 
 use super::OpError;
-use crate::model::Element;
 use crate::model::text::{self, Format};
+use crate::model::{Element, Line};
 
 /// Mete texto en la posición `at`.
 pub(super) fn insert(
@@ -22,8 +22,12 @@ pub(super) fn insert(
     at: usize,
     insertion: &str,
 ) -> Result<(), OpError> {
-    let content = content_of(element, id, "Escribir")?;
+    let (content, lines) = text_of(element, id, "Escribir")?;
+    // Los estilos de línea van por número de línea: si el texto gana
+    // líneas, se mueven con él.
+    let before = text::text(content);
     text::insert(content, at, insertion)?;
+    text::after_insert(lines, &before, at, insertion)?;
     Ok(())
 }
 
@@ -34,8 +38,24 @@ pub(super) fn delete(
     from: usize,
     to: usize,
 ) -> Result<(), OpError> {
-    let content = content_of(element, id, "Borrar texto")?;
+    let (content, lines) = text_of(element, id, "Borrar texto")?;
+    let before = text::text(content);
     text::remove(content, from, to)?;
+    text::after_remove(lines, &before, from, to)?;
+    Ok(())
+}
+
+/// Cambia cómo se componen las líneas que toca el tramo `[from, to)`.
+pub(super) fn set_lines(
+    element: &mut Element,
+    id: &str,
+    from: usize,
+    to: usize,
+    style: Line,
+) -> Result<(), OpError> {
+    let (content, lines) = text_of(element, id, "Cambiar las líneas")?;
+    let (first, last) = text::lines_touched(content, from, to)?;
+    text::set_lines(lines, first, last, style);
     Ok(())
 }
 
@@ -52,19 +72,29 @@ pub(super) fn format(
     Ok(())
 }
 
-/// Los tramos del elemento, si es un bloque de texto.
-fn content_of<'a>(
+/// Los tramos del elemento y los estilos de sus líneas, si es un bloque de
+/// texto.
+fn text_of<'a>(
     element: &'a mut Element,
     id: &str,
     what: &str,
-) -> Result<&'a mut Vec<crate::model::Run>, OpError> {
+) -> Result<(&'a mut Vec<crate::model::Run>, &'a mut Vec<Line>), OpError> {
     let kind = element.type_name();
     match element {
-        Element::Text { content, .. } => Ok(content),
+        Element::Text { content, lines, .. } => Ok((content, lines)),
         _ => Err(OpError::NotApplicable {
             id: id.to_owned(),
             kind,
             what: what.to_owned(),
         }),
     }
+}
+
+/// Los tramos del elemento, si es un bloque de texto.
+fn content_of<'a>(
+    element: &'a mut Element,
+    id: &str,
+    what: &str,
+) -> Result<&'a mut Vec<crate::model::Run>, OpError> {
+    Ok(text_of(element, id, what)?.0)
 }
