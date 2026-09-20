@@ -8,7 +8,7 @@
  */
 import type { ShortcutId } from "../shortcuts";
 
-export const TOOL_IDS = ["select", "text", "rect", "ellipse", "line", "image", "hand"] as const;
+export const TOOL_IDS = ["select", "text", "rect", "ellipse", "line", "image", "code", "hand"] as const;
 export type Tool = (typeof TOOL_IDS)[number];
 
 export interface ToolInfo {
@@ -28,6 +28,7 @@ export const TOOLS: readonly ToolInfo[] = [
   { id: "ellipse", label: "Elipse", shortcut: "toolEllipse", cursor: "crosshair" },
   { id: "line", label: "Línea", shortcut: "toolLine", cursor: "crosshair" },
   { id: "image", label: "Imagen", shortcut: "toolImage", cursor: "copy" },
+  { id: "code", label: "Bloque de código", shortcut: "toolCode", cursor: "crosshair" },
   { id: "hand", label: "Mano", shortcut: "toolHand", cursor: "grab" },
 ];
 

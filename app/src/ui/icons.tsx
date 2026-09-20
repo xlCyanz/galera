@@ -22,6 +22,7 @@ export const TOOL_ICONS: Record<Tool, ReactNode> = {
       <circle cx="13" cy="8" r="1.2" />
     </>
   ),
+  code: <path d="M7 6l-4 4 4 4M13 6l4 4-4 4" />,
   hand: (
     <path d="M7 10V5.5a1 1 0 012 0V9m0-4.5V4a1 1 0 012 0v5m0-4a1 1 0 012 0v5m0-3a1 1 0 012 0v5c0 3-2 5-5 5h-1c-2 0-3-1-4-2.5L4.5 12a1 1 0 011.6-1.2L7 12" />
   ),
@@ -34,7 +35,7 @@ export const ELEMENT_ICONS: Record<Element["type"], ReactNode> = {
   ellipse: TOOL_ICONS.ellipse,
   line: TOOL_ICONS.line,
   image: TOOL_ICONS.image,
-  code: <path d="M7 6l-4 4 4 4M13 6l4 4-4 4" />,
+  code: TOOL_ICONS.code,
 };
 
 /** Los iconos de los controles de cada capa. */

@@ -228,7 +228,13 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
             viewportHandlers.onPointerDown(event);
             if (selecting) {
               onSelect(event);
-            } else if (tool === "rect" || tool === "ellipse" || tool === "line" || tool === "text") {
+            } else if (
+              tool === "rect" ||
+              tool === "ellipse" ||
+              tool === "line" ||
+              tool === "text" ||
+              tool === "code"
+            ) {
               create.onPointerDown(tool, event);
             } else if (tool === "image") {
               fileDrop.insertFromDialog(event);

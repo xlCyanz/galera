@@ -9,7 +9,7 @@ import type { Document, Element, TextStyle } from "../types/model";
 import { roundMm } from "./dragGeometry";
 
 /** Lo que se crea arrastrando. */
-export type ShapeKind = "rect" | "ellipse" | "line" | "text";
+export type ShapeKind = "rect" | "ellipse" | "line" | "text" | "code";
 
 export interface Point {
   x: number;
@@ -18,7 +18,7 @@ export interface Point {
 
 /** Lo que se dibuja: una caja o, para una línea, sus dos extremos. */
 export type ShapeGeometry =
-  | { kind: "rect" | "ellipse"; x: number; y: number; w: number; h: number }
+  | { kind: "rect" | "ellipse" | "code"; x: number; y: number; w: number; h: number }
   | { kind: "line"; x: number; y: number; x2: number; y2: number }
   /** Un texto: solo su ancho; el alto lo decide Typst (`h: null`). */
   | { kind: "text"; x: number; y: number; w: number };
@@ -32,7 +32,15 @@ export const DEFAULT_SIZE: Record<ShapeKind, { w: number; h: number }> = {
   ellipse: { w: 30, h: 30 },
   line: { w: 40, h: 0 },
   text: { w: 60, h: 0 },
+  code: { w: 80, h: 40 },
 };
+
+/**
+ * El código con el que nace un bloque: un marco gris que se ve en la página
+ * y no necesita ninguna fuente, para que compile aunque el proyecto todavía
+ * no tenga ninguna.
+ */
+export const PLACEHOLDER_CODE = "#rect(width: 100%, height: 100%, stroke: (paint: gray, thickness: 0.2mm))";
 
 /** El alto con que se enseña un texto mientras se crea, en mm: una línea. */
 export const TEXT_PREVIEW_HEIGHT_MM = 6;
@@ -163,6 +171,17 @@ export function shapeElement(id: string, shape: ShapeGeometry, textStyle?: TextS
       };
     case "ellipse":
       return { type: "ellipse", id, x: shape.x, y: shape.y, w: shape.w, h: shape.h, rotation: 0, fill: DEFAULT_FILL, stroke: null };
+    case "code":
+      return {
+        type: "code",
+        id,
+        x: shape.x,
+        y: shape.y,
+        w: shape.w,
+        h: shape.h,
+        rotation: 0,
+        source: PLACEHOLDER_CODE,
+      };
     case "line":
       return { type: "line", id, x: shape.x, y: shape.y, x2: shape.x2, y2: shape.y2, rotation: 0, stroke: { ...DEFAULT_STROKE } };
   }

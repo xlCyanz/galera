@@ -93,6 +93,7 @@ export const SHORTCUTS = [
   { id: "toolEllipse", label: "Elipse", group: "Herramientas", keys: { key: "o" } },
   { id: "toolLine", label: "Línea", group: "Herramientas", keys: { key: "l" } },
   { id: "toolImage", label: "Imagen", group: "Herramientas", keys: { key: "i" } },
+  { id: "toolCode", label: "Bloque de código", group: "Herramientas", keys: { key: "c" } },
   { id: "toolHand", label: "Mano", group: "Herramientas", keys: { key: "h" } },
 
   { id: "zoomIn", label: "Acercar", group: "Vista", keys: { key: ["+", "="], mod: true, show: "+" } },

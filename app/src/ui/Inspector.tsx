@@ -6,7 +6,8 @@
  *
  * En un texto, además, su estilo: fuente, tamaño, color, alineación,
  * interlineado y espacio entre párrafos (`TextInspector.tsx`);
- * en una forma, su relleno, borde y radio (`ShapeInspector.tsx`).
+ * en una forma, su relleno, borde y radio (`ShapeInspector.tsx`); en un
+ * bloque de código, su código (`CodeInspector.tsx`).
  *
  * Sin selección, enseña el título del documento (editable) y la página que
  * se ve: su id, su tamaño y cuántos elementos tiene.
@@ -16,6 +17,7 @@ import { toMillimeters } from "../canvas/geometry";
 import { useCurrentPage, useDocumentStore, useOpenDocument, useSelectedElement } from "../store/document";
 import { useElementBox } from "../store/layout";
 import type { Element, Page } from "../types/model";
+import { CodeInspector } from "./CodeInspector";
 import { MeasureField } from "./MeasureField";
 import { ShapeInspector } from "./ShapeInspector";
 import { TitleField } from "./TitleField";
@@ -102,6 +104,7 @@ function ElementInspector({ element, measured }: { element: Element; measured: R
         })}
       </div>
       {element.type === "text" && <TextInspector element={element} />}
+      {element.type === "code" && <CodeInspector id={element.id} source={element.source} />}
       {(element.type === "rect" || element.type === "ellipse" || element.type === "line") && (
         <ShapeInspector elements={[element]} />
       )}
