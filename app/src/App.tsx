@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useState } from "react";
 
 import {
   type SessionStatus,
@@ -12,14 +12,8 @@ import {
   sessionStatus,
 } from "./commands";
 import { Canvas } from "./canvas/Canvas";
-import {
-  exportPdfShortcutLabel,
-  historyShortcutLabel,
-  isExportPdfShortcut,
-  isMac,
-  isSaveShortcut,
-  saveShortcutLabel,
-} from "./shortcuts";
+import { isMac, shortcutLabel } from "./shortcuts";
+import { useShortcut } from "./hooks/useShortcuts";
 import { useCompilation } from "./hooks/useCompilation";
 import { runHistory, useUndoRedo } from "./hooks/useUndoRedo";
 import { useCompilationStore } from "./store/compilation";
@@ -35,6 +29,7 @@ import {
 } from "./store/document";
 import { CloseDialog } from "./ui/CloseDialog";
 import { Inspector } from "./ui/Inspector";
+import { ShortcutsHelp } from "./ui/ShortcutsHelp";
 import { RecoveryNotice } from "./ui/RecoveryNotice";
 import { SidePanels } from "./ui/SidePanels";
 import { StatusBar } from "./ui/StatusBar";
@@ -104,23 +99,12 @@ export function App() {
     }
   }
 
-  // Un evento de efecto ve siempre el estado actual, así que el atajo se
-  // registra una sola vez y no en cada render.
-  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
-    if (canExport && isExportPdfShortcut(event, mac)) {
-      event.preventDefault();
-      void exportToPdf();
-    } else if (canSave && isSaveShortcut(event, mac)) {
-      event.preventDefault();
-      void save();
-    }
-  });
-
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => onKeyDown(event);
-    window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
-  }, []);
+  // Los atajos se registran por id; el listener es único (`useShortcuts.ts`).
+  useShortcut("exportPdf", () => void exportToPdf(), canExport);
+  useShortcut("save", () => void save(), canSave);
+  useShortcut("saveAs", () => void save("archive"), canSave);
+  useShortcut("openFolder", () => void open("folder"), !opening);
+  useShortcut("openArchive", () => void open("archive"), !opening);
 
   async function open(from: "folder" | "archive") {
     setError(null);
@@ -183,7 +167,7 @@ export function App() {
           aria-keyshortcuts={mac ? "Meta+S" : "Control+S"}
           title={archive === null ? "Guardar en la carpeta del proyecto" : `Guardar en ${archive}`}
         >
-          {dirty ? "Guardar •" : "Guardar"} <kbd>{saveShortcutLabel(mac)}</kbd>
+          {dirty ? "Guardar •" : "Guardar"} <kbd>{shortcutLabel("save", mac)}</kbd>
         </button>
         <button type="button" onClick={() => void save("folder")} disabled={!canSave}>
           Guardar como carpeta…
@@ -196,30 +180,31 @@ export function App() {
           onClick={exportToPdf}
           disabled={!canExport}
           aria-keyshortcuts={mac ? "Meta+Shift+E" : "Control+Shift+E"}
-          title={exportPdfShortcutLabel(mac)}
+          title={shortcutLabel("exportPdf", mac)}
         >
-          Exportar a PDF… <kbd>{exportPdfShortcutLabel(mac)}</kbd>
+          Exportar a PDF… <kbd>{shortcutLabel("exportPdf", mac)}</kbd>
         </button>
         <button
           type="button"
           onClick={() => void runHistory("undo")}
           disabled={history.undo === null}
           aria-keyshortcuts={mac ? "Meta+Z" : "Control+Z"}
-          title={historyShortcutLabel("undo", mac)}
+          title={shortcutLabel("undo", mac)}
         >
           {history.undo === null ? "Deshacer" : `Deshacer: ${history.undo}`}{" "}
-          <kbd>{historyShortcutLabel("undo", mac)}</kbd>
+          <kbd>{shortcutLabel("undo", mac)}</kbd>
         </button>
         <button
           type="button"
           onClick={() => void runHistory("redo")}
           disabled={history.redo === null}
           aria-keyshortcuts={mac ? "Meta+Shift+Z" : "Control+Shift+Z"}
-          title={historyShortcutLabel("redo", mac)}
+          title={shortcutLabel("redo", mac)}
         >
           {history.redo === null ? "Rehacer" : `Rehacer: ${history.redo}`}{" "}
-          <kbd>{historyShortcutLabel("redo", mac)}</kbd>
+          <kbd>{shortcutLabel("redo", mac)}</kbd>
         </button>
+        <ShortcutsHelp />
         <button type="button" onClick={check}>
           Comprobar conexión con el núcleo
         </button>

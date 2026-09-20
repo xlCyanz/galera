@@ -1,5 +1,9 @@
 /** Los botones de zoom sobre el lienzo, con el nivel actual, y el de las reglas. */
-import { TOGGLE_RULERS_LABEL, isMac, type ZoomCommand, zoomShortcutLabel } from "../shortcuts";
+import { isMac, shortcutLabel } from "../shortcuts";
+import type { ZoomCommand } from "./useCanvasNavigation";
+
+/** El atajo de cada comando de zoom, para enseñarlo. */
+const ZOOM_SHORTCUTS = { in: "zoomIn", out: "zoomOut", reset: "zoomReset", fit: "zoomFit" } as const;
 import { formatZoom } from "./zoom";
 
 const mac = isMac();
@@ -18,7 +22,7 @@ export function ZoomControls({ zoom, onCommand, rulersVisible, onToggleRulers }:
       type="button"
       onClick={() => onCommand(command)}
       aria-label={name}
-      title={`${name} (${zoomShortcutLabel(command, mac)})`}
+      title={`${name} (${shortcutLabel(ZOOM_SHORTCUTS[command], mac)})`}
     >
       {text}
     </button>
@@ -32,7 +36,7 @@ export function ZoomControls({ zoom, onCommand, rulersVisible, onToggleRulers }:
         className="canvas-zoom-level"
         onClick={() => onCommand("reset")}
         aria-label={`Zoom ${label}. Volver al 100 %`}
-        title={`Volver al 100 % (${zoomShortcutLabel("reset", mac)})`}
+        title={`Volver al 100 % (${shortcutLabel("zoomReset", mac)})`}
       >
         {label}
       </button>
@@ -42,7 +46,7 @@ export function ZoomControls({ zoom, onCommand, rulersVisible, onToggleRulers }:
         type="button"
         onClick={onToggleRulers}
         aria-pressed={rulersVisible}
-        title={`Reglas (${TOGGLE_RULERS_LABEL})`}
+        title={`Reglas (${shortcutLabel("toggleRulers", mac)})`}
       >
         Reglas
       </button>

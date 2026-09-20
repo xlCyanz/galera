@@ -23,7 +23,11 @@ import {
   useState,
 } from "react";
 
-import { type ZoomCommand, isMac, isTypingTarget, zoomShortcut } from "../shortcuts";
+import { useShortcut } from "../hooks/useShortcuts";
+import { isTypingTarget } from "../shortcuts";
+
+/** Lo que se le puede pedir al zoom. */
+export type ZoomCommand = "in" | "out" | "reset" | "fit";
 import { type Scroll, useDocumentStore, useScroll, useZoom } from "../store/document";
 import type { PageSize } from "../types/model";
 import { type PixelSize, pageSizeInPx } from "./geometry";
@@ -68,8 +72,6 @@ export interface CanvasNavigation {
     onPointerCancel: () => void;
   };
 }
-
-const mac = isMac();
 
 /**
  * @param viewport El área del lienzo.
@@ -219,15 +221,16 @@ export function useCanvasNavigation(
     };
   }, [viewport]);
 
-  // Atajos de teclado y barra espaciadora.
+  // Los atajos de zoom llegan del registro (`shortcuts.ts`).
+  const ready = pageSize !== null;
+  useShortcut("zoomIn", () => run("in"), ready);
+  useShortcut("zoomOut", () => run("out"), ready);
+  useShortcut("zoomReset", () => run("reset"), ready);
+  useShortcut("zoomFit", () => run("fit"), ready);
+
+  // La barra espaciadora no es un atajo: se mira mientras está pulsada.
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (pageSize === null) {
-      return;
-    }
-    const command = zoomShortcut(event, mac);
-    if (command !== null) {
-      event.preventDefault();
-      run(command);
       return;
     }
     if (event.code === "Space" && !isTypingTarget(event.target)) {
