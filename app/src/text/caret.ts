@@ -149,7 +149,7 @@ export function lineMove(
  * espacio que Typst no dibujó al partir, y el cursor puesto ahí saldría al
  * principio de la línea de abajo en vez de al final de esta.
  */
-function lineEnd(glyphs: readonly Glyph[], line: number, text: string): number {
+export function lineEnd(glyphs: readonly Glyph[], line: number, text: string): number {
   const last = glyphs.filter((glyph) => glyph.line === line).at(-1);
   if (last === undefined) {
     return byteIndex(text, text.length);

@@ -37,6 +37,9 @@ En macOS el modificador es ⌘; en Windows y Linux, Ctrl.
 Doble clic en un bloque de texto entra a escribirlo. Mientras dura, las
 teclas van al texto y no a las herramientas:
 
+- El puntero coloca el cursor y selecciona: arrastrar elige un tramo, doble
+  clic una palabra, triple clic un párrafo, y `⇧` + clic estira lo que ya
+  hubiera. Pulsar fuera del texto sale de escribir.
 - Las flechas mueven el cursor, no el elemento. `↑` y `↓` van por las líneas
   **que decidió Typst** —no por las del campo, que tiene otro ancho— y
   conservan la columna de la que se salió.

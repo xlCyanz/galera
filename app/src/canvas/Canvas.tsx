@@ -50,6 +50,7 @@ import { useElementBox } from "../store/layout";
 import { useTool, useToolStore } from "../store/tool";
 import { Cursor } from "../text/Cursor";
 import { HiddenInput } from "../text/HiddenInput";
+import { SelectionLayer } from "../text/SelectionLayer";
 import { useTextEditing } from "../text/useTextEditing";
 import { ControlLayer } from "./ControlLayer";
 import { CreatePreview } from "./CreatePreview";
@@ -123,7 +124,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const found = document === null || highlighted === null ? null : findElement(document, highlighted);
   const measured = useElementBox(highlighted);
   const drag = useDrag(transform?.pxPerMm ?? null);
-  const onDoubleClick = useTextEditing(transform, currentPage);
+  const text = useTextEditing(transform, currentPage);
   // Pulsar un elemento y arrastrar sin soltar lo selecciona y lo mueve.
   const onSelect = useSelection(transform, currentPage, drag.start);
   // La imagen que enseña la hoja, para la copia que se arrastra.
@@ -242,11 +243,14 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
           className={viewportClass}
           data-tool={tool}
           {...viewportHandlers}
-          onDoubleClick={onDoubleClick}
+          onDoubleClick={text.onDoubleClick}
           onPointerDown={(event) => {
-            // Pulsar en el lienzo deja de escribir: el doble clic vuelve a
-            // entrar, ya sobre el texto que se haya pulsado.
-            useEditingStore.getState().stop();
+            // Dentro del texto que se escribe, el puntero coloca el cursor
+            // y selecciona; fuera, deja de escribir y sigue el camino
+            // normal del lienzo.
+            if (text.onPointerDown(event)) {
+              return;
+            }
             // Primero desplazar (Espacio, botón central o la mano); si no,
             // seleccionar, si es la herramienta de selección.
             viewportHandlers.onPointerDown(event);
@@ -318,7 +322,9 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
               offset={dragOffset}
               showSize={resized?.phase === "resizing"}
               showAngle={rotated?.phase === "rotating"}
-              interactive={selecting && !selectedLocked}
+              // Mientras se escribe en él, el contorno no se agarra: el
+              // puntero es del texto.
+              interactive={selecting && !selectedLocked && editing !== selectedBox.id}
               onRotateStart={(event) => {
                 // El centro del elemento en la pantalla: alrededor de él gira el puntero.
                 const area = viewport.current?.getBoundingClientRect();
@@ -357,6 +363,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
           {editing !== null && editingBox !== null && editingBox.page === currentPage && transform !== null && (
             <>
               <HiddenInput id={editing} box={editingBox} transform={transform} />
+              <SelectionLayer box={editingBox} transform={transform} />
               <Cursor box={editingBox} transform={transform} />
             </>
           )}
