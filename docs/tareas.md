@@ -126,7 +126,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 
 | Estado | Tarea | Issue | Depende de |
 |:--:|---|:--:|---|
-| ⬜ | **F4-01** — Spike: entrada de teclado e IME dentro del webview | [#55](https://github.com/xlCyanz/galera/issues/55) | #17 |
+| 🟡 | **F4-01** — Spike: entrada de teclado e IME dentro del webview ([decisión](decisiones/ime.md)) | [#55](https://github.com/xlCyanz/galera/issues/55) | #17 |
 | ⬜ | **F4-02** — Campo invisible que captura teclado, IME y pegado | [#56](https://github.com/xlCyanz/galera/issues/56) | #55 |
 | ⬜ | **F4-03** — Modelo de texto enriquecido por runs y sus operaciones | [#57](https://github.com/xlCyanz/galera/issues/57) | #2, #37 |
 | ⬜ | **F4-04** — Compilación incremental y caché por página | [#58](https://github.com/xlCyanz/galera/issues/58) | #27, #12 |

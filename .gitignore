@@ -35,6 +35,7 @@ fixtures/**/salida.*
 !.vscode/extensions.json
 !.vscode/settings.example.json
 .idea/
+.claude/
 *.swp
 
 # macOS
