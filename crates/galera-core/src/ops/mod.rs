@@ -123,6 +123,28 @@ pub enum Op {
         key: String,
     },
 
+    /// Pone el valor de una variable del documento, creándola si no estaba.
+    SetVariable {
+        /// Su nombre.
+        name: String,
+        /// Su valor nuevo.
+        value: String,
+    },
+
+    /// Quita una variable del documento.
+    RemoveVariable {
+        /// Su nombre.
+        name: String,
+    },
+
+    /// Cambia el nombre de una variable, conservando su valor.
+    RenameVariable {
+        /// El nombre de ahora.
+        from: String,
+        /// El nombre nuevo.
+        to: String,
+    },
+
     /// Cambia el título del documento (`meta.title`).
     SetTitle {
         /// El título nuevo, sin espacios sobrantes a los lados.
@@ -245,6 +267,27 @@ pub enum OpError {
         /// La clave repetida.
         key: String,
     },
+    /// No hay ninguna variable con ese nombre.
+    #[error("el documento no tiene ninguna variable que se llame {name:?}")]
+    VariableNotFound {
+        /// El nombre que se pidió.
+        name: String,
+    },
+    /// Ya hay una variable con ese nombre.
+    #[error("el documento ya tiene una variable que se llama {name:?}")]
+    VariableNameTaken {
+        /// El nombre repetido.
+        name: String,
+    },
+    /// El nombre no vale: solo letras y dígitos ASCII, guion y guion bajo.
+    #[error(
+        "el nombre de variable {name:?} no vale: solo puede tener letras y dígitos ASCII, guion y guion bajo"
+    )]
+    InvalidVariableName {
+        /// El nombre pedido.
+        name: String,
+    },
+
     /// Un documento sin título no dice qué es.
     #[error("el documento tiene que tener un título")]
     EmptyTitle,
@@ -312,6 +355,9 @@ impl Op {
             Op::RemoveAsset { key } => format!("Quitar el recurso {key}"),
             Op::RenameAsset { from, to } => format!("Renombrar el recurso {from} a {to}"),
             Op::SetTitle { .. } => "Cambiar el título".to_owned(),
+            Op::SetVariable { name, .. } => format!("Cambiar la variable {name}"),
+            Op::RemoveVariable { name } => format!("Quitar la variable {name}"),
+            Op::RenameVariable { from, to } => format!("Renombrar la variable {from} a {to}"),
             Op::AddFont { path, .. } => format!("Añadir la fuente {}", file_name(path)),
             Op::RemoveFont { path } => format!("Quitar la fuente {}", file_name(path)),
         }
@@ -329,6 +375,9 @@ impl Op {
             | Op::Reorder { id, .. } => Some(id),
             Op::Create { element, .. } | Op::Restore { element } => Some(element.id()),
             Op::SetTitle { .. }
+            | Op::SetVariable { .. }
+            | Op::RemoveVariable { .. }
+            | Op::RenameVariable { .. }
             | Op::AddAsset { .. }
             | Op::RemoveAsset { .. }
             | Op::RenameAsset { .. }
@@ -484,6 +533,47 @@ impl Op {
                 Ok(Op::SetTitle { title: previous })
             }
 
+            Op::SetVariable { name, value } => {
+                check_variable_name(name)?;
+                let previous = document.variables.insert(name.clone(), value.clone());
+                Ok(match previous {
+                    Some(value) => Op::SetVariable {
+                        name: name.clone(),
+                        value,
+                    },
+                    None => Op::RemoveVariable { name: name.clone() },
+                })
+            }
+
+            Op::RemoveVariable { name } => {
+                let value = document
+                    .variables
+                    .remove(name)
+                    .ok_or_else(|| OpError::VariableNotFound { name: name.clone() })?;
+                Ok(Op::SetVariable {
+                    name: name.clone(),
+                    value,
+                })
+            }
+
+            Op::RenameVariable { from, to } => {
+                if !document.variables.contains_key(from) {
+                    return Err(OpError::VariableNotFound { name: from.clone() });
+                }
+                if from != to {
+                    check_variable_name(to)?;
+                    if document.variables.contains_key(to) {
+                        return Err(OpError::VariableNameTaken { name: to.clone() });
+                    }
+                    let value = document.variables.remove(from).unwrap_or_default();
+                    document.variables.insert(to.clone(), value);
+                }
+                Ok(Op::RenameVariable {
+                    from: to.clone(),
+                    to: from.clone(),
+                })
+            }
+
             Op::AddFont { path, index } => {
                 if document.fonts.contains(path) {
                     return Err(OpError::FontAlreadyDeclared { path: path.clone() });
@@ -540,6 +630,18 @@ impl Op {
 /// El nombre del archivo de una ruta con `/`: «Inter-Regular.ttf».
 fn file_name(path: &str) -> &str {
     path.rsplit('/').next().unwrap_or(path)
+}
+
+/// El nombre de una variable se escribe en el código generado, así que
+/// tiene las mismas reglas que un id.
+fn check_variable_name(name: &str) -> Result<(), OpError> {
+    if is_valid_id(name) {
+        Ok(())
+    } else {
+        Err(OpError::InvalidVariableName {
+            name: name.to_owned(),
+        })
+    }
 }
 
 /// Una clave nueva de `assets` tiene que ser válida y no estar usada.
