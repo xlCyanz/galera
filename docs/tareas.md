@@ -9,13 +9,13 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 0 — Núcleo por terminal](https://github.com/xlCyanz/galera/milestone/1) | 16 | 16 |
 | [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 12 |
 | [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 11 |
-| [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 12 |
+| [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 13 |
 | [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 0 |
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 0 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **51** |
+| **Total** | **95** | **52** |
 
 
 ---
@@ -113,7 +113,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F3-10** — Inspector de texto: fuente, tamaño, color y alineación | [#50](https://github.com/xlCyanz/galera/issues/50) | #48, #7 |
 | ✅ | **F3-11** — Formato .galera: guardar y abrir | [#51](https://github.com/xlCyanz/galera/issues/51) | #19, #44 |
 | ✅ | **F3-12** — Guardado automático y recuperación | [#52](https://github.com/xlCyanz/galera/issues/52) | #51 |
-| ⬜ | **F3-13** — Atajos de teclado | [#53](https://github.com/xlCyanz/galera/issues/53) | #41, #38 |
+| ✅ | **F3-13** — Atajos de teclado | [#53](https://github.com/xlCyanz/galera/issues/53) | #41, #38 |
 | ⬜ | **F3-14** — Criterio de fase: reproducir el documento de ejemplo del brief | [#54](https://github.com/xlCyanz/galera/issues/54) | #41, #42, #43, #44, #49, #50, #51 |
 
 ---

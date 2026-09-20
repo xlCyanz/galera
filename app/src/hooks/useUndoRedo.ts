@@ -6,23 +6,22 @@
  * `applyEdit`, igual que al aplicar un comando. El store sabe así qué se
  * desharía y qué se reharía, para enseñarlo.
  *
- * Escucha los atajos (⌘Z y ⌘⇧Z; Ctrl en Windows y Linux) en toda la
- * ventana, salvo mientras se escribe en un campo: ahí deshacer es el del
- * propio campo.
+ * Los atajos (⌘Z y ⌘⇧Z; Ctrl en Windows y Linux) se atienden desde el
+ * registro (`shortcuts.ts`), que ya los deja pasar de largo mientras se
+ * escribe en un campo: ahí deshacer es el del propio campo.
  *
  * Una petición a la vez: si se deja pulsado ⌘Z, las repeticiones que
  * lleguen mientras el backend contesta se ignoran, en vez de acumularse.
  */
-import { useEffect } from "react";
-
 import { redo, undo } from "../commands";
-import { type HistoryCommand, historyShortcut, isMac, isTypingTarget } from "../shortcuts";
+import { useShortcut } from "./useShortcuts";
 import { type EditHistory, useDocumentStore, useEditHistory } from "../store/document";
-
-const mac = isMac();
 
 /** Si hay una petición al backend sin contestar. */
 let pending = false;
+
+/** Lo que se puede pedir al historial. */
+export type HistoryCommand = "undo" | "redo";
 
 /** Pide deshacer o rehacer. No hace nada si no hay nada que hacer. */
 export async function runHistory(command: HistoryCommand): Promise<void> {
@@ -48,18 +47,7 @@ export async function runHistory(command: HistoryCommand): Promise<void> {
  * reharía ahora.
  */
 export function useUndoRedo(): EditHistory {
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => {
-      const command = historyShortcut(event, mac);
-      if (command === null || isTypingTarget(event.target)) {
-        return;
-      }
-      event.preventDefault();
-      void runHistory(command);
-    };
-    window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
-  }, []);
-
+  useShortcut("undo", () => void runHistory("undo"));
+  useShortcut("redo", () => void runHistory("redo"));
   return useEditHistory();
 }

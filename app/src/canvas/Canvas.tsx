@@ -30,7 +30,7 @@ import { type CSSProperties, useEffect, useEffectEvent, useRef, useState } from 
 
 import { applyOp } from "../commands";
 
-import { isToggleRulersShortcut, isTypingTarget } from "../shortcuts";
+import { useShortcut } from "../hooks/useShortcuts";
 import { useRenderedPages } from "../store/compilation";
 import {
   useCurrentPage,
@@ -159,38 +159,47 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   // Los empujones seguidos con las flechas son un único paso del historial.
   const burst = useRef<NudgeBurst | null>(null);
 
-  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
-    if (page === undefined || isTypingTarget(event.target)) {
-      return;
-    }
+  // Los atajos del lienzo llegan del registro (`shortcuts.ts`).
+  const onNudge = useEffectEvent((event: KeyboardEvent) => {
     const nudge = arrowNudge(event);
-    if (isToggleRulersShortcut(event)) {
-      event.preventDefault();
-      useDocumentStore.getState().toggleRulers();
-    } else if (event.key === "Escape" && useToolStore.getState().tool !== "select") {
-      useToolStore.getState().setTool("select");
-    } else if (
-      event.key === "Escape" &&
-      drag.state.phase !== "dragging" &&
-      resize.state.phase !== "resizing" &&
-      rotate.state.phase !== "rotating"
-    ) {
-      // Durante un arrastre, Escape lo cancela (ver `useDrag.ts`).
-      useDocumentStore.getState().clearHighlight();
-      useDocumentStore.getState().select(null);
-    } else if (nudge !== null && selected !== null && !selectedLocked && drag.state.phase === "idle") {
-      event.preventDefault();
-      burst.current = nudgeBurst(burst.current, selected, event.timeStamp);
-      void applyOp({ op: "move", id: selected, ...nudge }, burst.current.group)
-        .then((applied) => useDocumentStore.getState().applyEdit(applied))
-        .catch(() => undefined);
+    if (page === undefined || nudge === null || selected === null || selectedLocked) {
+      return false;
     }
+    if (drag.state.phase !== "idle") {
+      return false;
+    }
+    burst.current = nudgeBurst(burst.current, selected, event.timeStamp);
+    void applyOp({ op: "move", id: selected, ...nudge }, burst.current.group)
+      .then((applied) => useDocumentStore.getState().applyEdit(applied))
+      .catch(() => undefined);
+    return true;
   });
-  useEffect(() => {
-    const listener = (event: KeyboardEvent) => onKeyDown(event);
-    window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
-  }, []);
+  for (const id of ["nudgeLeft", "nudgeRight", "nudgeUp", "nudgeDown"] as const) {
+    // Los cuatro hacen lo mismo: el desplazamiento sale de la tecla.
+    useShortcut(id, onNudge);
+  }
+
+  const onEscape = useEffectEvent(() => {
+    // Durante un gesto, Escape lo cancela: es cosa del gesto, no un atajo.
+    const gesturing =
+      drag.state.phase === "dragging" ||
+      resize.state.phase === "resizing" ||
+      rotate.state.phase === "rotating" ||
+      create.state.phase === "drawing" ||
+      create.state.phase === "needsFont";
+    if (gesturing) {
+      return false;
+    }
+    if (useToolStore.getState().tool !== "select") {
+      useToolStore.getState().setTool("select");
+      return true;
+    }
+    useDocumentStore.getState().clearHighlight();
+    useDocumentStore.getState().select(null);
+    return true;
+  });
+  useShortcut("deselect", onEscape);
+  useShortcut("toggleRulers", () => useDocumentStore.getState().toggleRulers());
 
   const style = { "--px-per-mm": PX_PER_MM * zoom } as CSSProperties;
   const viewportClass = [
