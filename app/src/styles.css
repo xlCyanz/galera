@@ -534,6 +534,25 @@ body {
 }
 
 /* El aviso de que falta una fuente para crear un texto. */
+/* El campo que recibe el teclado al escribir en un texto
+   (`text/HiddenInput.tsx`). No se ve, pero está en el árbol de
+   accesibilidad y puede tener el foco: sin foco no hay IME. */
+.text-input {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  opacity: 0;
+  color: transparent;
+  background: transparent;
+  caret-color: transparent;
+  /* El ratón es del lienzo: el campo solo recibe el teclado. */
+  pointer-events: none;
+}
+
 .canvas-notice {
   position: absolute;
   top: 12px;

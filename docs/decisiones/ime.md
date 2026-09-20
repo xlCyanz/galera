@@ -47,11 +47,28 @@ eso esta tarea es un spike y va antes que el editor.
   Colocarlo necesita saber dónde está el cursor, que es lo que dan las
   posiciones de glifos de F4-05 ([#59](https://github.com/xlCyanz/galera/issues/59)).
 
-El texto **no vive en el DOM**: cada evento se traduce a un cambio sobre el
-modelo. Esa traducción es
-[`app/src/text/spike/input.ts`](../../app/src/text/spike/input.ts), ya con
-pruebas, y es lo que hereda F4-02
-([#56](https://github.com/xlCyanz/galera/issues/56)).
+El texto sigue viviendo **en el documento**, que lleva el backend
+(principio 1): el campo es una copia de trabajo y cada cambio se manda como
+un comando, con su paso en el historial.
+
+### Corrección de F4-02: el campo lleva una copia del texto
+
+Al implementarlo ([#56](https://github.com/xlCyanz/galera/issues/56)) se vio
+que hay dos formas de usar el campo, y que la buena no es la que parecía:
+
+- **Campo vacío**, con el modelo construido evento a evento
+  ([`spike/input.ts`](../../app/src/text/spike/input.ts)). Obliga a
+  reimplementar a mano todo lo que no es un evento de entrada: ⌘A, inicio y
+  fin, ⌥← y ⌥→, seleccionar con ⇧, y las costumbres de cada plataforma.
+- **Campo con una copia del texto**, que es lo que se hace: el sistema mueve
+  el cursor y selecciona dentro del campo con sus propias reglas, y la
+  aplicación solo mira el resultado. Cada cambio se manda igualmente como un
+  comando, y si el documento cambia por otro lado (deshacer, el inspector)
+  la copia se vuelve a poner al día.
+
+`spike/input.ts` se queda como está, documentando qué significa cada
+`inputType`; el editor de verdad es
+[`app/src/text/HiddenInput.tsx`](../../app/src/text/HiddenInput.tsx).
 
 ## El prototipo
 
