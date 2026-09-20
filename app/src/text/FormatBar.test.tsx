@@ -72,6 +72,8 @@ const transform = canvasTransform({ width: 800, height: 600 }, { width: 210, hei
 let container: HTMLDivElement;
 let root: Root;
 let ops: Array<Record<string, unknown>>;
+/** Si el núcleo tiene que rechazar el cambio, con este mensaje. */
+let refuse: string | null;
 
 /** La barra, y los atajos registrados como en el lienzo. */
 function Harness() {
@@ -92,9 +94,13 @@ function Live() {
 beforeEach(() => {
   pretendMac(true);
   ops = [];
+  refuse = null;
   mockIPC((command, args) => {
     if (command === "apply_op") {
       ops.push((args as { op: Record<string, unknown> }).op);
+      if (refuse !== null) {
+        throw { kind: "op", message: refuse };
+      }
       const applied: AppliedOp = {
         revision: 2,
         document: structuredClone(useDocumentStore.getState().document!),
@@ -177,6 +183,57 @@ describe("la barra de formato", () => {
     expect(ops).toEqual([
       { op: "format_text", id: "t1", from: 4, to: 7, format: { bold: false } },
     ]);
+  });
+});
+
+describe("el enlace", () => {
+  /** Abre el campo del destino y escribe en él. */
+  async function typeTarget(value: string) {
+    await act(async () => {
+      button("Enlace")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Destino del enlace"]')!;
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      setter.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    return input;
+  }
+
+  it("se pone escribiendo el destino y se quita vaciándolo", async () => {
+    act(() => useEditingStore.getState().select(0, 4));
+    act(() => root.render(<Harness />));
+
+    await typeTarget("https://typst.app");
+    expect(ops).toEqual([
+      {
+        op: "format_text",
+        id: "t1",
+        from: 0,
+        to: 4,
+        format: { link: "https://typst.app" },
+      },
+    ]);
+
+    ops = [];
+    await typeTarget("");
+    expect(ops).toEqual([
+      { op: "format_text", id: "t1", from: 0, to: 4, format: { link: null } },
+    ]);
+  });
+
+  it("si el núcleo lo rechaza, se dice y el campo sigue abierto", async () => {
+    refuse = "el enlace \"javascript:alert(1)\" no vale: solo http://, https:// y mailto:";
+    act(() => useEditingStore.getState().select(0, 4));
+    act(() => root.render(<Harness />));
+
+    await typeTarget("javascript:alert(1)");
+    expect(container.textContent).toContain("no vale");
+    expect(container.querySelector('input[aria-label="Destino del enlace"]')).not.toBeNull();
   });
 });
 

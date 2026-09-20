@@ -24,10 +24,18 @@ export interface RunFormat {
   /** El color que comparte, `null` si ninguno lo tiene, o [`MIXED`] si no
    * todos llevan el mismo. */
   color: string | null | Mixed;
+  /** El enlace que comparte, con las mismas reglas que el color. */
+  link: string | null | Mixed;
 }
 
 /** Nada marcado: lo que se enseña cuando no hay texto. */
-const PLAIN: RunFormat = { bold: false, italic: false, underline: false, color: null };
+const PLAIN: RunFormat = {
+  bold: false,
+  italic: false,
+  underline: false,
+  color: null,
+  link: null,
+};
 
 /**
  * El formato del tramo `[start, end)`, o el del cursor si los dos son
@@ -64,6 +72,7 @@ export function formatOf(runs: readonly Run[], start: number, end: number): RunF
       italic: shared.italic && one.italic,
       underline: shared.underline && one.underline,
       color: shared.color === one.color ? shared.color : MIXED,
+      link: shared.link === one.link ? shared.link : MIXED,
     };
   }, first);
 }
@@ -75,6 +84,7 @@ function single(run: Run): RunFormat {
     italic: run.italic,
     underline: run.underline,
     color: run.color ?? null,
+    link: run.link ?? null,
   };
 }
 

@@ -26,6 +26,7 @@ describe("el formato de lo seleccionado", () => {
       italic: false,
       underline: false,
       color: "#B4161B",
+      link: null,
     });
   });
 
@@ -35,6 +36,7 @@ describe("el formato de lo seleccionado", () => {
       italic: false,
       underline: false,
       color: MIXED,
+      link: null,
     });
   });
 
@@ -53,6 +55,7 @@ describe("el formato de lo seleccionado", () => {
       italic: false,
       underline: false,
       color: null,
+      link: null,
     });
   });
 
@@ -61,6 +64,22 @@ describe("el formato de lo seleccionado", () => {
     // La «é» empieza en el byte 3 y ocupa dos.
     expect(formatOf(accented, 3, 5).italic).toBe(true);
     expect(formatOf(accented, 6, 9).italic).toBe(false);
+  });
+});
+
+describe("el enlace de lo seleccionado", () => {
+  const linked: Run[] = [
+    run("ver ", { link: "https://typst.app" }),
+    run("la web", { link: "https://typst.app" }),
+    run(" ya"),
+  ];
+
+  it("es el que comparten los tramos", () => {
+    expect(formatOf(linked, 0, 10).link).toBe("https://typst.app");
+  });
+
+  it("si no todos llevan el mismo, sale mezclado", () => {
+    expect(formatOf(linked, 0, 13).link).toBe(MIXED);
   });
 });
 

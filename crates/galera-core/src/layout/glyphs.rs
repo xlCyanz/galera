@@ -211,6 +211,24 @@ fn place(items: &[(Point, &TextItem)], source: &Source, map: &TextMap) -> Vec<Gl
     glyphs
 }
 
+/// Dónde está el `[` que abre el contenido de una llamada, sin contar los
+/// que vayan dentro de una cadena: la dirección de un enlace puede llevar
+/// corchetes.
+fn opening_bracket(code: &str) -> Option<usize> {
+    let mut inside = false;
+    let mut escaped = false;
+    for (at, character) in code.char_indices() {
+        match character {
+            _ if escaped => escaped = false,
+            '\\' if inside => escaped = true,
+            '"' => inside = !inside,
+            '[' if !inside => return Some(at),
+            _ => {}
+        }
+    }
+    None
+}
+
 /// Dónde empieza, en el código generado, el texto del que salió el glifo.
 fn source_offset(source: &Source, glyph: &typst::text::Glyph) -> Option<usize> {
     match glyph.span.0.get() {
@@ -240,7 +258,7 @@ const BREAKS: [&str; 2] = ["#linebreak();", "#parbreak();"];
 
 /// Lo que el codegen escribe alrededor de un tramo con formato. Lo que va
 /// entre `[` y `]` sí es texto del documento; el envoltorio, no.
-const WRAPPERS: [&str; 4] = ["#emph[", "#strong[", "#underline[", "#text("];
+const WRAPPERS: [&str; 5] = ["#emph[", "#strong[", "#underline[", "#text(", "#link("];
 
 impl TextMap {
     /// Recorre el contenido del elemento `id` en `source` junto a su `text`.
@@ -282,8 +300,10 @@ impl TextMap {
             // El marcado del formato no es texto del documento: se salta
             // entero, hasta el `[` que abre el tramo.
             if let Some(wrapper) = WRAPPERS.iter().find(|wrapper| rest.starts_with(**wrapper)) {
-                let skip = if *wrapper == "#text(" {
-                    rest.find('[')? + 1
+                let skip = if wrapper.ends_with('(') {
+                    // `#text(fill: …)[` y `#link("…")[`: el argumento lo
+                    // escribió el codegen, no el documento.
+                    opening_bracket(rest)? + 1
                 } else {
                     wrapper.len()
                 };
@@ -595,6 +615,17 @@ mod tests {
             assert!(!found.is_empty(), "{id} dibuja algo");
             assert_eq!(pieces(&text, &found).concat(), text, "{id}");
         }
+
+        // Un enlace también se salta entero, con su destino: lo que se
+        // dibuja es el texto, no la dirección.
+        let text = text_of("formato", "mezcla");
+        let found = glyphs_of("formato", "mezcla");
+        let web = text.find("la web").expect("el fixture lleva un enlace");
+        let glyph = found
+            .iter()
+            .find(|glyph| glyph.text_index == web)
+            .unwrap_or_else(|| panic!("falta el glifo de la «l» de «la web»: {found:#?}"));
+        assert_eq!(text[glyph.text_index..].chars().next(), Some('l'));
 
         // Y las líneas siguen siendo las que decidió Typst: el salto de
         // párrafo está repartido entre dos tramos con formatos distintos.

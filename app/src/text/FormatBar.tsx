@@ -7,18 +7,24 @@
  * color sale como mezclado si los tramos no llevan el mismo. Pulsar aplica
  * o quita, igual que ⌘B, ⌘I y ⌘U.
  *
+ * El botón del enlace abre un campo con el destino de lo seleccionado:
+ * escribir uno lo pone, vaciarlo lo quita. Lo que no lleve a la web o al
+ * correo lo rechaza el núcleo, y aquí se dice.
+ *
  * Repartir los tramos lo hace el núcleo (`Op::FormatText`): aquí solo se
  * dice qué cambia y en qué tramo del texto.
  *
  * La barra no gira con el elemento: un rótulo girado no se lee. Se coloca
  * encima de la primera línea de la selección.
  */
+import { useState } from "react";
+
 import { toCanvas, type CanvasTransform } from "../canvas/transform";
 import { useEditingStore } from "../store/editing";
 import { ColorPicker } from "../ui/ColorPicker";
 import type { Run } from "../types/model";
 import type { Format } from "../types/ops";
-import { type RunFormat, formatOf, toggle } from "./format";
+import { formatOf, toggle } from "./format";
 import { selectionRects } from "./selection";
 
 /** Lo que la barra ocupa de alto, en píxeles: se coloca justo encima. */
@@ -29,14 +35,18 @@ export interface FormatBarProps {
   runs: readonly Run[];
   /** Dónde está la página y a qué escala. */
   transform: CanvasTransform;
-  /** Aplica un cambio de formato a lo seleccionado. */
-  onFormat: (change: Format) => void;
+  /** Aplica un cambio de formato a lo seleccionado. Devuelve el problema
+   * si el núcleo no lo acepta. */
+  onFormat: (change: Format) => Promise<string | null>;
 }
 
 export function FormatBar({ runs, transform, onFormat }: FormatBarProps) {
   const glyphs = useEditingStore((state) => state.glyphs);
   const start = useEditingStore((state) => state.start);
   const end = useEditingStore((state) => state.end);
+  /** El destino que se está escribiendo, o `null` si el campo está cerrado. */
+  const [target, setTarget] = useState<string | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
 
   const rects = selectionRects(glyphs, start, end);
   const first = rects[0];
@@ -64,7 +74,7 @@ export function FormatBar({ runs, transform, onFormat }: FormatBarProps) {
           aria-label={LABELS[what]}
           aria-pressed={format[what]}
           title={LABELS[what]}
-          onClick={() => onFormat(toggle(format, what))}
+          onClick={() => void onFormat(toggle(format, what))}
         >
           {MARKS[what]}
         </button>
@@ -73,19 +83,65 @@ export function FormatBar({ runs, transform, onFormat }: FormatBarProps) {
         label="Color del texto"
         value={format.color}
         allowNone
-        onCommit={(color) => onFormat({ color })}
+        onCommit={(color) => void onFormat({ color })}
       />
+      <button
+        type="button"
+        className={`format-button${format.link === null ? "" : " is-on"}`}
+        aria-label="Enlace"
+        aria-pressed={format.link !== null}
+        title="Enlace"
+        onClick={() => {
+          setProblem(null);
+          setTarget(target === null ? (typeof format.link === "string" ? format.link : "") : null);
+        }}
+      >
+        ↗
+      </button>
+      {target !== null && (
+        <input
+          className="format-link"
+          aria-label="Destino del enlace"
+          placeholder="https://"
+          value={target}
+          autoFocus
+          onChange={(event) => setTarget(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            event.stopPropagation();
+            if (event.key === "Escape") {
+              setTarget(null);
+              setProblem(null);
+            } else if (event.key === "Enter") {
+              const link = target.trim();
+              void onFormat({ link: link === "" ? null : link }).then((refused) => {
+                setProblem(refused);
+                if (refused === null) {
+                  setTarget(null);
+                }
+              });
+            }
+          }}
+        />
+      )}
+      {problem !== null && (
+        <p className="format-problem" role="alert">
+          {problem}
+        </p>
+      )}
     </div>
   );
 }
 
-const LABELS: Record<keyof Omit<RunFormat, "color">, string> = {
+/** Los tres que se ponen y se quitan con un botón. */
+type Toggleable = "bold" | "italic" | "underline";
+
+const LABELS: Record<Toggleable, string> = {
   bold: "Negrita",
   italic: "Cursiva",
   underline: "Subrayado",
 };
 
-const MARKS: Record<keyof Omit<RunFormat, "color">, string> = {
+const MARKS: Record<Toggleable, string> = {
   bold: "B",
   italic: "I",
   underline: "U",

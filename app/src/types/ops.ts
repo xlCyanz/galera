@@ -22,7 +22,11 @@ underline?: boolean | null,
  * Color del tramo. Ponerlo a nulo lo quita, y el texto vuelve al
  * color del bloque.
  */
-color?: string | null | null, };
+color?: string | null | null, 
+/**
+ * A dónde lleva el tramo. Ponerlo a nulo quita el enlace.
+ */
+link?: string | null | null, };
 
 /**
  * Un cambio del documento.

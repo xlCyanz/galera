@@ -70,6 +70,9 @@ pub struct Format {
     /// color del bloque.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub color: Option<Option<String>>,
+    /// A dónde lleva el tramo. Ponerlo a nulo quita el enlace.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link: Option<Option<String>>,
 }
 
 impl Format {
@@ -86,6 +89,9 @@ impl Format {
         }
         if let Some(color) = &self.color {
             run.color.clone_from(color);
+        }
+        if let Some(link) = &self.link {
+            run.link.clone_from(link);
         }
     }
 
@@ -234,6 +240,7 @@ fn same_format(one: &Run, other: &Run) -> bool {
         && one.italic == other.italic
         && one.underline == other.underline
         && one.color == other.color
+        && one.link == other.link
 }
 
 /// El byte donde empieza el carácter número `at`; el final del texto si
@@ -310,6 +317,7 @@ mod tests {
             italic: false,
             underline: false,
             color: None,
+            link: None,
         }
     }
 
@@ -459,6 +467,7 @@ mod tests {
             italic: true,
             underline: false,
             color: None,
+            link: None,
         }];
         format(
             &mut runs,
