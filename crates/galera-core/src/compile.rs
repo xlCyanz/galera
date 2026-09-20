@@ -41,20 +41,20 @@
 //! de creación y el identificador del PDF se deriva de su contenido. Así se
 //! puede cachear, comparar en pruebas y versionar sin ruido.
 
+pub mod cache;
+
 use std::ops::Range;
 
-use typst::diag::{Severity as TypstSeverity, SourceDiagnostic, Warned};
+use typst::diag::{Severity as TypstSeverity, SourceDiagnostic};
 use typst::foundations::Smart;
 use typst::syntax::{DiagSpan, DiagSpanKind, Source};
 use typst_layout::PagedDocument;
 use typst_pdf::PdfOptions;
 use typst_svg::SvgOptions;
 
-use crate::codegen;
 use crate::error::{Diagnostic, GaleraError, Result, Severity};
 use crate::model::{Document, is_valid_id};
 use crate::project::Project;
-use crate::world::GaleraWorld;
 
 /// Un documento ya compilado, listo para exportarse.
 pub struct Compiled {
@@ -139,33 +139,10 @@ impl Compiled {
 ///   elemento cuando se puede saber, si la compilación falla. Nunca un
 ///   `panic!`.
 pub fn compile(document: &Document, project: &Project) -> Result<Compiled> {
-    document.validate()?;
-
-    let source = codegen::generate(document)?;
-
-    // Se prepara un entorno nuevo en cada compilación, fuentes incluidas.
-    // Es correcto pero no rápido; reutilizarlo es F4-04.
-    let world = GaleraWorld::new(project.clone(), &document.fonts, source)?;
-
-    // Las familias solo se conocen con las fuentes ya leídas. Sin esto, una
-    // familia que no está sería un aviso de Typst y el texto saldría con
-    // otra fuente, sin que nadie se enterase (principio 4).
-    document.validate_font_families(&world.font_families())?;
-
-    // Se guarda el código generado para atribuir diagnósticos también
-    // después, al exportar, cuando el entorno ya no existe.
-    let source = world.main_source();
-
-    let Warned { output, warnings } = typst::compile::<PagedDocument>(&world);
-    let warnings = diagnostics(&source, &warnings);
-
-    let document = output.map_err(|errors| GaleraError::Typst(diagnostics(&source, &errors)))?;
-
-    Ok(Compiled {
-        document,
-        warnings,
-        source,
-    })
+    // Una vez: se prepara el entorno, se compila y se tira. Quien compile
+    // muchas veces el mismo proyecto —la app mientras se escribe— se guarda
+    // un [`cache::Compiler`] y reutiliza lo que valga.
+    cache::Compiler::new(project.clone()).compile(document)
 }
 
 /// Compila un documento y lo exporta a PDF.

@@ -172,6 +172,17 @@ impl GaleraWorld {
         self.main.clone()
     }
 
+    /// Cambia el código que se compila, **sin rehacerlo entero**.
+    ///
+    /// `Source::replace` busca lo que ha cambiado de verdad y solo vuelve a
+    /// analizar eso. Entre dos teclas, el código generado cambia en unos
+    /// pocos bytes de una línea, así que casi todo el árbol de sintaxis se
+    /// conserva, y con él lo que Typst tenga memoizado. Ver
+    /// `compile/cache.rs`.
+    pub fn set_main(&mut self, code: &str) {
+        self.main.replace(code);
+    }
+
     /// Las familias tipográficas de las fuentes cargadas, una vez cada una,
     /// con el nombre que traen dentro. La validación las compara sin
     /// distinguir mayúsculas, como Typst.

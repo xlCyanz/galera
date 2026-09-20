@@ -216,6 +216,9 @@ pub async fn add_font(
 fn add_font_in(state: &AppState, source: &Path) -> Result<AppliedOp, CommandError> {
     let (project, _) = state.open_document().ok_or(CommandError::NothingOpen)?;
     let imported = import_font(&project, source)?;
+    // La fuente acaba de aparecer en la carpeta: lo que el compilador
+    // hubiera leído de ahí ya no vale.
+    state.forget_project_files();
     Ok(state
         .add_font(&imported.path)
         .ok_or(CommandError::NothingOpen)?

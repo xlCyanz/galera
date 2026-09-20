@@ -221,6 +221,9 @@ fn import_in(state: &AppState, paths: &[PathBuf]) -> Result<ImportedImages, Comm
     let applied = if images.is_empty() {
         None
     } else {
+        // Las imágenes acaban de copiarse a la carpeta: lo que el compilador
+        // hubiera leído de ahí ya no vale.
+        state.forget_project_files();
         let assets: Vec<(String, String)> = images
             .iter()
             .map(|image| (image.key.clone(), image.path.clone()))
