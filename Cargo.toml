@@ -47,6 +47,10 @@ typst-layout = "=0.15.1"
 typst-pdf = "=0.15.1"
 typst-svg = "=0.15.1"
 tempfile = "3"
+# Clústeres de grafemas: mover el cursor por lo que una persona percibe como
+# un carácter, no por bytes ni por puntos de código (ver `model/text.rs`).
+# Typst ya la trae, así que no añade nada nuevo al árbol de dependencias.
+unicode-segmentation = "1.13"
 miniz_oxide = "0.9"
 
 # Compilar Typst en modo depuración es lento de más para trabajar con él,

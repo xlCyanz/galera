@@ -16,7 +16,7 @@ import { HIT_TOLERANCE_PX } from "../canvas/useSelection";
 import { type CanvasTransform, toDocument } from "../canvas/transform";
 import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
-import { textOf } from "./runs";
+import { textOf } from "./change";
 
 /**
  * Devuelve el manejador de `dblclick` del área del lienzo.

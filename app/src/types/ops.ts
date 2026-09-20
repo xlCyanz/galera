@@ -2,6 +2,24 @@
 import type { Element, Run, Stroke, TextStyle } from "./model";
 
 /**
+ * Qué formato se cambia en un tramo. Lo que va a `None` se queda como
+ * estaba: poner en negrita una selección no toca su cursiva.
+ */
+export type Format = { 
+/**
+ * Negrita.
+ */
+bold?: boolean | null, 
+/**
+ * Cursiva.
+ */
+italic?: boolean | null, 
+/**
+ * Subrayado.
+ */
+underline?: boolean | null, };
+
+/**
  * Un cambio del documento.
  */
 export type Op = { "op": "move", 
@@ -44,7 +62,47 @@ id: string,
 /**
  * El giro nuevo.
  */
-rotation: number, } | { "op": "set_property", 
+rotation: number, } | { "op": "insert_text", 
+/**
+ * El elemento.
+ */
+id: string, 
+/**
+ * Dónde se mete, en caracteres desde el principio del texto.
+ */
+at: number, 
+/**
+ * Lo que se escribe.
+ */
+text: string, } | { "op": "delete_text", 
+/**
+ * El elemento.
+ */
+id: string, 
+/**
+ * Dónde empieza, en caracteres.
+ */
+from: number, 
+/**
+ * Dónde acaba, sin incluirlo.
+ */
+to: number, } | { "op": "format_text", 
+/**
+ * El elemento.
+ */
+id: string, 
+/**
+ * Dónde empieza, en caracteres.
+ */
+from: number, 
+/**
+ * Dónde acaba, sin incluirlo.
+ */
+to: number, 
+/**
+ * Qué se cambia. Lo que no se diga se queda como estaba.
+ */
+format: Format, } | { "op": "set_property", 
 /**
  * El elemento.
  */
