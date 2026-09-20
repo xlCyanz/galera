@@ -39,7 +39,16 @@ const AREA = { width: 900, height: 700 };
 
 function box(overrides: Partial<LayoutBox> = {}): LayoutBox {
   const base = { x: 30, y: 40, w: 60, h: 25 };
-  return { id: "r1", page: 0, ...base, rotation: 0, bounds: base, line: null, ...overrides };
+  return {
+    id: "r1",
+    page: 0,
+    ...base,
+    rotation: 0,
+    bounds: base,
+    line: null,
+    overflow: 0,
+    ...overrides,
+  };
 }
 
 let container: HTMLDivElement;

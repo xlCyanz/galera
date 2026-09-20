@@ -66,8 +66,8 @@ const project: OpenedProject = {
 };
 
 const boxes: LayoutBox[] = [
-  { id: "t1", page: 0, x: 10, y: 10, w: 25, h: 11, rotation: 0, bounds: { x: 10, y: 10, w: 25, h: 11 }, line: null },
-  { id: "r1", page: 0, x: 120, y: 10, w: 40, h: 20, rotation: 0, bounds: { x: 120, y: 10, w: 40, h: 20 }, line: null },
+  { id: "t1", page: 0, x: 10, y: 10, w: 25, h: 11, rotation: 0, bounds: { x: 10, y: 10, w: 25, h: 11 }, line: null, overflow: 0 },
+  { id: "r1", page: 0, x: 120, y: 10, w: 40, h: 20, rotation: 0, bounds: { x: 120, y: 10, w: 40, h: 20 }, line: null, overflow: 0 },
 ];
 
 // jsdom no maqueta: el área mide 1000 × 600 px y empieza en (40, 30).

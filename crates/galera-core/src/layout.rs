@@ -63,7 +63,7 @@ use typst::visualize::Geometry;
 use typst_layout::PagedDocument;
 
 use crate::compile::{Compiled, compile};
-use crate::error::Result;
+use crate::error::{Diagnostic, Result, Severity};
 use crate::model::Document;
 use crate::project::Project;
 
@@ -126,6 +126,39 @@ pub struct LayoutBox {
     /// Si lo que dibuja el elemento es una sola línea, sus dos extremos
     /// **sin girar**, en mm. Su caja no dice en qué diagonal está: esto sí.
     pub line: Option<MmSegment>,
+    /// Cuánto se sale el contenido por debajo de la caja, en mm, o 0 si
+    /// cabe.
+    ///
+    /// Solo pasa con un alto fijo: con `h: null` la caja la mide Typst y
+    /// siempre cabe. Lo que sobra no se recorta, se dibuja fuera del marco
+    /// —también en el PDF—, así que hay que avisarlo (ver
+    /// [`overflowing`]).
+    pub overflow: f64,
+}
+
+/// Desde cuánto se considera que algo se sale, en mm: menos que esto es el
+/// ruido de la coma flotante.
+const OVERFLOW_TOLERANCE: f64 = 0.01;
+
+/// Los avisos de los elementos cuyo contenido se sale de su caja.
+///
+/// Van al panel de problemas junto a los de Typst: en el PDF, lo que sobra
+/// se dibuja fuera del marco, y quien edita no tiene por qué darse cuenta
+/// mirando el lienzo.
+pub fn overflowing(boxes: &[LayoutBox]) -> Vec<Diagnostic> {
+    boxes
+        .iter()
+        .filter(|layout_box| layout_box.overflow > OVERFLOW_TOLERANCE)
+        .map(|layout_box| Diagnostic {
+            severity: Severity::Warning,
+            message: format!(
+                "el contenido de {:?} se sale {:.1} mm de su caja",
+                layout_box.id, layout_box.overflow
+            ),
+            hints: vec!["quita el alto fijo para que lo mida Typst, o agranda la caja".to_owned()],
+            element_id: Some(layout_box.id.clone()),
+        })
+        .collect()
 }
 
 impl Compiled {
@@ -227,6 +260,10 @@ struct Extent {
     pieces: usize,
     /// Las líneas que ha dibujado, sin girar.
     lines: Vec<(Point, Point)>,
+    /// Hasta dónde llega por abajo lo que hay **dentro** de los grupos: con
+    /// un alto fijo, el texto que no cabe se dibuja fuera y el grupo sigue
+    /// midiendo lo que se le dijo.
+    bottom: Option<Abs>,
 }
 
 impl Extent {
@@ -270,6 +307,10 @@ impl Extent {
             _ => {}
         }
 
+        if let FrameItem::Group(group) = item {
+            self.bottom = content_bottom(&group.frame, position).max(self.bottom);
+        }
+
         self.unrotated = Some(Bounds::union(self.unrotated, local));
 
         if transform.is_identity() {
@@ -306,6 +347,14 @@ impl Extent {
             }),
             _ => None,
         };
+        // Lo que se sale por debajo de la caja. Con la caja girada no se
+        // mide: el contenido va en sus coordenadas sin girar, igual que la
+        // caja, así que el sobrante es el mismo.
+        let overflow = self
+            .bottom
+            .map_or(0.0, |bottom| (bottom - unrotated.max.y).to_mm())
+            .max(0.0);
+
         Some(LayoutBox {
             id,
             page,
@@ -316,8 +365,32 @@ impl Extent {
             rotation: self.rotation.unwrap_or(0.0),
             bounds: drawn.to_mm(),
             line,
+            overflow,
         })
     }
+}
+
+/// Hasta dónde llega por abajo lo que dibuja un marco, con sus marcos de
+/// dentro, en coordenadas de la página.
+///
+/// El texto se mide **hasta su línea base**, que es donde Typst pone el
+/// borde de abajo de un bloque medido: así un texto con el alto automático
+/// no se sale nunca, y lo que sobresale es de verdad una línea que no cabe
+/// y no el rabo de una «p».
+fn content_bottom(frame: &Frame, offset: Point) -> Option<Abs> {
+    let mut bottom: Option<Abs> = None;
+    for (position, item) in frame.items() {
+        let at = offset + *position;
+        let found = match item {
+            FrameItem::Group(group) => content_bottom(&group.frame, at),
+            FrameItem::Text(_) => Some(at.y),
+            FrameItem::Shape(shape, _) => Some(at.y + shape.geometry.bbox(None).max.y),
+            FrameItem::Image(_, size, _) => Some(at.y + size.y),
+            FrameItem::Link(..) | FrameItem::Tag(_) => None,
+        };
+        bottom = found.max(bottom);
+    }
+    bottom
 }
 
 /// Los extremos de una forma si es una línea.
@@ -744,6 +817,75 @@ mod tests {
     }
 
     /// Sin giro, la caja dibujada es la misma y el ángulo es 0.
+    /// El criterio de la tarea: un texto que no cabe en su caja se marca, y
+    /// se dice cuánto sobra.
+    #[test]
+    fn a_text_that_does_not_fit_says_how_much_sticks_out() {
+        let text = |id: &str, height: &str, lines: usize| {
+            let content = vec!["línea"; lines].join("\\n");
+            format!(
+                r##"{{ "id": "{id}", "type": "text", "x": 20, "y": 20, "w": 60, "h": {height},
+                      "content": [{{ "text": "{content}" }}],
+                      "style": {{ "font": "Inter", "size": 12, "color": "#000000",
+                                 "leading": 0.65 }} }}"##
+            )
+        };
+
+        // Lo que mide de verdad un texto de cuatro líneas.
+        let measured = find(&boxes_of(&page_with(&text("medido", "null", 4))), "medido").h;
+
+        let boxes = boxes_of(&page_with(&format!(
+            "{}, {}",
+            text("cabe", "40", 4),
+            text("no-cabe", "10", 4)
+        )));
+        let fits = find(&boxes, "cabe");
+        let overflows = find(&boxes, "no-cabe");
+
+        assert_eq!(fits.overflow, 0.0, "en 40 mm caben: {fits:?}");
+        assert_eq!(fits.h, 40.0, "la caja es la que se pidió");
+
+        assert_eq!(overflows.h, 10.0, "la caja sigue siendo la que se pidió");
+        assert_close(
+            overflows.overflow,
+            measured - 10.0,
+            "lo que sobra es lo que no cabe",
+        );
+    }
+
+    /// Con el alto automático nunca sobra nada: la caja la mide Typst.
+    #[test]
+    fn an_automatic_height_never_overflows() {
+        for name in ["texto", "informe", "formato", "listas"] {
+            for layout_box in boxes_of(&fixture(name)) {
+                assert_eq!(layout_box.overflow, 0.0, "{name}: {layout_box:?}");
+            }
+        }
+    }
+
+    /// El criterio de la tarea: lo que se sale sale también en el panel de
+    /// problemas, con su elemento.
+    #[test]
+    fn what_does_not_fit_becomes_a_warning() {
+        let document = page_with(
+            r##"{ "id": "apretado", "type": "text", "x": 20, "y": 20, "w": 60, "h": 6,
+                  "content": [{ "text": "una\nlínea\nde más" }],
+                  "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##,
+        );
+        let boxes = boxes_of(&document);
+        let warnings = overflowing(&boxes);
+
+        assert_eq!(warnings.len(), 1, "{boxes:?}");
+        let warning = &warnings[0];
+        assert_eq!(warning.severity, Severity::Warning);
+        assert_eq!(warning.element_id.as_deref(), Some("apretado"));
+        assert!(warning.message.contains("se sale"), "{warning:?}");
+        assert!(!warning.hints.is_empty(), "dice qué hacer");
+
+        // Y lo que cabe no avisa de nada.
+        assert!(overflowing(&boxes_of(&fixture("texto"))).is_empty());
+    }
+
     #[test]
     fn an_unrotated_element_has_the_same_bounds() {
         let boxes = boxes_of(&fixture("informe"));
@@ -779,7 +921,7 @@ mod tests {
             serde_json::json!({
                 "id": "r1", "page": 0, "x": 0.0, "y": 0.0, "w": 210.0, "h": 15.0, "rotation": 0.0,
                 "bounds": { "x": 0.0, "y": 0.0, "w": 210.0, "h": 15.0 },
-                "line": null
+                "line": null, "overflow": 0.0
             })
         );
     }

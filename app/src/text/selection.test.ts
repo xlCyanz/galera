@@ -29,6 +29,7 @@ const box: LayoutBox = {
   rotation: 0,
   bounds: { x: 20, y: 20, w: 40, h: 12 },
   line: null,
+  overflow: 0,
 };
 
 const TEXT = "Hola mundo";

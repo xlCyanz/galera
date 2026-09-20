@@ -11,7 +11,7 @@ const text: Element = {
   style: { font: "Inter", size: 12, color: "#000000", align: "left", leading: 0.65 },
 };
 const line: Element = { type: "line", id: "l1", x: 50, y: 60, x2: 20, y2: 20, rotation: 0, stroke: { color: "#000000", width: 0.5 } };
-const measured = (h: number): LayoutBox => ({ id: "t1", page: 0, x: 10, y: 10, w: 50, h, rotation: 0, bounds: { x: 10, y: 10, w: 50, h }, line: null });
+const measured = (h: number): LayoutBox => ({ id: "t1", page: 0, x: 10, y: 10, w: 50, h, rotation: 0, bounds: { x: 10, y: 10, w: 50, h }, line: null, overflow: 0 });
 
 describe("inspectorFields", () => {
   it("enseña la caja y el giro del documento", () => {

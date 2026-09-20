@@ -65,3 +65,14 @@ export const useElementBox = (id: string | null) =>
 /** Las cajas de una página, en el orden en que se dibujan. */
 export const usePageBoxes = (page: number) =>
   useLayoutStore(useShallow((state) => Object.values(state.boxes).filter((box) => box.page === page)));
+
+/**
+ * Las cajas de la página cuyo contenido no cabe, para avisarlo encima del
+ * elemento (`canvas/OverflowNotice.tsx`). Lo mide el núcleo al componer.
+ */
+export const useOverflowing = (page: number): LayoutBox[] =>
+  useLayoutStore(
+    useShallow((state) =>
+      Object.values(state.boxes).filter((box) => box.page === page && box.overflow > 0),
+    ),
+  );
