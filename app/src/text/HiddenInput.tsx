@@ -33,21 +33,30 @@
  * manda el siguiente, y el siguiente se calcula con lo que haya entonces.
  * Así, teclear rápido no manda posiciones de un texto que ya ha cambiado.
  *
- * # Lo que todavía no
+ * # El cursor
  *
- * El cursor y la selección se dibujarán a partir de las posiciones de
- * glifos en F4-06 (#60) y F4-07 (#61); aquí solo se guarda por dónde van.
+ * Dónde está la selección se guarda en el estado de edición, en bytes del
+ * texto, y con eso lo dibuja `Cursor.tsx` sobre las posiciones de los
+ * glifos. Subir y bajar de línea **no las hace el campo**: sus líneas no
+ * son las del documento, que las parte Typst con otro ancho y otra fuente,
+ * así que ↑ y ↓ se atienden aquí y se resuelven con esas posiciones,
+ * conservando la columna entre saltos. El resto —⌘A, inicio, fin, palabra a
+ * palabra— sí lo hace el campo.
+ *
+ * Colocar el cursor con el ratón llega con F4-07 (#61).
  */
 import { useEffect, useEffectEvent, useRef } from "react";
 
-import { applyOp } from "../commands";
+import { applyOp, glyphs as glyphsOf } from "../commands";
 import type { CanvasTransform } from "../canvas/transform";
 import { rectToCanvas } from "../canvas/transform";
 import { runHistory } from "../hooks/useUndoRedo";
 import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
+import { useLayoutStore } from "../store/layout";
 import type { LayoutBox } from "../types/layout";
 import type { Run } from "../types/model";
+import { byteIndex, lineMove, textIndex } from "./caret";
 import { change, textOf } from "./change";
 
 /** Teclear seguido es un solo paso del historial; tras esta pausa, en
@@ -86,6 +95,11 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
   const field = useRef<HTMLTextAreaElement>(null);
   /** Los cambios que están de camino al backend, uno detrás de otro. */
   const queue = useRef<Promise<void>>(Promise.resolve());
+  /** La columna que se quiere conservar al subir y bajar de línea, en mm. */
+  const column = useRef<number | null>(null);
+  // Las posiciones de los glifos son las de la última compilación buena:
+  // se vuelven a pedir cuando llega otra.
+  const revision = useLayoutStore((state) => state.revision);
 
   const commit = useEffectEvent(() => {
     // Un cambio detrás de otro: el siguiente se calcula cuando el anterior
@@ -142,12 +156,45 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
     remember();
   });
 
-  /** Guarda dónde está la selección, para dibujar el cursor. */
+  /** Guarda dónde está la selección, para dibujar el cursor. En bytes,
+   * como los cuenta el núcleo. */
   const remember = useEffectEvent(() => {
     const element = field.current;
     if (element !== null) {
-      useEditingStore.getState().setSelection(element.selectionStart, element.selectionEnd);
+      useEditingStore
+        .getState()
+        .setSelection(
+          byteIndex(element.value, element.selectionStart),
+          byteIndex(element.value, element.selectionEnd),
+        );
     }
+  });
+
+  /** Sube o baja una línea de las que decidió Typst. */
+  const moveLine = useEffectEvent((direction: -1 | 1, extend: boolean) => {
+    const element = field.current;
+    const { glyphs } = useEditingStore.getState();
+    if (element === null || glyphs.length === 0) {
+      return false;
+    }
+    const text = element.value;
+    // El extremo que se mueve, y el que se queda si se está seleccionando.
+    const moving = element.selectionDirection === "backward" ? element.selectionStart : element.selectionEnd;
+    const anchor = element.selectionDirection === "backward" ? element.selectionEnd : element.selectionStart;
+    const moved = lineMove(glyphs, byteIndex(text, moving), direction, column.current, text);
+    if (moved === null) {
+      return false;
+    }
+    column.current = moved.x;
+
+    const at = textIndex(text, moved.byte);
+    if (extend) {
+      element.setSelectionRange(Math.min(anchor, at), Math.max(anchor, at), at < anchor ? "backward" : "forward");
+    } else {
+      element.setSelectionRange(at, at);
+    }
+    remember();
+    return true;
   });
 
   // Al entrar a escribir, el campo toma el foco y la copia se pone al día.
@@ -184,6 +231,22 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
   // Cambios que llegan de otro sitio: deshacer, rehacer, el inspector.
   useEffect(() => useDocumentStore.subscribe(() => sync()), []);
 
+  // Dónde quedó cada glifo, de la compilación que se está viendo.
+  useEffect(() => {
+    let current = true;
+    void glyphsOf(id)
+      .then((found) => {
+        // Sin compilación todavía, la lista viene vacía.
+        if (current) {
+          useEditingStore.getState().setGlyphs(Array.isArray(found) ? found : []);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [id, revision]);
+
   return (
     <textarea
       ref={field}
@@ -197,12 +260,15 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
         if (!useEditingStore.getState().composing) {
           commit();
         }
+        column.current = null;
+        useEditingStore.getState().typed();
         remember();
       }}
       onCompositionStart={() => useEditingStore.getState().setComposing(true)}
       onCompositionEnd={() => {
         useEditingStore.getState().setComposing(false);
         commit();
+        useEditingStore.getState().typed();
         remember();
       }}
       onPaste={(event) => {
@@ -221,6 +287,15 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
         remember();
       }}
       onKeyDown={(event) => {
+        // Las líneas del campo no son las del documento: subir y bajar se
+        // resuelve con las posiciones de los glifos.
+        if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+          if (moveLine(event.key === "ArrowUp" ? -1 : 1, event.shiftKey)) {
+            event.preventDefault();
+          }
+          return;
+        }
+        column.current = null;
         if (event.key === "Escape") {
           event.preventDefault();
           event.stopPropagation();

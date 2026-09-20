@@ -10,12 +10,12 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 12 |
 | [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 11 |
 | [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 13 |
-| [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 4 |
+| [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 5 |
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 0 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **56** |
+| **Total** | **95** | **57** |
 
 
 ---
@@ -131,7 +131,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F4-03** — Modelo de texto enriquecido por runs y sus operaciones | [#57](https://github.com/xlCyanz/galera/issues/57) | #2, #37 |
 | ✅ | **F4-04** — Compilación incremental y caché por página ([medidas](decisiones/compilacion-incremental.md)) | [#58](https://github.com/xlCyanz/galera/issues/58) | #27, #12 |
 | ✅ | **F4-05** — Extraer posiciones de glifos del layout de Typst | [#59](https://github.com/xlCyanz/galera/issues/59) | #30 |
-| ⬜ | **F4-06** — Dibujar el cursor a partir de las posiciones de glifos | [#60](https://github.com/xlCyanz/galera/issues/60) | #59, #56 |
+| ✅ | **F4-06** — Dibujar el cursor a partir de las posiciones de glifos | [#60](https://github.com/xlCyanz/galera/issues/60) | #59, #56 |
 | ⬜ | **F4-07** — Selección de texto con clic y arrastre | [#61](https://github.com/xlCyanz/galera/issues/61) | #60 |
 | ⬜ | **F4-08** — Formato: negrita, cursiva, subrayado y color | [#62](https://github.com/xlCyanz/galera/issues/62) | #57, #61 |
 | ⬜ | **F4-09** — Enlaces y listas | [#63](https://github.com/xlCyanz/galera/issues/63) | #62 |

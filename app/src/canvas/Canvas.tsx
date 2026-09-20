@@ -48,6 +48,7 @@ import {
 import { useEditingElement, useEditingStore } from "../store/editing";
 import { useElementBox } from "../store/layout";
 import { useTool, useToolStore } from "../store/tool";
+import { Cursor } from "../text/Cursor";
 import { HiddenInput } from "../text/HiddenInput";
 import { useTextEditing } from "../text/useTextEditing";
 import { ControlLayer } from "./ControlLayer";
@@ -354,7 +355,10 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
             />
           )}
           {editing !== null && editingBox !== null && editingBox.page === currentPage && transform !== null && (
-            <HiddenInput id={editing} box={editingBox} transform={transform} />
+            <>
+              <HiddenInput id={editing} box={editingBox} transform={transform} />
+              <Cursor box={editingBox} transform={transform} />
+            </>
           )}
           {create.state.phase !== "idle" && transform !== null && (
             <CreatePreview shape={create.state.shape} transform={transform} />

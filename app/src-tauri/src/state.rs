@@ -100,6 +100,10 @@ struct Session {
     /// La última compilación que salió bien del documento abierto: la que se
     /// ve en el lienzo, también mientras hay errores.
     last_good: Option<Arc<Compiled>>,
+    /// El documento del que salió `last_good`. Hace falta para traducir lo
+    /// que dibujó Typst al texto del documento: si se usara el de ahora, el
+    /// de una tecla más tarde, no cuadrarían.
+    last_good_document: Option<Arc<Document>>,
 }
 
 /// Una compilación guardada.
@@ -192,6 +196,7 @@ impl AppState {
         session.changed_at = None;
         session.compiled = None;
         session.last_good = None;
+        session.last_good_document = None;
         session.revision
     }
 
@@ -390,6 +395,7 @@ impl AppState {
         session.changed_at = None;
         session.compiled = None;
         session.last_good = None;
+        session.last_good_document = None;
     }
 
     /// Un resumen del estado, para la interfaz.
@@ -529,6 +535,7 @@ impl AppState {
         if is_current {
             if let Ok(compiled) = &result {
                 session.last_good = Some(Arc::clone(compiled));
+                session.last_good_document = Some(Arc::new(open.document.clone()));
             }
             session.compiled = Some(Stored {
                 revision,
@@ -567,6 +574,16 @@ impl AppState {
     /// el lienzo sigue enseñándola, así que es con la que hay que medir.
     pub fn last_good_compilation(&self) -> Option<Arc<Compiled>> {
         self.read().last_good.clone()
+    }
+
+    /// La última compilación buena con el documento del que salió: los dos
+    /// van juntos para poder mirar dentro de lo que se dibujó.
+    pub fn last_good_render(&self) -> Option<(Arc<Compiled>, Arc<Document>)> {
+        let session = self.read();
+        Some((
+            session.last_good.clone()?,
+            session.last_good_document.clone()?,
+        ))
     }
 
     /// Anota una carpeta que quien usa la app ha elegido en el diálogo de

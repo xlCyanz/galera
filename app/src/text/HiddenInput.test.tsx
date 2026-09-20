@@ -7,7 +7,7 @@ import type { AppliedOp, OpenedProject } from "../commands";
 import { canvasTransform } from "../canvas/transform";
 import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
-import type { LayoutBox } from "../types/layout";
+import type { Glyph, LayoutBox } from "../types/layout";
 import type { Run } from "../types/model";
 import { HiddenInput } from "./HiddenInput";
 
@@ -103,12 +103,18 @@ let root: Root;
 let calls: Array<{ command: string; args: Record<string, unknown> }>;
 /** Si `apply_op` tiene que fallar. */
 let refuse: boolean;
+/** Los glifos que devuelve el backend. */
+let scene: Glyph[];
 
 beforeEach(() => {
   calls = [];
   refuse = false;
+  scene = [];
   mockIPC((command, args) => {
     calls.push({ command, args: args as Record<string, unknown> });
+    if (command === "glyphs") {
+      return scene;
+    }
     if (command === "apply_op") {
       if (refuse) {
         throw { kind: "op", message: "no" };
@@ -336,5 +342,68 @@ describe("el campo invisible", () => {
     });
     expect(useEditingStore.getState().start).toBe(0);
     expect(useEditingStore.getState().end).toBe(4);
+  });
+});
+
+describe("subir y bajar de línea", () => {
+  /** «Hola mundo» partido: «Hola » en la primera línea y «mundo» en la
+   * segunda, con glifos de 5 mm. El espacio no se dibuja. */
+  const wrapped: Glyph[] = [0, 1, 2, 3, 5, 6, 7, 8, 9].map((text_index, at) => {
+    const line = text_index < 5 ? 0 : 1;
+    const column = line === 0 ? at : at - 4;
+    return {
+      text_index,
+      line,
+      x: 20 + column * 5,
+      y: 20 + line * 6,
+      width: 5,
+      line_height: 5,
+      baseline: 24 + line * 6,
+    };
+  });
+
+  beforeEach(async () => {
+    await act(async () => {
+      await settle();
+    });
+    act(() => useEditingStore.getState().setGlyphs(wrapped));
+  });
+
+  const caret = () => [field().selectionStart, field().selectionEnd];
+
+  it("bajar conserva la columna, aunque el campo tenga otras líneas", async () => {
+    act(() => field().setSelectionRange(1, 1));
+    await key({ key: "ArrowUp" });
+    expect(caret()).toEqual([1, 1]);
+
+    await key({ key: "ArrowDown" });
+    // La columna de la «o» de «Hola» cae en la «u» de «mundo».
+    expect(caret()).toEqual([6, 6]);
+    expect(useEditingStore.getState().start).toBe(6);
+  });
+
+  it("subir vuelve a la misma columna", async () => {
+    act(() => field().setSelectionRange(7, 7));
+    await key({ key: "ArrowUp" });
+    expect(caret()).toEqual([2, 2]);
+  });
+
+  it("la columna se conserva entre saltos", async () => {
+    act(() => field().setSelectionRange(10, 10));
+    await key({ key: "ArrowUp" });
+    await key({ key: "ArrowDown" });
+    expect(caret()).toEqual([10, 10]);
+  });
+
+  it("con ⇧ se selecciona hasta donde se llega", async () => {
+    act(() => field().setSelectionRange(1, 1));
+    await key({ key: "ArrowDown", shiftKey: true });
+    expect(caret()).toEqual([1, 6]);
+  });
+
+  it("escribir reinicia el parpadeo", async () => {
+    const before = useEditingStore.getState().typedAt;
+    await type("Hola mundos");
+    expect(useEditingStore.getState().typedAt).not.toBe(before);
   });
 });
