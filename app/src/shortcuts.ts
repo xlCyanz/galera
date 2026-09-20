@@ -77,6 +77,10 @@ export const SHORTCUTS = [
     alsoOnOthers: { key: "y", mod: true },
   },
   { id: "deselect", label: "Quitar la selección", group: "Edición", keys: { key: "escape", show: "Esc" } },
+
+  { id: "bold", label: "Negrita", group: "Edición", keys: { key: "b", mod: true } },
+  { id: "italic", label: "Cursiva", group: "Edición", keys: { key: "i", mod: true } },
+  { id: "underline", label: "Subrayado", group: "Edición", keys: { key: "u", mod: true } },
   {
     id: "nudgeLeft",
     label: "Mover 1 mm a la izquierda (10 mm con ⇧)",

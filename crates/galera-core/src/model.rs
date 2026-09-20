@@ -520,6 +520,10 @@ pub struct Run {
     /// Subrayado.
     #[serde(default)]
     pub underline: bool,
+
+    /// Color del tramo, `#RRGGBB` o `#RRGGBBAA`. Sin él, el del bloque.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
 }
 
 impl Run {
@@ -530,6 +534,7 @@ impl Run {
             bold: false,
             italic: false,
             underline: false,
+            color: None,
         }
     }
 }

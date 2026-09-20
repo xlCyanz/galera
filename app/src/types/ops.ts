@@ -17,7 +17,12 @@ italic?: boolean | null,
 /**
  * Subrayado.
  */
-underline?: boolean | null, };
+underline?: boolean | null, 
+/**
+ * Color del tramo. Ponerlo a nulo lo quita, y el texto vuelve al
+ * color del bloque.
+ */
+color?: string | null | null, };
 
 /**
  * Un cambio del documento.

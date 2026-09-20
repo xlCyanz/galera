@@ -238,6 +238,10 @@ struct TextMap {
 /// Los saltos de línea que escribe el codegen.
 const BREAKS: [&str; 2] = ["#linebreak();", "#parbreak();"];
 
+/// Lo que el codegen escribe alrededor de un tramo con formato. Lo que va
+/// entre `[` y `]` sí es texto del documento; el envoltorio, no.
+const WRAPPERS: [&str; 4] = ["#emph[", "#strong[", "#underline[", "#text("];
+
 impl TextMap {
     /// Recorre el contenido del elemento `id` en `source` junto a su `text`.
     /// `None` si el elemento no está en el código o si los dos no van de la
@@ -254,6 +258,9 @@ impl TextMap {
         let mut indices = Vec::new();
         let mut rest = &code[start..];
         let mut at = 0;
+        // Cuántos envoltorios de formato hay abiertos: sus `]` no acaban el
+        // contenido.
+        let mut open = 0usize;
 
         loop {
             if let Some(brk) = BREAKS.iter().find(|brk| rest.starts_with(**brk)) {
@@ -272,9 +279,30 @@ impl TextMap {
                 continue;
             }
 
+            // El marcado del formato no es texto del documento: se salta
+            // entero, hasta el `[` que abre el tramo.
+            if let Some(wrapper) = WRAPPERS.iter().find(|wrapper| rest.starts_with(**wrapper)) {
+                let skip = if *wrapper == "#text(" {
+                    rest.find('[')? + 1
+                } else {
+                    wrapper.len()
+                };
+                indices.extend(std::iter::repeat_n(at, skip));
+                rest = &rest[skip..];
+                open += 1;
+                continue;
+            }
+
             let character = rest.chars().next()?;
             if character == ']' {
-                break;
+                if open == 0 {
+                    break;
+                }
+                // Cierra un envoltorio, no el contenido.
+                open -= 1;
+                indices.push(at);
+                rest = &rest[1..];
+                continue;
             }
 
             // Detrás de `\` va el carácter del documento, tal cual.
@@ -555,6 +583,26 @@ mod tests {
                 assert!(glyph.y >= element.y - glyph.line_height, "{id}: {glyph:?}");
             }
         }
+    }
+
+    /// El marcado del formato no estorba: lo que Typst dibuja sigue
+    /// apuntando al texto del documento, tramo a tramo.
+    #[test]
+    fn formatted_runs_still_point_at_the_document() {
+        for id in ["mezcla", "saltos"] {
+            let text = text_of("formato", id);
+            let found = glyphs_of("formato", id);
+            assert!(!found.is_empty(), "{id} dibuja algo");
+            assert_eq!(pieces(&text, &found).concat(), text, "{id}");
+        }
+
+        // Y las líneas siguen siendo las que decidió Typst: el salto de
+        // párrafo está repartido entre dos tramos con formatos distintos.
+        let lines = glyphs_of("formato", "saltos")
+            .last()
+            .expect("hay glifos")
+            .line;
+        assert_eq!(lines, 1);
     }
 
     /// Lo que no es un bloque de texto no tiene glifos: ni un rectángulo, ni

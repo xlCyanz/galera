@@ -40,10 +40,22 @@
 //!
 //! # Formato por tramos
 //!
-//! Todavía no. Esta tarea emite el texto de todos los tramos seguido y con
-//! el estilo del bloque; la negrita, la cursiva y el subrayado de cada tramo
-//! llegan en F4-08. Hasta entonces, un tramo con `"bold": true` se compone
-//! en redonda.
+//! Cada tramo se envuelve en el marcado que le toca, de dentro afuera:
+//! `emph` para la cursiva, `strong` para la negrita, `underline` para el
+//! subrayado y `text(fill: …)` para el color. Un tramo sin formato se
+//! escribe tal cual, sin envoltorio.
+//!
+//! ```typst
+//! Informe #strong[anual] de #text(fill: rgb("#B4161B"))[#emph[2026]]
+//! ```
+//!
+//! Los saltos de línea se quedan **fuera** de los envoltorios: un
+//! `#parbreak();` dentro de un `#strong[…]` abriría los párrafos dentro de
+//! la negrita, y lo que se quiere es lo contrario. Por eso cada tramo se
+//! parte por sus saltos y se envuelve cada trozo.
+//!
+//! El texto sigue pasando por `escape_into` tramo a trozo: el formato no es
+//! una vía para colar marcado (principio 6).
 
 use crate::model::{Align, ElementBox, Run, TextStyle};
 
@@ -83,38 +95,79 @@ pub(super) fn emit_text(
 
     out.push_str(&format!("); align({})[", horizontal_alignment(style.align)));
 
-    let text: String = content.iter().map(|run| run.text.as_str()).collect();
-    emit_content(&text, out);
+    emit_content(content, out)?;
 
     out.push_str("] })");
     Ok(())
 }
 
-/// Escribe el contenido escapado, convirtiendo los saltos de línea en
-/// saltos explícitos de Typst.
-fn emit_content(text: &str, out: &mut String) {
-    // Windows y el Mac clásico también escriben texto: los tres finales de
-    // línea significan lo mismo.
-    let text = text.replace("\r\n", "\n").replace('\r', "\n");
+/// Escribe el contenido: cada tramo escapado, con su formato, y los saltos
+/// de línea del documento como saltos explícitos de Typst.
+fn emit_content(content: &[Run], out: &mut String) -> Result<(), CodegenError> {
+    // Cuántos saltos de línea hay pendientes de escribir. Se cuentan sin
+    // escribirlos todavía porque dos seguidos no son lo mismo que uno, y
+    // pueden quedar repartidos entre dos tramos.
+    let mut newlines = 0;
 
-    let mut rest = text.as_str();
-    while let Some(index) = rest.find('\n') {
-        escape_into(&rest[..index], out);
+    for run in content {
+        // Windows y el Mac clásico también escriben texto: los tres finales
+        // de línea significan lo mismo.
+        let text = run.text.replace("\r\n", "\n").replace('\r', "\n");
 
-        let after = &rest[index..];
-        let newlines = after.bytes().take_while(|&byte| byte == b'\n').count();
-        // El `;` cierra la expresión: sin él, un `(` o un `.` al principio
-        // de la línea siguiente se leería como parte de la llamada.
-        out.push_str(if newlines >= 2 {
-            "#parbreak();"
-        } else {
-            "#linebreak();"
-        });
-
-        rest = &after[newlines..];
+        for (at, piece) in text.split('\n').enumerate() {
+            // Entre dos trozos de un mismo tramo hay siempre un salto.
+            if at > 0 {
+                newlines += 1;
+            }
+            if piece.is_empty() {
+                continue;
+            }
+            emit_break(&mut newlines, out);
+            emit_run(piece, run, out)?;
+        }
     }
 
-    escape_into(rest, out);
+    emit_break(&mut newlines, out);
+    Ok(())
+}
+
+/// Escribe los saltos de línea que hubiera pendientes.
+///
+/// El `;` cierra la expresión: sin él, un `(` o un `.` al principio de la
+/// línea siguiente se leería como parte de la llamada.
+fn emit_break(newlines: &mut usize, out: &mut String) {
+    if *newlines == 0 {
+        return;
+    }
+    out.push_str(if *newlines >= 2 {
+        "#parbreak();"
+    } else {
+        "#linebreak();"
+    });
+    *newlines = 0;
+}
+
+/// Escribe un trozo de tramo, escapado y con el formato de su tramo.
+fn emit_run(piece: &str, run: &Run, out: &mut String) -> Result<(), CodegenError> {
+    let mut wrapped = String::with_capacity(piece.len() + 16);
+    escape_into(piece, &mut wrapped);
+
+    // De dentro afuera: la cursiva pegada al texto, el color por fuera.
+    for (applies, markup) in [
+        (run.italic, "emph"),
+        (run.bold, "strong"),
+        (run.underline, "underline"),
+    ] {
+        if applies {
+            wrapped = format!("#{markup}[{wrapped}]");
+        }
+    }
+    if let Some(value) = &run.color {
+        wrapped = format!("#text(fill: {})[{wrapped}]", color(value)?);
+    }
+
+    out.push_str(&wrapped);
+    Ok(())
 }
 
 /// La alineación horizontal de Typst que corresponde a la del modelo.
@@ -301,13 +354,100 @@ mod tests {
     }
 
     #[test]
-    fn runs_are_joined_in_order() {
+    fn runs_are_joined_in_order_each_with_its_format() {
         let typst = generate_with(
             r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
                  "content": [ { "text": "Informe " }, { "text": "anual", "bold": true } ],
                  "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##,
         );
-        assert!(typst.contains("[Informe anual]"), "{typst}");
+        assert!(typst.contains("[Informe #strong[anual]]"), "{typst}");
+    }
+
+    /// El criterio de la tarea: cada tramo lleva su marcado, de dentro
+    /// afuera, y un tramo sin formato no lleva envoltorio.
+    #[test]
+    fn every_kind_of_format_has_its_markup() {
+        let run = |format: &str| {
+            generate_with(&format!(
+                r##"{{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                     "content": [ {{ "text": "texto"{format} }} ],
+                     "style": {{ "font": "Inter", "size": 12, "color": "#000000" }} }}"##
+            ))
+        };
+
+        assert!(run("").contains("align(left)[texto]"));
+        assert!(run(r#", "bold": true"#).contains("[#strong[texto]]"));
+        assert!(run(r#", "italic": true"#).contains("[#emph[texto]]"));
+        assert!(run(r#", "underline": true"#).contains("[#underline[texto]]"));
+        assert!(
+            run(r##", "color": "#B4161B""##).contains(r##"[#text(fill: rgb("#B4161B"))[texto]]"##)
+        );
+
+        // Todo a la vez: la cursiva pegada al texto y el color por fuera.
+        let all = run(r##", "bold": true, "italic": true, "underline": true, "color": "#B4161B""##);
+        assert!(
+            all.contains(r##"[#text(fill: rgb("#B4161B"))[#underline[#strong[#emph[texto]]]]]"##),
+            "{all}"
+        );
+    }
+
+    /// Los saltos de línea se quedan fuera del formato: un `parbreak` dentro
+    /// de una negrita abriría los párrafos dentro de ella.
+    #[test]
+    fn line_breaks_stay_outside_the_format() {
+        let typst = generate_with(
+            r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                 "content": [ { "text": "uno\ndos\n\ntres", "bold": true } ],
+                 "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##,
+        );
+        assert!(
+            typst.contains("[#strong[uno]#linebreak();#strong[dos]#parbreak();#strong[tres]]"),
+            "{typst}"
+        );
+    }
+
+    /// Un salto repartido entre dos tramos sigue contando como uno solo.
+    #[test]
+    fn a_break_split_between_two_runs_is_still_one_break() {
+        let typst = generate_with(
+            r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                 "content": [ { "text": "uno\n" }, { "text": "\ndos", "bold": true } ],
+                 "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##,
+        );
+        assert!(typst.contains("[uno#parbreak();#strong[dos]]"), "{typst}");
+    }
+
+    /// El formato no es una vía para colar marcado: el texto de cada tramo
+    /// sigue pasando por el escape (principio 6).
+    #[test]
+    fn a_formatted_run_is_still_escaped() {
+        let typst = generate_with(
+            r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                 "content": [ { "text": "#let x = 1", "bold": true } ],
+                 "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##,
+        );
+        assert!(typst.contains(r"[#strong[\#let x = 1]]"), "{typst}");
+    }
+
+    /// Un color que no es un color no se escribe: se rechaza el documento.
+    #[test]
+    fn a_run_with_an_impossible_color_is_refused() {
+        let json = format!(
+            r##"{{
+              "version": 1,
+              "meta": {{ "title": "Texto" }},
+              "pages": [{{
+                "id": "p1",
+                "size": {{ "width": 210, "height": 297, "unit": "mm" }},
+                "elements": [{}]
+              }}]
+            }}"##,
+            r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                 "content": [ { "text": "texto", "color": "rojo" } ],
+                 "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##
+        );
+        let document = Document::from_json_str(&json).expect("el documento debe deserializar");
+        assert!(document.validate().is_err(), "un color inventado no vale");
     }
 
     #[test]

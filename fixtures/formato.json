@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "meta": { "title": "Formato por tramos" },
+  "fonts": ["fonts/Inter-Regular.ttf"],
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "mezcla", "type": "text", "x": 20, "y": 20, "w": 170, "h": null,
+          "content": [
+            { "text": "Informe " },
+            { "text": "anual", "bold": true },
+            { "text": " de la " },
+            { "text": "cooperativa", "italic": true },
+            { "text": ", " },
+            { "text": "revisado", "underline": true },
+            { "text": " y " },
+            { "text": "aprobado", "color": "#B4161B" },
+            { "text": ".", "bold": true, "italic": true, "underline": true, "color": "#1A7F4B" }
+          ],
+          "style": { "font": "Inter", "size": 14, "color": "#1F2733", "align": "left", "leading": 0.65 } },
+        { "id": "saltos", "type": "text", "x": 20, "y": 40, "w": 170, "h": null,
+          "content": [
+            { "text": "Primera línea\n", "bold": true },
+            { "text": "\nOtro párrafo", "italic": true }
+          ],
+          "style": { "font": "Inter", "size": 11, "color": "#1F2733", "align": "left", "leading": 0.65 } }
+      ]
+    }
+  ]
+}

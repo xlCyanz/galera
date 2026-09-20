@@ -510,7 +510,11 @@ italic: boolean,
 /**
  * Subrayado.
  */
-underline: boolean, };
+underline: boolean, 
+/**
+ * Color del tramo, `#RRGGBB` o `#RRGGBBAA`. Sin él, el del bloque.
+ */
+color?: string | null, };
 
 /**
  * Trazo de un borde o de una línea.
