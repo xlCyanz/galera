@@ -46,7 +46,7 @@ import {
   useSelectedElement,
 } from "../store/document";
 import { useEditingElement, useEditingStore } from "../store/editing";
-import { useElementBox } from "../store/layout";
+import { useElementBox, useOverflowing } from "../store/layout";
 import { useTool, useToolStore } from "../store/tool";
 import { Cursor } from "../text/Cursor";
 import { FormatBar } from "../text/FormatBar";
@@ -58,6 +58,7 @@ import { ControlLayer } from "./ControlLayer";
 import { CreatePreview } from "./CreatePreview";
 import { DragGhost } from "./DragGhost";
 import { ElementHighlight } from "./ElementHighlight";
+import { OverflowNotice } from "./OverflowNotice";
 import { type ImageLoader, PageSvg } from "./PageSvg";
 import { Rulers } from "./Rulers";
 import { ZoomControls } from "./ZoomControls";
@@ -94,6 +95,8 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const selecting = tool === "select";
   // Escribir en un texto: doble clic para entrar, Escape o pulsar fuera
   // para salir (`text/HiddenInput.tsx`).
+  // Lo que no cabe en su caja: se avisa encima del elemento.
+  const overflowing = useOverflowing(currentPage);
   const editing = useEditingElement();
   const editingBox = useElementBox(editing);
   // Los tramos del texto que se escribe, para enseñar su formato.
@@ -416,6 +419,10 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
               </button>
             </div>
           )}
+          {transform !== null &&
+            overflowing.map((box) => (
+              <OverflowNotice key={box.id} box={box} transform={transform} />
+            ))}
           {highlight !== null && highlight.pageIndex === currentPage && transform !== null && (
             <ElementHighlight box={highlight.box} transform={transform} />
           )}

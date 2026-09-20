@@ -53,6 +53,7 @@ const r1: LayoutBox = {
   rotation: 0,
   bounds: { x: 30, y: 40, w: 60, h: 25 },
   line: null,
+  overflow: 0,
 };
 
 const AREA = { left: 0, top: 0, width: 1000, height: 600 };

@@ -234,15 +234,25 @@ where
 
         let ms = compilation.duration.as_secs_f64() * 1000.0;
         match compilation.result {
-            Ok(compiled) => events.finished(Finished {
-                revision: compilation.revision,
-                ms,
-                reused: compilation.reused,
-                diagnostics: compiled.warnings().to_vec(),
-                // Solo se vuelven a dibujar las páginas que han cambiado.
-                pages: state.page_svgs(&compiled),
-                boxes: compiled.layout(),
-            }),
+            Ok(compiled) => {
+                let boxes = compiled.layout();
+                events.finished(Finished {
+                    revision: compilation.revision,
+                    ms,
+                    reused: compilation.reused,
+                    // Los avisos de Typst y los del contenido que se sale de
+                    // su caja, que Typst no da porque para él no es un
+                    // problema: lo dibuja fuera y ya está.
+                    diagnostics: [
+                        compiled.warnings().to_vec(),
+                        galera_core::overflowing(&boxes),
+                    ]
+                    .concat(),
+                    // Solo se vuelven a dibujar las páginas que han cambiado.
+                    pages: state.page_svgs(&compiled),
+                    boxes,
+                });
+            }
             Err(error) => events.failed(Failed {
                 revision: compilation.revision,
                 ms,

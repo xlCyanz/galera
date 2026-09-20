@@ -48,6 +48,7 @@ const box: LayoutBox = {
   rotation: 0,
   bounds: { x: 0, y: 0, w: 210, h: 15 },
   line: null,
+  overflow: 0,
 };
 
 let container: HTMLDivElement;

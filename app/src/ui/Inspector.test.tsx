@@ -40,7 +40,7 @@ const project: OpenedProject = {
 };
 
 const box = (id: string, x: number, y: number, w: number, h: number): LayoutBox => ({
-  id, page: 0, x, y, w, h, rotation: 0, bounds: { x, y, w, h }, line: null,
+  id, page: 0, x, y, w, h, rotation: 0, bounds: { x, y, w, h }, line: null, overflow: 0,
 });
 
 let container: HTMLDivElement;

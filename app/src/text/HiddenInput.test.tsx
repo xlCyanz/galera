@@ -66,6 +66,7 @@ const box: LayoutBox = {
   rotation: 0,
   bounds: { x: 20, y: 20, w: 100, h: 10 },
   line: null,
+  overflow: 0,
 };
 
 const transform = canvasTransform({ width: 800, height: 600 }, { width: 210, height: 297, unit: "mm" }, 1, {

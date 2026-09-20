@@ -191,6 +191,7 @@ describe("seleccionar con un clic", () => {
           rotation: 0,
           bounds: { x: 10, y: 20, w: 30, h: 15 },
           line: null,
+          overflow: 0,
         },
       ]),
     );

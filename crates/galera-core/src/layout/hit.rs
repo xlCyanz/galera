@@ -142,6 +142,7 @@ mod tests {
             rotation: 0.0,
             bounds: MmRect { x, y, w, h },
             line: None,
+            overflow: 0.0,
         }
     }
 

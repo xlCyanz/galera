@@ -534,6 +534,33 @@ body {
 }
 
 /* El aviso de que falta una fuente para crear un texto. */
+/* El aviso de que el contenido no cabe en su caja
+   (`canvas/OverflowNotice.tsx`), pegado bajo el elemento. */
+.overflow-notice {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid #c05621;
+  border-radius: 0 0 4px 4px;
+  background: #fffaf0;
+  color: #7b341e;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.overflow-notice button {
+  padding: 0.05rem 0.3rem;
+  border: 1px solid #c05621;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 /* La barra flotante del formato del texto (`text/FormatBar.tsx`), encima
    de lo seleccionado. No gira con el elemento: un rótulo girado no se lee. */
 .format-bar {

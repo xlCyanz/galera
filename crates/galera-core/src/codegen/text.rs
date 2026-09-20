@@ -17,7 +17,8 @@
 //!   `;`. Así el estilo solo afecta a este elemento y el cuerpo entero cabe
 //!   en una línea, que es como el resto del archivo generado.
 //! - **Con alto fijo, el texto puede desbordarse.** `block` no recorta por
-//!   defecto. Avisar de ello es la tarea F4-10.
+//!   defecto: lo que no cabe se dibuja fuera del marco, también en el PDF.
+//!   El layout lo mide (`LayoutBox::overflow`) y la interfaz lo avisa.
 //!
 //! # Saltos de línea
 //!

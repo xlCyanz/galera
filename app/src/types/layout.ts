@@ -84,7 +84,17 @@ bounds: MmRect,
  * Si lo que dibuja el elemento es una sola línea, sus dos extremos
  * **sin girar**, en mm. Su caja no dice en qué diagonal está: esto sí.
  */
-line: MmSegment | null, };
+line: MmSegment | null, 
+/**
+ * Cuánto se sale el contenido por debajo de la caja, en mm, o 0 si
+ * cabe.
+ *
+ * Solo pasa con un alto fijo: con `h: null` la caja la mide Typst y
+ * siempre cabe. Lo que sobra no se recorta, se dibuja fuera del marco
+ * —también en el PDF—, así que hay que avisarlo (ver
+ * [`overflowing`]).
+ */
+overflow: number, };
 
 /**
  * Un rectángulo en milímetros, con el origen arriba a la izquierda de la

@@ -5,7 +5,7 @@ import { useLayoutStore } from "./layout";
 
 function box(id: string, page = 0, overrides: Partial<LayoutBox> = {}): LayoutBox {
   const rect = { x: 10, y: 20, w: 30, h: 40 };
-  return { id, page, ...rect, rotation: 0, bounds: rect, line: null, ...overrides };
+  return { id, page, ...rect, rotation: 0, bounds: rect, line: null, overflow: 0, ...overrides };
 }
 
 const store = () => useLayoutStore.getState();
