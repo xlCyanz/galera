@@ -42,12 +42,13 @@ los compara. Lleva, en una página A4:
 | Título del documento | ✅ | Campo «Título» del inspector, sin selección ([#156](https://github.com/xlCyanz/galera/issues/156)) |
 | Bloque de código | ✅ | Herramienta `C` y campo «Código Typst» del inspector ([#157](https://github.com/xlCyanz/galera/issues/157)) |
 | Variables del documento | ✅ | Pestaña «Variables» ([#158](https://github.com/xlCyanz/galera/issues/158)) |
-| **Ids cortos (`r1`, `t1`…)** | ❌ | [#159](https://github.com/xlCyanz/galera/issues/159) |
+| Ids cortos (`r1`, `t1`…) | ✅ | Doble clic en el id, en el inspector ([#159](https://github.com/xlCyanz/galera/issues/159)) |
 | **Negrita dentro del texto** | ❌ | Ya planificado: F4-08 ([#62](https://github.com/xlCyanz/galera/issues/62)) |
 
-Es decir: **la maqueta se construye entera desde la app** (fondo, texto,
-imagen, fuentes, medidas, capas y guardado), y lo que obliga a tocar el JSON
-es lo de arriba: los ids cortos y, ya planificada, la negrita por tramos.
+Es decir: **el documento se construye entero desde la app**. Lo único que no
+se puede poner todavía es la **negrita dentro del texto**, que es edición de
+texto y llega con la Fase 4 ([#62](https://github.com/xlCyanz/galera/issues/62));
+los cinco huecos que encontró esta prueba ya están cerrados.
 
 ## Cómo hacer la sesión
 
@@ -69,9 +70,12 @@ Con la app abierta (`pnpm tauri dev`), y guardando una captura en cada paso en
    An 170, Al 40.
 6. **Logotipo.** Arrastrar `fixtures/assets/logo.png` sobre el lienzo (o `I` +
    clic) y dejarlo en X 20, Y 60, An 80, alto automático.
-7. **Guardar.** ⌘S, y **Guardar como .galera…** para comprobar que el archivo
+7. **Ids.** Doble clic en el id de cada elemento en el inspector para
+   dejarlos como el ejemplo (`r1`, `t1`, `i1`, `c1`), y el título del
+   documento en el campo «Título», sin selección.
+8. **Guardar.** ⌘S, y **Guardar como .galera…** para comprobar que el archivo
    se abre luego en otro sitio.
-8. **Comparar.** Guardar el resultado como `fixtures/fase3.json` y comparar con
+9. **Comparar.** Guardar el resultado como `fixtures/fase3.json` y comparar con
    `fixtures/informe.json`: lo que quede distinto tiene que ser exactamente lo
    de las issues de arriba, nada más.
 

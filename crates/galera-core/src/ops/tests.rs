@@ -901,3 +901,82 @@ fn a_variable_name_has_to_be_new_and_valid() {
         "Cambiar la variable nombre"
     );
 }
+
+#[test]
+fn an_element_id_changes_and_comes_back() {
+    let renamed = apply_and_check_undo(&Op::Rename {
+        id: "r1".into(),
+        to: "banda".into(),
+    });
+    assert!(renamed.element("banda").is_some());
+    assert!(renamed.element("r1").is_none());
+    assert!(
+        renamed.validate().is_ok(),
+        "el documento sigue siendo válido"
+    );
+
+    // También el de una línea, que guarda su id aparte.
+    let line = apply_and_check_undo(&Op::Rename {
+        id: "l1".into(),
+        to: "separador".into(),
+    });
+    assert!(line.element("separador").is_some());
+
+    assert_eq!(
+        Op::Rename {
+            id: "r1".into(),
+            to: "banda".into()
+        }
+        .describe(),
+        "Renombrar r1 a banda"
+    );
+}
+
+#[test]
+fn an_id_has_to_be_free_and_valid() {
+    let original = document();
+    assert_eq!(
+        Op::Rename {
+            id: "r1".into(),
+            to: "t1".into()
+        }
+        .apply(&original),
+        Err(OpError::DuplicateId { id: "t1".into() })
+    );
+    assert_eq!(
+        Op::Rename {
+            id: "r1".into(),
+            to: "p1".into()
+        }
+        .apply(&original),
+        Err(OpError::DuplicateId { id: "p1".into() }),
+        "tampoco el de una página"
+    );
+    assert_eq!(
+        Op::Rename {
+            id: "r1".into(),
+            to: "con espacio".into()
+        }
+        .apply(&original),
+        Err(OpError::InvalidId {
+            id: "con espacio".into()
+        })
+    );
+    assert!(matches!(
+        Op::Rename {
+            id: "nadie".into(),
+            to: "x".into()
+        }
+        .apply(&original),
+        Err(OpError::ElementNotFound { .. })
+    ));
+
+    // Cambiarlo por el mismo no es un error, y no cambia nada.
+    let same = Op::Rename {
+        id: "r1".into(),
+        to: "r1".into(),
+    }
+    .apply(&original)
+    .expect("se aplica");
+    assert_eq!(same.document, original);
+}

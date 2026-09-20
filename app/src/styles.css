@@ -1215,3 +1215,9 @@ body {
   min-width: 0;
   font: inherit;
 }
+
+.id-input {
+  width: 8em;
+  font: inherit;
+  font-size: 12px;
+}

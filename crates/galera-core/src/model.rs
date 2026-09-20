@@ -394,6 +394,20 @@ impl Element {
         }
     }
 
+    /// Cambia el id del elemento. Que sea válido y que no lo tenga nadie
+    /// más lo comprueba quien llama (ver [`crate::Op::Rename`]).
+    pub fn set_id(&mut self, id: impl Into<String>) {
+        let id = id.into();
+        match self {
+            Element::Text { base, .. }
+            | Element::Rect { base, .. }
+            | Element::Ellipse { base, .. }
+            | Element::Image { base, .. }
+            | Element::Code { base, .. } => base.id = id,
+            Element::Line { id: current, .. } => *current = id,
+        }
+    }
+
     /// Nombre del tipo, tal como aparece en el campo `type` del JSON.
     pub fn type_name(&self) -> &'static str {
         match self {

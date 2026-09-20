@@ -91,6 +91,17 @@ pub enum Op {
         id: String,
     },
 
+    /// Cambia el id de un elemento.
+    ///
+    /// El id se ve en el JSON, en los errores de compilación y en la
+    /// etiqueta `<el-ID>` del código Typst, así que se puede elegir.
+    Rename {
+        /// El elemento.
+        id: String,
+        /// Su id nuevo.
+        to: String,
+    },
+
     /// Mueve un elemento a otra posición del orden de capas de su página.
     /// Un `index` más allá del final lo deja encima de todos.
     Reorder {
@@ -320,6 +331,13 @@ pub enum OpError {
         /// Los elementos que lo usan, en orden del documento.
         users: Vec<String>,
     },
+    /// El id no vale: solo letras y dígitos ASCII, guion y guion bajo.
+    #[error("el id {id:?} no vale: solo puede tener letras y dígitos ASCII, guion y guion bajo")]
+    InvalidId {
+        /// El id pedido.
+        id: String,
+    },
+
     /// El elemento no admite ese cambio.
     #[error("{what} no se puede aplicar a {id:?}, que es un elemento de tipo {kind}")]
     NotApplicable {
@@ -349,6 +367,7 @@ impl Op {
             },
             Op::Create { element, .. } => format!("Crear {}", element.id()),
             Op::Delete { id } => format!("Eliminar {id}"),
+            Op::Rename { id, to } => format!("Renombrar {id} a {to}"),
             Op::Reorder { id, .. } => format!("Reordenar {id}"),
             Op::Restore { element } => format!("Restaurar {}", element.id()),
             Op::AddAsset { key, .. } => format!("Añadir el recurso {key}"),
@@ -372,6 +391,7 @@ impl Op {
             | Op::Rotate { id, .. }
             | Op::SetProperty { id, .. }
             | Op::Delete { id }
+            | Op::Rename { id, .. }
             | Op::Reorder { id, .. } => Some(id),
             Op::Create { element, .. } | Op::Restore { element } => Some(element.id()),
             Op::SetTitle { .. }
@@ -478,6 +498,25 @@ impl Op {
                     page: document.pages[page].id.clone(),
                     index: Some(index),
                     element,
+                })
+            }
+
+            Op::Rename { id, to } => {
+                let (page, at) = locate(document, id)?;
+                if id != to {
+                    if !is_valid_id(to) {
+                        return Err(OpError::InvalidId { id: to.clone() });
+                    }
+                    if document.element(to).is_some()
+                        || document.pages.iter().any(|page| page.id == *to)
+                    {
+                        return Err(OpError::DuplicateId { id: to.clone() });
+                    }
+                    document.pages[page].elements[at].set_id(to.clone());
+                }
+                Ok(Op::Rename {
+                    id: to.clone(),
+                    to: id.clone(),
                 })
             }
 
