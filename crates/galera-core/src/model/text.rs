@@ -54,7 +54,7 @@ pub enum TextError {
 
 /// Qué formato se cambia en un tramo. Lo que va a `None` se queda como
 /// estaba: poner en negrita una selección no toca su cursiva.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "ops.ts"))]
 pub struct Format {
     /// Negrita.
@@ -66,6 +66,10 @@ pub struct Format {
     /// Subrayado.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub underline: Option<bool>,
+    /// Color del tramo. Ponerlo a nulo lo quita, y el texto vuelve al
+    /// color del bloque.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<Option<String>>,
 }
 
 impl Format {
@@ -79,6 +83,9 @@ impl Format {
         }
         if let Some(underline) = self.underline {
             run.underline = underline;
+        }
+        if let Some(color) = &self.color {
+            run.color.clone_from(color);
         }
     }
 
@@ -223,7 +230,10 @@ pub fn normalize(runs: &mut Vec<Run>) {
 
 /// Si dos tramos solo se diferencian en el texto.
 fn same_format(one: &Run, other: &Run) -> bool {
-    one.bold == other.bold && one.italic == other.italic && one.underline == other.underline
+    one.bold == other.bold
+        && one.italic == other.italic
+        && one.underline == other.underline
+        && one.color == other.color
 }
 
 /// El byte donde empieza el carácter número `at`; el final del texto si
@@ -299,6 +309,7 @@ mod tests {
             bold: true,
             italic: false,
             underline: false,
+            color: None,
         }
     }
 
@@ -408,6 +419,38 @@ mod tests {
         assert_eq!(shown(&runs), "uno |dos*| tres");
     }
 
+    /// El color se aplica al tramo y se quita volviendo al del bloque.
+    #[test]
+    fn the_colour_of_a_range_is_set_and_cleared() {
+        let mut runs = vec![plain("uno dos")];
+        format(
+            &mut runs,
+            4,
+            7,
+            &Format {
+                color: Some(Some("#B4161B".to_owned())),
+                ..Format::default()
+            },
+        )
+        .expect("está");
+        assert_eq!(runs.len(), 2);
+        assert_eq!(runs[1].color.as_deref(), Some("#B4161B"));
+
+        format(
+            &mut runs,
+            0,
+            7,
+            &Format {
+                color: Some(None),
+                ..Format::default()
+            },
+        )
+        .expect("está");
+        // Sin color, los dos tramos vuelven a ser el mismo.
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].color, None);
+    }
+
     #[test]
     fn formatting_leaves_the_other_attributes_alone() {
         let mut runs = vec![Run {
@@ -415,6 +458,7 @@ mod tests {
             bold: false,
             italic: true,
             underline: false,
+            color: None,
         }];
         format(
             &mut runs,

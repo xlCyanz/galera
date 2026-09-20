@@ -10,12 +10,12 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 12 |
 | [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 11 |
 | [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 13 |
-| [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 6 |
+| [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 7 |
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 0 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **58** |
+| **Total** | **95** | **59** |
 
 
 ---
@@ -133,7 +133,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F4-05** — Extraer posiciones de glifos del layout de Typst | [#59](https://github.com/xlCyanz/galera/issues/59) | #30 |
 | ✅ | **F4-06** — Dibujar el cursor a partir de las posiciones de glifos | [#60](https://github.com/xlCyanz/galera/issues/60) | #59, #56 |
 | ✅ | **F4-07** — Selección de texto con clic y arrastre | [#61](https://github.com/xlCyanz/galera/issues/61) | #60 |
-| ⬜ | **F4-08** — Formato: negrita, cursiva, subrayado y color | [#62](https://github.com/xlCyanz/galera/issues/62) | #57, #61 |
+| ✅ | **F4-08** — Formato: negrita, cursiva, subrayado y color | [#62](https://github.com/xlCyanz/galera/issues/62) | #57, #61 |
 | ⬜ | **F4-09** — Enlaces y listas | [#63](https://github.com/xlCyanz/galera/issues/63) | #62 |
 | ⬜ | **F4-10** — Aviso de desbordamiento en cajas de altura fija | [#64](https://github.com/xlCyanz/galera/issues/64) | #59, #7 |
 | ⬜ | **F4-11** — Banco de rendimiento: menos de 50 ms por tecla | [#65](https://github.com/xlCyanz/galera/issues/65) | #58, #60 |
@@ -249,7 +249,6 @@ Al terminar cada fase se anota aquí qué se hizo, qué quedó pendiente y qué 
 
 **Qué queda pendiente o diferido**
 
-- La negrita, cursiva y subrayado **por tramos** no se emiten todavía: es F4-08 (#62). El título del ejemplo sale en redonda.
 - El `World` se reutiliza entre compilaciones desde F4-04 (#58); el dibujo de cada página también, si la página no ha cambiado. Recomponer sigue costando el documento entero: ver [decisiones/compilacion-incremental.md](decisiones/compilacion-incremental.md).
 - `today()` usa UTC cuando Typst pide la fecha local.
 - Las imágenes con ancho y alto usan el ajuste por defecto de Typst (`cover`); no hay campo para elegir otro.

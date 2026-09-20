@@ -276,9 +276,12 @@ impl Document {
                     Element::Line { stroke, .. } => {
                         report.optional_stroke(Some(stroke), at);
                     }
-                    Element::Text { style, .. } => {
+                    Element::Text { style, content, .. } => {
                         report.positive("style.size", style.size, at);
                         report.color("style.color", &style.color, at);
+                        for run in content {
+                            report.optional_color("content.color", run.color.as_deref(), at);
+                        }
                     }
                     Element::Image { asset, .. } => {
                         if !self.assets.contains_key(asset) {

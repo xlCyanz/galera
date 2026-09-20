@@ -27,6 +27,9 @@ En macOS el modificador es ⌘; en Windows y Linux, Ctrl.
 | Deshacer | `⌘Z` | `Ctrl+Z` |
 | Rehacer | `⌘⇧Z` | `Ctrl+Shift+Z` |
 | Quitar la selección | `Esc` | `Esc` |
+| Negrita | `⌘B` | `Ctrl+B` |
+| Cursiva | `⌘I` | `Ctrl+I` |
+| Subrayado | `⌘U` | `Ctrl+U` |
 | Mover 1 mm a la izquierda (10 mm con ⇧) | `←` | `←` |
 | Mover 1 mm a la derecha | `→` | `→` |
 | Mover 1 mm hacia arriba | `↑` | `↑` |
@@ -45,6 +48,9 @@ teclas van al texto y no a las herramientas:
   conservan la columna de la que se salió.
 - `⌘A`, inicio, fin y `⌥←` / `⌥→` hacen dentro del texto lo que hacen en
   cualquier campo del sistema.
+- `⌘B`, `⌘I` y `⌘U` aplican y quitan negrita, cursiva y subrayado sobre lo
+  seleccionado. Encima de la selección sale una barra con esos tres botones
+  y el color del texto, que enseña el formato de lo elegido.
 - `Esc` sale de escribir. `⌘Z` deshace el documento, no el campo: cada
   cambio del texto ya es un paso del historial.
 

@@ -49,8 +49,10 @@ import { useEditingElement, useEditingStore } from "../store/editing";
 import { useElementBox } from "../store/layout";
 import { useTool, useToolStore } from "../store/tool";
 import { Cursor } from "../text/Cursor";
+import { FormatBar } from "../text/FormatBar";
 import { HiddenInput } from "../text/HiddenInput";
 import { SelectionLayer } from "../text/SelectionLayer";
+import { applyFormat, useTextFormat } from "../text/useTextFormat";
 import { useTextEditing } from "../text/useTextEditing";
 import { ControlLayer } from "./ControlLayer";
 import { CreatePreview } from "./CreatePreview";
@@ -94,6 +96,13 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   // para salir (`text/HiddenInput.tsx`).
   const editing = useEditingElement();
   const editingBox = useElementBox(editing);
+  // Los tramos del texto que se escribe, para enseñar su formato.
+  const editingElement =
+    editing === null
+      ? undefined
+      : document?.pages.flatMap((one) => one.elements).find((one) => one.id === editing);
+  const editingRuns =
+    editingElement !== undefined && editingElement.type === "text" ? editingElement.content : [];
   // Un elemento bloqueado se selecciona desde el panel de capas, pero en el
   // lienzo no se agarra ni se empuja con las flechas.
   const selectedLocked =
@@ -125,6 +134,8 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const measured = useElementBox(highlighted);
   const drag = useDrag(transform?.pxPerMm ?? null);
   const text = useTextEditing(transform, currentPage);
+  // ⌘B, ⌘I y ⌘U sobre lo que haya seleccionado del texto.
+  useTextFormat();
   // Pulsar un elemento y arrastrar sin soltar lo selecciona y lo mueve.
   const onSelect = useSelection(transform, currentPage, drag.start);
   // La imagen que enseña la hoja, para la copia que se arrastra.
@@ -365,6 +376,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
               <HiddenInput id={editing} box={editingBox} transform={transform} />
               <SelectionLayer box={editingBox} transform={transform} />
               <Cursor box={editingBox} transform={transform} />
+              <FormatBar runs={editingRuns} transform={transform} onFormat={applyFormat} />
             </>
           )}
           {create.state.phase !== "idle" && transform !== null && (

@@ -534,6 +534,55 @@ body {
 }
 
 /* El aviso de que falta una fuente para crear un texto. */
+/* La barra flotante del formato del texto (`text/FormatBar.tsx`), encima
+   de lo seleccionado. No gira con el elemento: un rótulo girado no se lee. */
+.format-bar {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  border: 1px solid var(--panel-border, #cbd5e0);
+  border-radius: 6px;
+  background: var(--panel-background, Canvas);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 20%);
+}
+
+.format-button {
+  min-width: 1.75rem;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.format-button:hover {
+  border-color: var(--panel-border, #cbd5e0);
+}
+
+.format-button.is-on {
+  border-color: var(--ruler-pointer);
+  color: var(--ruler-pointer);
+  font-weight: 600;
+}
+
+/* Cada botón se ve como lo que aplica. */
+.format-button[aria-label="Negrita"] {
+  font-weight: 700;
+}
+
+.format-button[aria-label="Cursiva"] {
+  font-style: italic;
+}
+
+.format-button[aria-label="Subrayado"] {
+  text-decoration: underline;
+}
+
 /* Lo que está seleccionado dentro de un texto (`text/Selection.tsx`):
    un rectángulo por cada línea de las que partió Typst. */
 .text-selection-layer {
