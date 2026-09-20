@@ -335,6 +335,21 @@ describe("el campo invisible", () => {
     expect(field().value).toBe("Hola mundo");
   });
 
+  it("lo que selecciona el ratón se aplica al campo: escribir lo sustituye", async () => {
+    await act(async () => {
+      useEditingStore.getState().select(0, 4);
+      await settle();
+    });
+    expect([field().selectionStart, field().selectionEnd]).toEqual([0, 4]);
+
+    calls = [];
+    await type("Adiós mundo");
+    expect(ops().map((call) => call.op)).toEqual([
+      { op: "delete_text", id: "t1", from: 0, to: 4 },
+      { op: "insert_text", id: "t1", at: 0, text: "Adiós" },
+    ]);
+  });
+
   it("mover el cursor se guarda para poder dibujarlo", async () => {
     await act(async () => {
       field().setSelectionRange(0, 4);

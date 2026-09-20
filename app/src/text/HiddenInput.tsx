@@ -100,6 +100,9 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
   // Las posiciones de los glifos son las de la última compilación buena:
   // se vuelven a pedir cuando llega otra.
   const revision = useLayoutStore((state) => state.revision);
+  // Cuando la selección la cambia el ratón, el campo se pone al día: así
+  // escribir sustituye lo seleccionado y ⌘C copia lo que se ve.
+  const selectionRequests = useEditingStore((state) => state.selectionRequests);
 
   const commit = useEffectEvent(() => {
     // Un cambio detrás de otro: el siguiente se calcula cuando el anterior
@@ -230,6 +233,21 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
 
   // Cambios que llegan de otro sitio: deshacer, rehacer, el inspector.
   useEffect(() => useDocumentStore.subscribe(() => sync()), []);
+
+  useEffect(() => {
+    const element = field.current;
+    if (element === null || selectionRequests === 0) {
+      return;
+    }
+    const { start, end } = useEditingStore.getState();
+    const [from, to] = start <= end ? [start, end] : [end, start];
+    element.setSelectionRange(
+      textIndex(element.value, from),
+      textIndex(element.value, to),
+      start <= end ? "forward" : "backward",
+    );
+    element.focus();
+  }, [selectionRequests]);
 
   // Dónde quedó cada glifo, de la compilación que se está viendo.
   useEffect(() => {

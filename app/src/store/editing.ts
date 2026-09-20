@@ -35,13 +35,21 @@ export interface EditingState {
   /** Cuándo se escribió por última vez: el cursor deja de parpadear al
    * teclear y vuelve a hacerlo al parar. */
   typedAt: number;
+  /** Se incrementa cada vez que la selección la cambia algo que no es el
+   * campo invisible —el ratón, sobre todo—, para que el campo se ponga al
+   * día. */
+  selectionRequests: number;
 
   /** Entra a escribir en un texto, con el cursor al final. */
   edit: (element: string, at?: number) => void;
   /** Sale del modo de escritura. */
   stop: () => void;
-  /** Guarda dónde está la selección dentro del texto. */
+  /** Guarda dónde está la selección dentro del texto. La manda el campo
+   * invisible, que es quien la lleva. */
   setSelection: (start: number, end: number) => void;
+  /** Cambia la selección desde fuera del campo: el ratón. El campo se pone
+   * al día con ella. */
+  select: (start: number, end: number) => void;
   /** Dice si hay una composición a medias. */
   setComposing: (composing: boolean) => void;
   /** Guarda dónde quedó cada glifo, de la última compilación. */
@@ -57,11 +65,14 @@ export const useEditingStore = create<EditingState>()((set) => ({
   composing: false,
   glyphs: [],
   typedAt: 0,
+  selectionRequests: 0,
 
   edit: (element, at = 0) =>
     set({ element, start: at, end: at, composing: false, glyphs: [], typedAt: 0 }),
   stop: () => set({ element: null, start: 0, end: 0, composing: false, glyphs: [], typedAt: 0 }),
   setSelection: (start, end) => set({ start, end }),
+  select: (start, end) =>
+    set((state) => ({ start, end, selectionRequests: state.selectionRequests + 1 })),
   setComposing: (composing) => set({ composing }),
   setGlyphs: (glyphs) => set({ glyphs }),
   typed: () => set({ typedAt: performance.now() }),

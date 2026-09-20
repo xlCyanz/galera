@@ -11,7 +11,7 @@ import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
 import { useLayoutStore } from "../store/layout";
 import { useToolStore } from "../store/tool";
-import type { LayoutBox } from "../types/layout";
+import type { Glyph, LayoutBox } from "../types/layout";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -44,7 +44,7 @@ const project: OpenedProject = {
             w: 80,
             h: null,
             rotation: 0,
-            content: [{ text: "Hola", bold: false, italic: false, underline: false }],
+            content: [{ text: "Hola mundo", bold: false, italic: false, underline: false }],
             style: { font: "Inter", size: 12, color: "#000000", align: "left", leading: 0.65 },
           },
           {
@@ -66,7 +66,7 @@ const project: OpenedProject = {
 };
 
 const boxes: LayoutBox[] = [
-  { id: "t1", page: 0, x: 10, y: 10, w: 80, h: 8, rotation: 0, bounds: { x: 10, y: 10, w: 80, h: 8 }, line: null },
+  { id: "t1", page: 0, x: 10, y: 10, w: 25, h: 11, rotation: 0, bounds: { x: 10, y: 10, w: 25, h: 11 }, line: null },
   { id: "r1", page: 0, x: 120, y: 10, w: 40, h: 20, rotation: 0, bounds: { x: 120, y: 10, w: 40, h: 20 }, line: null },
 ];
 
@@ -77,6 +77,20 @@ let container: HTMLDivElement;
 let root: Root;
 /** Qué contesta el núcleo a `element_at`. */
 let found: string | null;
+/** Los glifos del texto «Hola mundo», dos líneas de cinco milímetros. */
+const scene: Glyph[] = [0, 1, 2, 3, 6, 7, 8, 9, 10].map((text_index) => {
+  const line = text_index < 6 ? 0 : 1;
+  const column = line === 0 ? text_index : text_index - 6;
+  return {
+    text_index,
+    line,
+    x: 10 + column * 5,
+    y: 10 + line * 6,
+    width: 5,
+    line_height: 5,
+    baseline: 14 + line * 6,
+  };
+});
 const restore: Array<() => void> = [];
 
 beforeEach(() => {
@@ -100,8 +114,7 @@ beforeEach(() => {
     if (command === "element_at") {
       return found;
     }
-    // Sin compilación no hay glifos.
-    return command === "glyphs" ? [] : null;
+    return command === "glyphs" ? scene : null;
   });
 
   useDocumentStore.setState(useDocumentStore.getInitialState(), true);
@@ -164,7 +177,7 @@ describe("entrar a escribir en un texto", () => {
     expect(input()).not.toBeNull();
     expect(document.activeElement).toBe(input());
     // El cursor entra al final del texto.
-    expect(useEditingStore.getState().start).toBe(4);
+    expect(useEditingStore.getState().start).toBe(10);
   });
 
   it("doble clic sobre lo que no es un texto no abre nada", async () => {
@@ -193,5 +206,97 @@ describe("entrar a escribir en un texto", () => {
     });
     expect(useEditingStore.getState().element).toBeNull();
     expect(input()).toBeNull();
+  });
+});
+
+describe("señalar dentro del texto que se escribe", () => {
+  /** Entra a escribir en «t1», con sus glifos ya pedidos. */
+  async function enter() {
+    found = "t1";
+    await doubleClick(50, 50);
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(useEditingStore.getState().glyphs).toHaveLength(9);
+  }
+
+  /** Pulsa dentro del texto, con los clics seguidos que se digan. */
+  async function press(x: number, y: number, init: MouseEventInit = {}) {
+    const { clientX, clientY } = screenPoint(x, y);
+    await act(async () => {
+      viewport().dispatchEvent(
+        new MouseEvent("pointerdown", {
+          bubbles: true,
+          cancelable: true,
+          button: 0,
+          detail: 1,
+          clientX,
+          clientY,
+          ...init,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  async function dragTo(x: number, y: number) {
+    const { clientX, clientY } = screenPoint(x, y);
+    await act(async () => {
+      window.dispatchEvent(new MouseEvent("pointermove", { clientX, clientY }));
+      window.dispatchEvent(new MouseEvent("pointerup", { clientX, clientY }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  const selection = () => {
+    const { start, end } = useEditingStore.getState();
+    return [start, end];
+  };
+
+  it("pulsar pone el cursor donde se pulsó, sin dejar de escribir", async () => {
+    await enter();
+    await press(21, 12);
+    expect(useEditingStore.getState().element).toBe("t1");
+    expect(selection()).toEqual([2, 2]);
+    // Y el campo invisible va con ello: escribir sustituiría ahí.
+    expect(input()?.selectionStart).toBe(2);
+  });
+
+  it("arrastrar selecciona un tramo", async () => {
+    await enter();
+    await press(11, 12);
+    await dragTo(24, 12);
+    expect(selection()).toEqual([0, 3]);
+    expect([input()?.selectionStart, input()?.selectionEnd]).toEqual([0, 3]);
+  });
+
+  it("arrastrar hasta la línea de abajo selecciona lo de en medio", async () => {
+    await enter();
+    await press(11, 12);
+    await dragTo(19, 18);
+    expect(selection()).toEqual([0, 8]);
+  });
+
+  it("doble clic coge la palabra y triple clic el párrafo", async () => {
+    await enter();
+    await press(21, 12, { detail: 2 });
+    expect(selection()).toEqual([0, 4]);
+
+    await press(21, 12, { detail: 3 });
+    expect(selection()).toEqual([0, 10]);
+  });
+
+  it("⇧ + clic estira lo que ya había", async () => {
+    await enter();
+    await press(11, 12);
+    await press(24, 12, { shiftKey: true });
+    expect(selection()).toEqual([0, 3]);
+  });
+
+  it("pulsar fuera del texto deja de escribir", async () => {
+    await enter();
+    found = null;
+    await press(150, 80);
+    expect(useEditingStore.getState().element).toBeNull();
   });
 });

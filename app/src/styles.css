@@ -534,6 +534,21 @@ body {
 }
 
 /* El aviso de que falta una fuente para crear un texto. */
+/* Lo que está seleccionado dentro de un texto (`text/Selection.tsx`):
+   un rectángulo por cada línea de las que partió Typst. */
+.text-selection-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.text-selection {
+  position: absolute;
+  background: var(--ruler-pointer);
+  opacity: 0.25;
+}
+
 /* El cursor de texto, colocado con lo que dice Typst
    (`text/Cursor.tsx`). La capa se pone sobre la caja del elemento y gira
    con él; el cursor va dentro, en coordenadas de la caja. */
