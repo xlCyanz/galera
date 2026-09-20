@@ -1057,3 +1057,48 @@ body {
 .shape-inspector .font-select {
   margin-top: 0;
 }
+
+/* El aviso de recuperación y el diálogo de cierre. */
+.recovery-notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #fef3c7;
+  color: #1f2733;
+}
+
+.recovery-notice p {
+  margin: 0;
+}
+
+.recovery-error {
+  color: #b91c1c;
+}
+
+.close-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 45%);
+}
+
+.close-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 420px;
+  padding: 16px 20px;
+  border-radius: 8px;
+  background: #27272a;
+  color: #f4f4f5;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 40%);
+}
+
+.close-dialog p {
+  margin: 0;
+}

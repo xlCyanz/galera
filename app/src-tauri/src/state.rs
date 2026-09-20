@@ -82,6 +82,11 @@ struct Session {
     /// La revisión con la que se guardó por última vez: si no es la actual,
     /// hay cambios sin guardar.
     saved_revision: u64,
+    /// La revisión de la última copia de autoguardado.
+    autosaved_revision: u64,
+    /// Cuándo cambió el documento por última vez, para no autoguardar en
+    /// mitad de un arrastre.
+    changed_at: Option<Instant>,
     /// El historial de deshacer y rehacer del documento abierto.
     history: History,
     /// Se incrementa con cada cambio del documento abierto.
@@ -178,6 +183,8 @@ impl AppState {
         session.history.clear();
         session.revision += 1;
         session.saved_revision = session.revision;
+        session.autosaved_revision = session.revision;
+        session.changed_at = None;
         session.compiled = None;
         session.last_good = None;
         session.revision
@@ -208,6 +215,56 @@ impl AppState {
     /// El `.galera` al que se guarda, si lo hay.
     pub fn archive(&self) -> Option<PathBuf> {
         self.read().archive.clone()
+    }
+
+    /// Lo que habría que autoguardar, si toca: el proyecto (su `.galera` o
+    /// su carpeta), la carpeta de trabajo, el documento y su revisión.
+    ///
+    /// `None` si no hay nada abierto, si no hay cambios sin guardar, si esa
+    /// revisión ya se copió, o si se ha tocado algo hace menos de `idle`.
+    pub fn pending_autosave(&self, idle: Duration) -> Option<(PathBuf, PathBuf, Document, u64)> {
+        let session = self.read();
+        let open = session.open.as_ref()?;
+        if session.revision == session.saved_revision
+            || session.revision == session.autosaved_revision
+        {
+            return None;
+        }
+        if session
+            .changed_at
+            .is_some_and(|changed| changed.elapsed() < idle)
+        {
+            return None;
+        }
+        let root = open.project.root().to_owned();
+        Some((
+            session.archive.clone().unwrap_or_else(|| root.clone()),
+            root,
+            open.document.clone(),
+            session.revision,
+        ))
+    }
+
+    /// Sustituye el documento abierto por otro (el de una copia de
+    /// autoguardado), como un cambio sin guardar: sube la revisión y olvida
+    /// el historial, porque los pasos de antes eran de otro documento.
+    ///
+    /// Devuelve la revisión nueva y el documento. `None` si no hay nada
+    /// abierto.
+    pub fn restore(&self, document: Document) -> Option<(u64, Document)> {
+        let mut session = self.write();
+        let open = session.open.as_mut()?;
+        open.document = document.clone();
+        session.history.clear();
+        session.revision += 1;
+        session.changed_at = Some(Instant::now());
+        session.compiled = None;
+        Some((session.revision, document))
+    }
+
+    /// Anota que esa revisión ya está autoguardada.
+    pub fn mark_autosaved(&self, revision: u64) {
+        self.write().autosaved_revision = revision;
     }
 
     /// Aplica un comando de edición al documento abierto y lo apunta en el
@@ -268,6 +325,7 @@ impl AppState {
         };
         open.document = document.clone();
         session.revision += 1;
+        session.changed_at = Some(Instant::now());
         session.compiled = None;
         Some(Some(Ok(Edited {
             revision: session.revision,
@@ -299,6 +357,7 @@ impl AppState {
         if !open.document.fonts.iter().any(|font| font == path) {
             open.document.fonts.push(path.to_owned());
             session.revision += 1;
+            session.changed_at = Some(Instant::now());
             session.compiled = None;
         }
         Some(Edited {
@@ -318,6 +377,8 @@ impl AppState {
         session.history.clear();
         session.revision += 1;
         session.saved_revision = session.revision;
+        session.autosaved_revision = session.revision;
+        session.changed_at = None;
         session.compiled = None;
         session.last_good = None;
     }
@@ -502,6 +563,7 @@ impl AppState {
         }
         if changed {
             session.revision += 1;
+            session.changed_at = Some(Instant::now());
             session.compiled = None;
         }
         Some(Edited {

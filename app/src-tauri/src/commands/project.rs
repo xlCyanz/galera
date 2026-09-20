@@ -47,6 +47,7 @@ use tauri::{State, Window};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::commands::CommandError;
+use crate::commands::recovery::AutosaveDir;
 use crate::compile_worker::CompileQueue;
 use crate::state::AppState;
 
@@ -155,21 +156,24 @@ pub async fn open_project(
 ///
 /// Con un `.galera`, lo extrae antes en una carpeta de trabajo.
 fn open_chosen(state: &AppState, path: &Path) -> Result<OpenedProject, CommandError> {
+    let chosen = match ProjectFormat::of(path) {
+        ProjectFormat::Folder => state.was_chosen(path),
+        ProjectFormat::Archive => state.was_offered(path),
+    };
+    if !chosen {
+        return Err(CommandError::FolderNotChosen {
+            path: path.to_owned(),
+        });
+    }
+    open_path(state, path)
+}
+
+/// Abre un proyecto ya autorizado: una carpeta, o un `.galera` que se extrae
+/// antes en una carpeta de trabajo.
+pub(crate) fn open_path(state: &AppState, path: &Path) -> Result<OpenedProject, CommandError> {
     let (folder, archive) = match ProjectFormat::of(path) {
-        ProjectFormat::Folder => {
-            if !state.was_chosen(path) {
-                return Err(CommandError::FolderNotChosen {
-                    path: path.to_owned(),
-                });
-            }
-            (path.to_owned(), None)
-        }
+        ProjectFormat::Folder => (path.to_owned(), None),
         ProjectFormat::Archive => {
-            if !state.was_offered(path) {
-                return Err(CommandError::FolderNotChosen {
-                    path: path.to_owned(),
-                });
-            }
             let work = work_folder(path);
             unpack(path, &work)?;
             (work, Some(path.to_owned()))
@@ -210,11 +214,15 @@ fn work_folder(archive: &Path) -> PathBuf {
 ///
 /// [`CommandError::NothingOpen`] si no hay proyecto, o el error de escribir.
 #[tauri::command]
-pub async fn save_project(state: State<'_, AppState>) -> Result<SavedProject, CommandError> {
-    save_in(&state)
+pub async fn save_project(
+    state: State<'_, AppState>,
+    dir: State<'_, AutosaveDir>,
+) -> Result<SavedProject, CommandError> {
+    save_in(&state, &dir.0)
 }
 
-fn save_in(state: &AppState) -> Result<SavedProject, CommandError> {
+/// La parte de [`save_project`] que no depende de Tauri, para poder probarla.
+pub(crate) fn save_in(state: &AppState, copies: &Path) -> Result<SavedProject, CommandError> {
     let (project, document) = state.open_document().ok_or(CommandError::NothingOpen)?;
     let archive = state.archive();
     save_document(project.root(), &document)?;
@@ -222,6 +230,8 @@ fn save_in(state: &AppState) -> Result<SavedProject, CommandError> {
         pack(&project, &document, path)?;
     }
     let revision = state.mark_saved().ok_or(CommandError::NothingOpen)?;
+    // Lo guardado manda: la copia de autoguardado ya no hace falta.
+    crate::autosave::discard(copies, archive.as_deref().unwrap_or(project.root()));
     Ok(SavedProject {
         path: archive.clone().unwrap_or_else(|| project.root().to_owned()),
         root: project.root().to_owned(),
@@ -245,6 +255,7 @@ pub async fn save_project_as(
     archive: bool,
     window: Window,
     state: State<'_, AppState>,
+    dir: State<'_, AutosaveDir>,
 ) -> Result<Option<SavedProject>, CommandError> {
     let (project, document) = state.open_document().ok_or(CommandError::NothingOpen)?;
     let title = document.meta.title.clone();
@@ -267,6 +278,10 @@ pub async fn save_project_as(
     let path = chosen
         .into_path()
         .map_err(|_| CommandError::NotALocalPath)?;
+
+    // El proyecto pasa a guardarse en otro sitio: la copia de donde estaba
+    // deja de valer.
+    crate::autosave::discard(&dir.0, state.archive().as_deref().unwrap_or(project.root()));
 
     if archive {
         pack(&project, &document, &path)?;
@@ -481,7 +496,8 @@ mod tests {
             .expect("se aplica");
         assert!(state.summary().dirty);
 
-        let saved = save_in(&state).expect("se guarda");
+        let copies = TempDir::new().expect("carpeta temporal");
+        let saved = save_in(&state, copies.path()).expect("se guarda");
         assert_eq!(saved.path, archive);
         assert!(!state.summary().dirty);
         assert!(fs::metadata(&archive).expect("existe").len() > 0);
@@ -517,8 +533,9 @@ mod tests {
 
     #[test]
     fn saving_without_a_project_says_so() {
+        let copies = TempDir::new().expect("carpeta temporal");
         assert!(matches!(
-            save_in(&AppState::default()),
+            save_in(&AppState::default(), copies.path()),
             Err(CommandError::NothingOpen)
         ));
     }
