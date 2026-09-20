@@ -360,6 +360,49 @@ describe("el campo invisible", () => {
   });
 });
 
+describe("el tabulador dentro de una lista", () => {
+  /** Pone el documento con las líneas que se digan. */
+  function withLines(lines: Array<Record<string, unknown>>) {
+    act(() => {
+      const document = structuredClone(useDocumentStore.getState().document!);
+      const element = document.pages[0]!.elements[0]!;
+      if (element.type === "text") {
+        element.content = [{ text: "Hola\nmundo", bold: false, italic: false, underline: false }];
+        element.lines = lines as never;
+      }
+      useDocumentStore.getState().replaceDocument(document);
+    });
+  }
+
+  it("Tab anida y ⇧Tab desanida las líneas que toca", async () => {
+    withLines([{ list: "bullet" }]);
+    act(() => {
+      field().setSelectionRange(1, 1);
+      // En el navegador lo apunta `selectionchange`; en jsdom, no.
+      useEditingStore.getState().setSelection(1, 1);
+    });
+    await key({ key: "Tab" });
+    expect(ops().map((call) => call.op)).toEqual([
+      { op: "set_lines", id: "t1", from: 1, to: 1, line: { list: "bullet", level: 1 } },
+    ]);
+
+    calls = [];
+    withLines([{ list: "bullet", level: 1 }]);
+    act(() => useEditingStore.getState().setSelection(1, 1));
+    await key({ key: "Tab", shiftKey: true });
+    expect(ops().map((call) => call.op)).toEqual([
+      { op: "set_lines", id: "t1", from: 1, to: 1, line: { list: "bullet", level: 0 } },
+    ]);
+  });
+
+  it("fuera de una lista no manda nada, pero tampoco se lleva el foco", async () => {
+    withLines([]);
+    await key({ key: "Tab" });
+    expect(ops()).toHaveLength(0);
+    expect(document.activeElement).toBe(field());
+  });
+});
+
 describe("subir y bajar de línea", () => {
   /** «Hola mundo» partido: «Hola » en la primera línea y «mundo» en la
    * segunda, con glifos de 5 mm. El espacio no se dibuja. */

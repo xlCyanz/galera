@@ -29,7 +29,7 @@
 use serde::{Deserialize, Serialize};
 use unicode_segmentation::UnicodeSegmentation;
 
-use super::Run;
+use super::{Line, Run};
 
 /// No se puede tocar ese trozo de texto.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -218,6 +218,106 @@ pub fn format(
     *runs = out;
     normalize(runs);
     Ok(())
+}
+
+/// Qué líneas toca el tramo `[from, to)`, contando desde 0. La primera y
+/// la última, las dos incluidas.
+///
+/// # Errores
+///
+/// Los de [`remove`].
+pub fn lines_touched(runs: &[Run], from: usize, to: usize) -> Result<(usize, usize), TextError> {
+    let whole = text(runs);
+    let (start, end) = range(&whole, from, to)?;
+    Ok((newlines_before(&whole, start), newlines_before(&whole, end)))
+}
+
+/// Cómo quedan los estilos de línea después de meter `insertion` en la
+/// posición `at`.
+///
+/// Las líneas nuevas salen con el estilo de la que se parte: seguir
+/// escribiendo en una lista da otro elemento de la misma lista, que es lo
+/// que se espera al pulsar Enter.
+///
+/// `text` es el texto **de antes** de meter nada.
+///
+/// # Errores
+///
+/// Los de [`insert`].
+pub fn after_insert(
+    lines: &mut Vec<Line>,
+    text: &str,
+    at: usize,
+    insertion: &str,
+) -> Result<(), TextError> {
+    let byte = byte_at(text, at)?;
+    let added = insertion.replace("\r\n", "\n").matches('\n').count();
+    if added == 0 {
+        return Ok(());
+    }
+    let line = newlines_before(text, byte);
+    let style = lines.get(line).copied().unwrap_or_default();
+    if style != Line::default() {
+        // Solo hace falta alargar la lista si hay algo que copiar.
+        while lines.len() <= line {
+            lines.push(Line::default());
+        }
+    }
+    if line < lines.len() {
+        let at = (line + 1).min(lines.len());
+        lines.splice(at..at, std::iter::repeat_n(style, added));
+    }
+    trim(lines);
+    Ok(())
+}
+
+/// Cómo quedan los estilos de línea después de borrar el tramo
+/// `[from, to)`. Las líneas que se juntan se quedan con el estilo de la
+/// primera.
+///
+/// `text` es el texto **de antes** de borrar nada.
+///
+/// # Errores
+///
+/// Los de [`remove`].
+pub fn after_remove(
+    lines: &mut Vec<Line>,
+    text: &str,
+    from: usize,
+    to: usize,
+) -> Result<(), TextError> {
+    let (start, end) = range(text, from, to)?;
+    let first = newlines_before(text, start);
+    let last = newlines_before(text, end);
+    if last > first && first + 1 < lines.len() {
+        lines.drain(first + 1..(last + 1).min(lines.len()));
+    }
+    trim(lines);
+    Ok(())
+}
+
+/// Cambia el estilo de las líneas `[first, last]`, las dos incluidas.
+pub fn set_lines(lines: &mut Vec<Line>, first: usize, last: usize, style: Line) {
+    while lines.len() <= last {
+        lines.push(Line::default());
+    }
+    for line in &mut lines[first..=last] {
+        *line = style;
+    }
+    trim(lines);
+}
+
+/// Quita del final los estilos que no dicen nada: el JSON se guarda igual
+/// para el mismo documento.
+fn trim(lines: &mut Vec<Line>) {
+    while lines.last() == Some(&Line::default()) {
+        lines.pop();
+    }
+}
+
+/// Cuántos saltos de línea hay antes del byte `byte`.
+fn newlines_before(text: &str, byte: usize) -> usize {
+    text[..byte].matches('\n').count()
 }
 
 /// Quita los tramos vacíos y junta los seguidos que tienen el mismo

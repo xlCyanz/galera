@@ -31,7 +31,7 @@ use std::fmt;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use crate::model::{Document, Element, ElementBox, Stroke};
+use crate::model::{Document, Element, ElementBox, MAX_LIST_LEVEL, Stroke};
 
 /// Dónde está el problema.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -90,6 +90,18 @@ pub enum Problem {
         /// El valor que tenía.
         value: f64,
     },
+    /// Hay estilos de línea para líneas que no existen.
+    TooManyLines {
+        /// Cuántos estilos hay.
+        lines: usize,
+        /// Cuántas líneas tiene el texto.
+        text: usize,
+    },
+    /// Una lista se anida más de lo que se admite.
+    ListTooDeep {
+        /// El nivel que se pidió.
+        level: u8,
+    },
     /// Un enlace no lleva a la web ni al correo.
     InvalidLink {
         /// El destino tal como está en el JSON.
@@ -126,6 +138,14 @@ impl fmt::Display for Problem {
             Problem::Negative { field, value } => {
                 write!(f, "{field} no puede ser negativo, y es {value}")
             }
+            Problem::TooManyLines { lines, text } => write!(
+                f,
+                "lines tiene {lines} entradas y el texto tiene {text} líneas"
+            ),
+            Problem::ListTooDeep { level } => write!(
+                f,
+                "una lista no se puede anidar hasta el nivel {level}: el máximo es {MAX_LIST_LEVEL}"
+            ),
             Problem::InvalidLink { value } => write!(
                 f,
                 "el enlace {value:?} no vale: solo http://, https:// y mailto:"
@@ -302,9 +322,36 @@ impl Document {
                     Element::Line { stroke, .. } => {
                         report.optional_stroke(Some(stroke), at);
                     }
-                    Element::Text { style, content, .. } => {
+                    Element::Text {
+                        style,
+                        content,
+                        lines,
+                        ..
+                    } => {
                         report.positive("style.size", style.size, at);
                         report.color("style.color", &style.color, at);
+
+                        // Los estilos de línea van por número de línea: no
+                        // puede haber más que líneas.
+                        let text: usize = content
+                            .iter()
+                            .map(|run| run.text.replace("\r\n", "\n").matches('\n').count())
+                            .sum::<usize>()
+                            + 1;
+                        if lines.len() > text {
+                            report.push(
+                                at(),
+                                Problem::TooManyLines {
+                                    lines: lines.len(),
+                                    text,
+                                },
+                            );
+                        }
+                        for line in lines {
+                            if line.level > MAX_LIST_LEVEL {
+                                report.push(at(), Problem::ListTooDeep { level: line.level });
+                            }
+                        }
                         for run in content {
                             report.optional_color("content.color", run.color.as_deref(), at);
                             if let Some(link) = &run.link

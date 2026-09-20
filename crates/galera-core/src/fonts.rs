@@ -106,6 +106,7 @@ pub fn sample_document(font: &str, family: &str) -> Document {
                     leading: 0.65,
                     spacing: None,
                 },
+                lines: Vec::new(),
             }],
         }],
     }

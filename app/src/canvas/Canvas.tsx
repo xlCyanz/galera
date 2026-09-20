@@ -52,7 +52,7 @@ import { Cursor } from "../text/Cursor";
 import { FormatBar } from "../text/FormatBar";
 import { HiddenInput } from "../text/HiddenInput";
 import { SelectionLayer } from "../text/SelectionLayer";
-import { applyFormat, useTextFormat } from "../text/useTextFormat";
+import { applyFormat, applyLines, useTextFormat } from "../text/useTextFormat";
 import { useTextEditing } from "../text/useTextEditing";
 import { ControlLayer } from "./ControlLayer";
 import { CreatePreview } from "./CreatePreview";
@@ -103,6 +103,8 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
       : document?.pages.flatMap((one) => one.elements).find((one) => one.id === editing);
   const editingRuns =
     editingElement !== undefined && editingElement.type === "text" ? editingElement.content : [];
+  const editingLines =
+    editingElement !== undefined && editingElement.type === "text" ? (editingElement.lines ?? []) : [];
   // Un elemento bloqueado se selecciona desde el panel de capas, pero en el
   // lienzo no se agarra ni se empuja con las flechas.
   const selectedLocked =
@@ -376,7 +378,13 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
               <HiddenInput id={editing} box={editingBox} transform={transform} />
               <SelectionLayer box={editingBox} transform={transform} />
               <Cursor box={editingBox} transform={transform} />
-              <FormatBar runs={editingRuns} transform={transform} onFormat={applyFormat} />
+              <FormatBar
+                runs={editingRuns}
+                lines={editingLines}
+                transform={transform}
+                onFormat={applyFormat}
+                onLines={applyLines}
+              />
             </>
           )}
           {create.state.phase !== "idle" && transform !== null && (

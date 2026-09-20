@@ -1,7 +1,7 @@
 use serde_json::json;
 
 use super::*;
-use crate::model::Stroke;
+use crate::model::{ListKind, Stroke};
 
 /// Una página con un rectángulo, una línea, un texto, una imagen y un bloque
 /// de código; y otra página vacía.
@@ -1125,6 +1125,99 @@ fn text_commands_only_work_on_text_and_inside_it() {
         .apply(&document()),
         Err(OpError::Text(TextError::Backwards { from: 3, to: 1 }))
     );
+}
+
+/// El criterio de la tarea: hacer lista, quitarla y cambiar de nivel son
+/// comandos, y deshacer devuelve las líneas como estaban.
+#[test]
+fn making_a_list_is_a_command() {
+    let listed = apply_and_check_undo(&Op::SetLines {
+        id: "t1".into(),
+        from: 0,
+        to: 4,
+        line: Line {
+            list: Some(ListKind::Bullet),
+            level: 0,
+        },
+    });
+    assert_eq!(
+        lines(&listed, "t1"),
+        vec![Line {
+            list: Some(ListKind::Bullet),
+            level: 0
+        }]
+    );
+
+    // Y quitarla no deja rastro en el JSON.
+    let plain = Op::SetLines {
+        id: "t1".into(),
+        from: 0,
+        to: 4,
+        line: Line::default(),
+    }
+    .apply(&listed)
+    .expect("se aplica")
+    .document;
+    assert!(lines(&plain, "t1").is_empty());
+}
+
+/// Los estilos van por número de línea: al escribir o borrar saltos, se
+/// mueven con el texto.
+#[test]
+fn the_line_styles_follow_the_text() {
+    let document = document();
+    let listed = Op::SetLines {
+        id: "t1".into(),
+        from: 0,
+        to: 4,
+        line: Line {
+            list: Some(ListKind::Numbered),
+            level: 0,
+        },
+    }
+    .apply(&document)
+    .expect("se aplica")
+    .document;
+
+    // Partir la línea da otro elemento de la misma lista, como al pulsar
+    // Enter dentro de una.
+    let split = Op::InsertText {
+        id: "t1".into(),
+        at: 2,
+        text: "\n".into(),
+    }
+    .apply(&listed)
+    .expect("se aplica")
+    .document;
+    assert_eq!(
+        lines(&split, "t1"),
+        vec![
+            Line {
+                list: Some(ListKind::Numbered),
+                level: 0
+            };
+            2
+        ]
+    );
+
+    // Y al juntarlas otra vez, queda el estilo de la primera.
+    let joined = Op::DeleteText {
+        id: "t1".into(),
+        from: 2,
+        to: 3,
+    }
+    .apply(&split)
+    .expect("se aplica")
+    .document;
+    assert_eq!(lines(&joined, "t1").len(), 1);
+}
+
+/// Las líneas de un bloque de texto, para leerlas de un vistazo.
+fn lines<'a>(document: &'a Document, id: &str) -> &'a [Line] {
+    match element(document, id) {
+        Element::Text { lines, .. } => lines,
+        other => panic!("{} no es un texto", other.id()),
+    }
 }
 
 /// El texto y el formato de un bloque, para leerlos de un vistazo.

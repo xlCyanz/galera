@@ -11,7 +11,7 @@ import { useEditingStore } from "../store/editing";
 import type { Glyph } from "../types/layout";
 import type { Run } from "../types/model";
 import { FormatBar } from "./FormatBar";
-import { applyFormat, useTextFormat } from "./useTextFormat";
+import { applyFormat, applyLines, useTextFormat } from "./useTextFormat";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -78,7 +78,15 @@ let refuse: string | null;
 /** La barra, y los atajos registrados como en el lienzo. */
 function Harness() {
   useTextFormat();
-  return <FormatBar runs={runs} transform={transform} onFormat={applyFormat} />;
+  return (
+    <FormatBar
+      runs={runs}
+      lines={[]}
+      transform={transform}
+      onFormat={applyFormat}
+      onLines={applyLines}
+    />
+  );
 }
 
 /** Como `Harness`, pero con los tramos del documento al día. */
@@ -88,7 +96,16 @@ function Live() {
   const element = document?.pages[0]?.elements[0];
   const content = element?.type === "text" ? element.content : [];
   useEffect(() => undefined, [content]);
-  return <FormatBar runs={content} transform={transform} onFormat={applyFormat} />;
+  const lines = element?.type === "text" ? (element.lines ?? []) : [];
+  return (
+    <FormatBar
+      runs={content}
+      lines={lines}
+      transform={transform}
+      onFormat={applyFormat}
+      onLines={applyLines}
+    />
+  );
 }
 
 beforeEach(() => {
@@ -234,6 +251,49 @@ describe("el enlace", () => {
     await typeTarget("javascript:alert(1)");
     expect(container.textContent).toContain("no vale");
     expect(container.querySelector('input[aria-label="Destino del enlace"]')).not.toBeNull();
+  });
+});
+
+describe("las listas", () => {
+  /** Como `Live`, pero con las líneas del documento al día. */
+  it("el botón hace lista las líneas que toca la selección", async () => {
+    act(() => useEditingStore.getState().select(0, 4));
+    act(() => root.render(<Live />));
+
+    await act(async () => {
+      button("Lista con viñetas")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(ops).toEqual([
+      { op: "set_lines", id: "t1", from: 0, to: 4, line: { list: "bullet", level: 0 } },
+    ]);
+  });
+
+  it("y si ya lo son, deja de serlo", async () => {
+    // El documento ya tiene la primera línea como viñeta.
+    act(() => {
+      const document = structuredClone(useDocumentStore.getState().document!);
+      const element = document.pages[0]!.elements[0]!;
+      if (element.type === "text") {
+        element.lines = [{ list: "bullet" }];
+      }
+      useDocumentStore.getState().replaceDocument(document);
+    });
+    act(() => useEditingStore.getState().select(0, 4));
+    act(() => root.render(<Live />));
+
+    expect(button("Lista con viñetas")?.getAttribute("aria-pressed")).toBe("true");
+    await act(async () => {
+      button("Lista con viñetas")?.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(ops).toEqual([{ op: "set_lines", id: "t1", from: 0, to: 4, line: {} }]);
+  });
+
+  it("fuera de una lista, el botón no sale marcado", () => {
+    act(() => useEditingStore.getState().select(0, 4));
+    act(() => root.render(<Live />));
+    expect(button("Lista numerada")?.getAttribute("aria-pressed")).toBe("false");
   });
 });
 

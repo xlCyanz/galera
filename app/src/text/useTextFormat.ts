@@ -13,6 +13,7 @@ import { applyOp, errorMessage } from "../commands";
 import { useShortcut } from "../hooks/useShortcuts";
 import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
+import type { Line } from "../types/model";
 import type { Format } from "../types/ops";
 import { formatOf, toggle } from "./format";
 import { textOf } from "./change";
@@ -36,6 +37,27 @@ export async function applyFormat(change: Format): Promise<string | null> {
     return null;
   } catch (reason: unknown) {
     // El texto se queda como estaba.
+    return errorMessage(reason);
+  }
+}
+
+/**
+ * Cambia cómo se componen las líneas que toca la selección: hacerlas lista,
+ * quitarles la lista o cambiarlas de nivel.
+ *
+ * Vale también con el cursor suelto: la línea donde está es una línea.
+ */
+export async function applyLines(style: Line): Promise<string | null> {
+  const { element, start, end } = useEditingStore.getState();
+  if (element === null) {
+    return null;
+  }
+  const [from, to] = start <= end ? [start, end] : [end, start];
+  try {
+    const applied = await applyOp({ op: "set_lines", id: element, from, to, line: style });
+    useDocumentStore.getState().applyEdit(applied);
+    return null;
+  } catch (reason: unknown) {
     return errorMessage(reason);
   }
 }

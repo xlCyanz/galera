@@ -33,6 +33,12 @@
  * manda el siguiente, y el siguiente se calcula con lo que haya entonces.
  * Así, teclear rápido no manda posiciones de un texto que ya ha cambiado.
  *
+ * # Listas
+ *
+ * Dentro de una lista, Tab y ⇧Tab cambian el nivel de las líneas que toca
+ * la selección. Fuera de una lista no hacen nada —pero tampoco sacan el
+ * foco del texto, que es lo que hace un tabulador en cualquier campo.
+ *
  * # El cursor
  *
  * Dónde está la selección se guarda en el estado de edición, en bytes del
@@ -55,9 +61,11 @@ import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
 import { useLayoutStore } from "../store/layout";
 import type { LayoutBox } from "../types/layout";
-import type { Run } from "../types/model";
+import type { Line, Run } from "../types/model";
 import { byteIndex, lineMove, textIndex } from "./caret";
 import { change, textOf } from "./change";
+import { indent } from "./lines";
+import { applyLines } from "./useTextFormat";
 
 /** Teclear seguido es un solo paso del historial; tras esta pausa, en
  * milisegundos, empieza otro. */
@@ -305,6 +313,21 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
         remember();
       }}
       onKeyDown={(event) => {
+        // Dentro de una lista, el tabulador cambia el nivel. Fuera, no
+        // hace nada: sacar el foco del texto sería peor.
+        if (event.key === "Tab") {
+          event.preventDefault();
+          event.stopPropagation();
+          const runs = runsOf(id);
+          const { start, end, element } = useEditingStore.getState();
+          if (runs !== null && element !== null) {
+            const style = indent(textOf(runs), linesOf(id), start, end, event.shiftKey ? -1 : 1);
+            if (style !== null) {
+              void applyLines(style);
+            }
+          }
+          return;
+        }
         // Las líneas del campo no son las del documento: subir y bajar se
         // resuelve con las posiciones de los glifos.
         if (event.key === "ArrowUp" || event.key === "ArrowDown") {
@@ -342,6 +365,15 @@ function runsOf(id: string): Run[] | null {
     .flatMap((page) => page.elements)
     .find((candidate) => candidate.id === id);
   return element !== undefined && element.type === "text" ? element.content : null;
+}
+
+/** Cómo se compone cada línea del texto `id`. */
+function linesOf(id: string): Line[] {
+  const document = useDocumentStore.getState().document;
+  const element = document?.pages
+    .flatMap((page) => page.elements)
+    .find((candidate) => candidate.id === id);
+  return element !== undefined && element.type === "text" ? (element.lines ?? []) : [];
 }
 
 /** Lo que se pega, siempre como texto plano: si solo viene HTML, se queda

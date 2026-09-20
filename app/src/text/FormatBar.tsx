@@ -24,7 +24,9 @@ import { useEditingStore } from "../store/editing";
 import { ColorPicker } from "../ui/ColorPicker";
 import type { Run } from "../types/model";
 import type { Format } from "../types/ops";
+import type { Line, ListKind, Run as ModelRun } from "../types/model";
 import { formatOf, toggle } from "./format";
+import { listOf, toggleList } from "./lines";
 import { selectionRects } from "./selection";
 
 /** Lo que la barra ocupa de alto, en píxeles: se coloca justo encima. */
@@ -33,14 +35,18 @@ const HEIGHT = 34;
 export interface FormatBarProps {
   /** Los tramos del texto que se escribe. */
   runs: readonly Run[];
+  /** Cómo se compone cada línea del texto que se escribe. */
+  lines: readonly Line[];
   /** Dónde está la página y a qué escala. */
   transform: CanvasTransform;
   /** Aplica un cambio de formato a lo seleccionado. Devuelve el problema
    * si el núcleo no lo acepta. */
   onFormat: (change: Format) => Promise<string | null>;
+  /** Cambia cómo se componen las líneas que toca la selección. */
+  onLines: (style: Line) => Promise<string | null>;
 }
 
-export function FormatBar({ runs, transform, onFormat }: FormatBarProps) {
+export function FormatBar({ runs, lines, transform, onFormat, onLines }: FormatBarProps) {
   const glyphs = useEditingStore((state) => state.glyphs);
   const start = useEditingStore((state) => state.start);
   const end = useEditingStore((state) => state.end);
@@ -55,6 +61,8 @@ export function FormatBar({ runs, transform, onFormat }: FormatBarProps) {
   }
 
   const format = formatOf(runs, start, end);
+  const text = runs.map((run: ModelRun) => run.text).join("");
+  const list = listOf(text, lines, start, end);
   const at = toCanvas(transform, first.x, first.y);
 
   return (
@@ -77,6 +85,19 @@ export function FormatBar({ runs, transform, onFormat }: FormatBarProps) {
           onClick={() => void onFormat(toggle(format, what))}
         >
           {MARKS[what]}
+        </button>
+      ))}
+      {(["bullet", "numbered"] as const).map((kind) => (
+        <button
+          key={kind}
+          type="button"
+          className={`format-button${list === kind ? " is-on" : ""}`}
+          aria-label={LISTS[kind]}
+          aria-pressed={list === kind}
+          title={LISTS[kind]}
+          onClick={() => void onLines(toggleList(text, lines, start, end, kind))}
+        >
+          {kind === "bullet" ? "•" : "1."}
         </button>
       ))}
       <ColorPicker
@@ -139,6 +160,11 @@ const LABELS: Record<Toggleable, string> = {
   bold: "Negrita",
   italic: "Cursiva",
   underline: "Subrayado",
+};
+
+const LISTS: Record<ListKind, string> = {
+  bullet: "Lista con viñetas",
+  numbered: "Lista numerada",
 };
 
 const MARKS: Record<Toggleable, string> = {

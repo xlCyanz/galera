@@ -57,8 +57,24 @@
 //!
 //! El texto sigue pasando por `escape_into` tramo a trozo: el formato no es
 //! una vía para colar marcado (principio 6).
+//!
+//! # Listas
+//!
+//! Qué líneas son elementos de una lista no está en el texto, sino en
+//! `lines` del elemento (ver [`Line`]): así un guion escrito sigue siendo un
+//! guion. Las líneas seguidas que son lista se emiten juntas, con `list` o
+//! `enum` según el tipo, y anidando una lista dentro del elemento que la
+//! contiene:
+//!
+//! ```typst
+//! #list([Uno], [Dos#enum([Dos punto uno])])
+//! ```
+//!
+//! Dentro de una lista no se escriben saltos: los separa la propia lista.
+//! Pegados a ella tampoco, porque `list` y `enum` ya son bloques y abren y
+//! cierran línea por su cuenta.
 
-use crate::model::{Align, ElementBox, Run, TextStyle, is_valid_link};
+use crate::model::{Align, ElementBox, Line, ListKind, Run, TextStyle, is_valid_link};
 
 use super::{CodegenError, color, escape_into, millimeters, number, typst_string};
 
@@ -67,6 +83,7 @@ pub(super) fn emit_text(
     base: &ElementBox,
     content: &[Run],
     style: &TextStyle,
+    lines: &[Line],
     out: &mut String,
 ) -> Result<(), CodegenError> {
     out.push_str(&format!("#block(width: {}", millimeters(base.w)));
@@ -96,38 +113,56 @@ pub(super) fn emit_text(
 
     out.push_str(&format!("); align({})[", horizontal_alignment(style.align)));
 
-    emit_content(content, out)?;
+    emit_content(content, lines, out)?;
 
     out.push_str("] })");
     Ok(())
 }
 
-/// Escribe el contenido: cada tramo escapado, con su formato, y los saltos
-/// de línea del documento como saltos explícitos de Typst.
-fn emit_content(content: &[Run], out: &mut String) -> Result<(), CodegenError> {
-    // Cuántos saltos de línea hay pendientes de escribir. Se cuentan sin
-    // escribirlos todavía porque dos seguidos no son lo mismo que uno, y
-    // pueden quedar repartidos entre dos tramos.
-    let mut newlines = 0;
+/// Escribe el contenido: cada línea con el formato de sus tramos, las
+/// listas agrupadas y los saltos de línea del documento como saltos
+/// explícitos de Typst.
+fn emit_content(content: &[Run], lines: &[Line], out: &mut String) -> Result<(), CodegenError> {
+    let rendered = render_lines(content)?;
 
-    for run in content {
-        // Windows y el Mac clásico también escriben texto: los tres finales
-        // de línea significan lo mismo.
-        let text = run.text.replace("\r\n", "\n").replace('\r', "\n");
+    // Cuántos saltos de línea quedan por escribir. Se cuentan sin
+    // escribirlos porque dos seguidos no son lo mismo que uno.
+    let mut newlines: usize = 0;
+    let mut at = 0;
 
-        for (at, piece) in text.split('\n').enumerate() {
-            // Entre dos trozos de un mismo tramo hay siempre un salto.
-            if at > 0 {
-                newlines += 1;
+    while at < rendered.len() {
+        let line = lines.get(at).copied().unwrap_or_default();
+        let Some(kind) = line.list else {
+            if !rendered[at].is_empty() {
+                emit_break(&mut newlines, out);
+                out.push_str(&rendered[at]);
             }
-            if piece.is_empty() {
-                continue;
-            }
-            emit_break(&mut newlines, out);
-            emit_run(piece, run, out)?;
-        }
+            // Una línea más: el salto que la separa de la siguiente.
+            newlines += 1;
+            at += 1;
+            continue;
+        };
+
+        // Las líneas seguidas que son lista se emiten juntas. Los saltos
+        // pegados a ella no se escriben: `list` y `enum` ya son bloques.
+        let end = (at..rendered.len())
+            .take_while(|&index| lines.get(index).copied().unwrap_or_default().list.is_some())
+            .last()
+            .unwrap_or(at)
+            + 1;
+        newlines = 0;
+        emit_list(
+            &rendered[at..end],
+            &lines[at..end.min(lines.len())],
+            kind,
+            0,
+            out,
+        );
+        at = end;
     }
 
+    // Los saltos del final se escriben: el documento los tiene.
+    newlines = newlines.saturating_sub(1);
     emit_break(&mut newlines, out);
     Ok(())
 }
@@ -146,6 +181,104 @@ fn emit_break(newlines: &mut usize, out: &mut String) {
         "#linebreak();"
     });
     *newlines = 0;
+}
+
+/// El contenido ya compuesto de cada línea del bloque: sus tramos
+/// escapados, cada uno con su formato.
+fn render_lines(content: &[Run]) -> Result<Vec<String>, CodegenError> {
+    let mut lines = vec![String::new()];
+
+    for run in content {
+        // Windows y el Mac clásico también escriben texto: los tres finales
+        // de línea significan lo mismo.
+        let text = run.text.replace("\r\n", "\n").replace('\r', "\n");
+        for (at, piece) in text.split('\n').enumerate() {
+            if at > 0 {
+                lines.push(String::new());
+            }
+            if !piece.is_empty() {
+                let last = lines
+                    .last_mut()
+                    .unwrap_or_else(|| unreachable!("nunca vacío"));
+                emit_run(piece, run, last)?;
+            }
+        }
+    }
+    Ok(lines)
+}
+
+/// Escribe una lista con las líneas de un nivel, anidando las de debajo
+/// dentro del elemento que las precede.
+fn emit_list(rendered: &[String], lines: &[Line], kind: ListKind, level: u8, out: &mut String) {
+    out.push_str(match kind {
+        ListKind::Bullet => "#list(",
+        ListKind::Numbered => "#enum(",
+    });
+
+    let mut at = 0;
+    let mut first = true;
+    while at < rendered.len() {
+        let line = lines.get(at).copied().unwrap_or_default();
+        // Lo que esté más adentro va dentro del elemento anterior.
+        if line.level > level {
+            let end = (at..rendered.len())
+                .take_while(|&index| lines.get(index).copied().unwrap_or_default().level > level)
+                .last()
+                .unwrap_or(at)
+                + 1;
+            let inner = lines.get(at).copied().unwrap_or_default();
+            emit_list(
+                &rendered[at..end],
+                &lines[at..end.min(lines.len())],
+                inner.list.unwrap_or(kind),
+                level + 1,
+                out,
+            );
+            at = end;
+            continue;
+        }
+
+        // Un cambio de tipo en el mismo nivel es otra lista.
+        if !first && line.list != Some(kind) {
+            out.push(')');
+            emit_list(
+                &rendered[at..],
+                &lines[at..],
+                line.list.unwrap_or(kind),
+                level,
+                out,
+            );
+            return;
+        }
+
+        if !first {
+            out.push_str(", ");
+        }
+        out.push('[');
+        out.push_str(&rendered[at]);
+        first = false;
+        at += 1;
+
+        // El elemento se cierra después de lo que lleve anidado dentro.
+        let nested = (at..rendered.len())
+            .take_while(|&index| lines.get(index).copied().unwrap_or_default().level > level)
+            .last();
+        if let Some(last) = nested {
+            let end = last + 1;
+            let inner = lines.get(at).copied().unwrap_or_default();
+            emit_list(
+                &rendered[at..end],
+                &lines[at..end.min(lines.len())],
+                inner.list.unwrap_or(kind),
+                level + 1,
+                out,
+            );
+            at = end;
+        }
+        out.push(']');
+    }
+
+    out.push(')');
 }
 
 /// Escribe un trozo de tramo, escapado y con el formato de su tramo.
@@ -438,6 +571,107 @@ mod tests {
                  "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##,
         );
         assert!(typst.contains(r"[#strong[\#let x = 1]]"), "{typst}");
+    }
+
+    /// Un bloque con las líneas que se digan como lista.
+    fn with_lines(text: &str, lines: &str) -> String {
+        let content = serde_json::to_string(text).expect("un str siempre serializa");
+        generate_with(&format!(
+            r##"{{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                 "content": [{{ "text": {content} }}],
+                 "lines": {lines},
+                 "style": {{ "font": "Inter", "size": 12, "color": "#000000" }} }}"##
+        ))
+    }
+
+    /// Lo que va entre `align(left)[` y `] })`.
+    fn body(typst: &str) -> String {
+        let start = typst.find("align(left)[").expect("hay un bloque") + "align(left)[".len();
+        let end = typst[start..].find("] })").expect("se cierra") + start;
+        typst[start..end].to_owned()
+    }
+
+    /// El criterio de la tarea: listas con viñetas y numeradas.
+    #[test]
+    fn a_list_is_emitted_as_a_list() {
+        let bullets = with_lines(
+            "Uno
+Dos",
+            r#"[{ "list": "bullet" }, { "list": "bullet" }]"#,
+        );
+        assert_eq!(body(&bullets), "#list([Uno], [Dos])");
+
+        let numbered = with_lines(
+            "Uno
+Dos",
+            r#"[{ "list": "numbered" }, { "list": "numbered" }]"#,
+        );
+        assert_eq!(body(&numbered), "#enum([Uno], [Dos])");
+    }
+
+    /// El criterio de la tarea: los niveles anidan una lista dentro del
+    /// elemento que la contiene.
+    #[test]
+    fn levels_nest_one_list_inside_its_item() {
+        let typst = with_lines(
+            "Uno
+Uno uno
+Uno uno uno
+Dos",
+            r#"[{ "list": "bullet" },
+                { "list": "bullet", "level": 1 },
+                { "list": "numbered", "level": 2 },
+                { "list": "bullet" }]"#,
+        );
+        assert_eq!(
+            body(&typst),
+            "#list([Uno#list([Uno uno#enum([Uno uno uno])])], [Dos])"
+        );
+    }
+
+    /// Un cambio de tipo en el mismo nivel es otra lista: si no, la
+    /// numeración seguiría donde no toca.
+    #[test]
+    fn changing_the_kind_starts_another_list() {
+        let typst = with_lines(
+            "Uno
+Dos",
+            r#"[{ "list": "bullet" }, { "list": "numbered" }]"#,
+        );
+        assert_eq!(body(&typst), "#list([Uno])#enum([Dos])");
+    }
+
+    /// Las líneas normales de alrededor siguen como estaban, y pegados a la
+    /// lista no se escriben saltos: `list` ya es un bloque.
+    #[test]
+    fn plain_lines_around_a_list_keep_their_breaks() {
+        let typst = with_lines(
+            "Antes
+Uno
+Dos
+Después
+
+Otro párrafo",
+            r#"[{}, { "list": "bullet" }, { "list": "bullet" }]"#,
+        );
+        assert_eq!(
+            body(&typst),
+            "Antes#list([Uno], [Dos])Después#parbreak();Otro párrafo"
+        );
+    }
+
+    /// El formato de los tramos sigue valiendo dentro de una lista, y el
+    /// texto sigue escapándose.
+    #[test]
+    fn a_list_item_keeps_the_format_of_its_runs() {
+        let typst = generate_with(
+            r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                 "content": [ { "text": "Uno " }, { "text": "en negrita", "bold": true },
+                              { "text": "\n- dos" } ],
+                 "lines": [{ "list": "bullet" }, { "list": "bullet" }],
+                 "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##,
+        );
+        assert_eq!(body(&typst), r"#list([Uno #strong[en negrita]], [\- dos])");
     }
 
     /// El criterio de la tarea: un tramo con enlace se envuelve en

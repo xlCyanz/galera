@@ -53,6 +53,10 @@ teclas van al texto y no a las herramientas:
   el color del texto y el enlace, que enseña el formato de lo elegido. El
   botón del enlace abre un campo con el destino: `Enter` lo pone, vaciarlo
   lo quita y `Esc` cierra el campo.
+- Los botones de lista de la barra hacen de las líneas que toca la selección
+  una lista con viñetas o numerada, y vuelven a pulsarse para quitarla.
+  Dentro de una lista, `Tab` y `⇧Tab` cambian el nivel de anidado; fuera de
+  una lista no hacen nada, y nunca se llevan el foco del texto.
 - `Esc` sale de escribir. `⌘Z` deshace el documento, no el campo: cada
   cambio del texto ya es un paso del historial.
 

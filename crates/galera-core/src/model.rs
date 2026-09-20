@@ -306,6 +306,13 @@ pub enum Element {
         content: Vec<Run>,
         /// Estilo que se aplica a todo el bloque.
         style: TextStyle,
+        /// Cómo se compone cada línea del bloque: si es un elemento de una
+        /// lista y con cuánto anidado. Las líneas son las que separan los
+        /// saltos de línea del contenido, contando desde 0; una línea sin
+        /// entrada aquí es texto normal, y la lista puede ser más corta que
+        /// el número de líneas.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        lines: Vec<Line>,
     },
 
     /// Un rectángulo, opcionalmente con esquinas redondeadas.
@@ -495,6 +502,45 @@ impl Element {
             Element::Line { .. } => None,
         }
     }
+}
+
+/// Cómo se compone una línea de un bloque de texto.
+///
+/// El contenido de un bloque es texto con saltos de línea; lo que hace de
+/// una línea un elemento de lista no está en el texto, sino aquí: así el
+/// texto se sigue leyendo tal cual y el guion de una viñeta no se confunde
+/// con un guion escrito.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
+pub struct Line {
+    /// La lista de la que es elemento, si lo es.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub list: Option<ListKind>,
+    /// Cuánto se anida dentro de la lista, desde 0. Sin lista no significa
+    /// nada.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub level: u8,
+}
+
+/// Cuánto se puede anidar una lista.
+///
+/// Más que esto no es una lista, es un error: cada nivel es una lista
+/// dentro de otra en el código generado.
+pub const MAX_LIST_LEVEL: u8 = 8;
+
+fn is_zero(value: &u8) -> bool {
+    *value == 0
+}
+
+/// Qué clase de lista.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
+#[serde(rename_all = "lowercase")]
+pub enum ListKind {
+    /// Con viñetas.
+    Bullet,
+    /// Numerada.
+    Numbered,
 }
 
 /// Un tramo de texto con el mismo formato.
