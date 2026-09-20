@@ -71,6 +71,11 @@ impl Compiled {
         &self.document
     }
 
+    /// El código generado, para `layout`. No sale del crate.
+    pub(crate) fn source(&self) -> &Source {
+        &self.source
+    }
+
     /// Número de páginas del documento compilado.
     pub fn page_count(&self) -> usize {
         self.document.pages().len()

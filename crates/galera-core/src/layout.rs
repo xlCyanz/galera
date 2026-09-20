@@ -46,7 +46,14 @@
 //!
 //! [`hit`] decide qué elemento hay bajo un punto de la página a partir de
 //! estas cajas.
+//!
+//! # Dentro de un texto
+//!
+//! [`glyphs`] baja un nivel más: dónde quedó cada glifo de un bloque de
+//! texto, para dibujar el cursor y la selección donde de verdad está el
+//! texto.
 
+pub mod glyphs;
 pub mod hit;
 
 use serde::Serialize;
@@ -387,28 +394,14 @@ impl Bounds {
 
 #[cfg(test)]
 mod tests {
-    use std::path::{Path, PathBuf};
-
     use super::*;
     use crate::model::Element;
-    use crate::testing::{PT_PER_MM, pdf_filled_rects, pdf_text_origins};
+    use crate::testing::{
+        PT_PER_MM, fixture, fixtures_dir, pdf_filled_rects, pdf_text_origins, project,
+    };
 
     /// Una milésima de milímetro: Typst trabaja en puntos con coma flotante.
     const TOLERANCE: f64 = 1e-3;
-
-    fn fixtures_dir() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures")
-    }
-
-    fn project() -> Project {
-        Project::open(&fixtures_dir()).expect("fixtures/ es un proyecto")
-    }
-
-    fn fixture(name: &str) -> Document {
-        let json = std::fs::read_to_string(fixtures_dir().join(format!("{name}.json")))
-            .unwrap_or_else(|error| panic!("{name}.json: {error}"));
-        Document::from_json_str(&json).expect("es un documento")
-    }
 
     /// Un documento de una página A4 con estos elementos, y la fuente Inter.
     fn page_with(elements: &str) -> Document {

@@ -110,3 +110,20 @@ fn cm_translation(block: &str) -> Option<(f64, f64)> {
         .map(|n| n.parse::<f64>().ok());
     Some((numbers.next()??, numbers.next()??))
 }
+
+/// La carpeta `fixtures/` del repositorio, que es a la vez un proyecto.
+pub(crate) fn fixtures_dir() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures")
+}
+
+/// `fixtures/` abierta como proyecto, con sus fuentes y sus imágenes.
+pub(crate) fn project() -> crate::project::Project {
+    crate::project::Project::open(&fixtures_dir()).expect("fixtures/ es un proyecto")
+}
+
+/// El documento `fixtures/NOMBRE.json`.
+pub(crate) fn fixture(name: &str) -> crate::model::Document {
+    let json = std::fs::read_to_string(fixtures_dir().join(format!("{name}.json")))
+        .unwrap_or_else(|error| panic!("{name}.json: {error}"));
+    crate::model::Document::from_json_str(&json).expect("es un documento")
+}
