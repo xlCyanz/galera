@@ -33,7 +33,9 @@ import {
   usePageCount,
   useProjectRoot,
 } from "./store/document";
+import { CloseDialog } from "./ui/CloseDialog";
 import { Inspector } from "./ui/Inspector";
+import { RecoveryNotice } from "./ui/RecoveryNotice";
 import { SidePanels } from "./ui/SidePanels";
 import { StatusBar } from "./ui/StatusBar";
 import { ToolRail } from "./ui/ToolRail";
@@ -156,6 +158,17 @@ export function App() {
   return (
     <main className="galera">
       <h1>Galera</h1>
+      <RecoveryNotice
+        onRecovered={(opened) => {
+          useDocumentStore.getState().open(opened);
+          useCompilationStore.getState().expect(opened.revision);
+          useLayoutStore.getState().expect(opened.revision);
+          // Recuperar no guarda: queda por guardar, como cualquier cambio.
+          useDocumentStore.setState({ dirty: true });
+          setNotice("Recuperado lo que no se había guardado. Revísalo y guarda si está bien.");
+        }}
+      />
+      <CloseDialog />
       <div className="actions">
         <button type="button" onClick={() => void open("folder")} disabled={opening}>
           Abrir carpeta…

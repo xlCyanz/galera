@@ -14,6 +14,7 @@ pub mod export;
 pub mod fonts;
 pub mod ops;
 pub mod project;
+pub mod recovery;
 pub mod render;
 pub mod selection;
 pub mod session;

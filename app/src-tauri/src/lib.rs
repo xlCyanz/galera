@@ -17,13 +17,22 @@
 
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
 
+pub mod autosave;
 pub mod commands;
+
+/// Evento que avisa de que se ha intentado cerrar la ventana con cambios
+/// sin guardar. La interfaz pregunta y llama a `close_window` si toca.
+pub const CLOSE_REQUESTED: &str = "app:close-requested";
 pub mod compile_worker;
 pub mod state;
 
 use compile_worker::CompileQueue;
+use std::time::Duration;
+
+use autosave::AutosaveSignal;
+use commands::recovery::AutosaveDir;
 use state::AppState;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 /// Arranca la app y se queda atendiendo la ventana hasta que se cierra.
 ///
@@ -36,8 +45,26 @@ pub fn run() -> tauri::Result<()> {
         // con un argumento `State<'_, AppState>`.
         .manage(AppState::default())
         .manage(CompileQueue::default())
+        .manage(AutosaveSignal::default())
         // El hilo que compila en segundo plano. Ver `compile_worker`.
         .setup(|app| {
+            // Las copias de autoguardado van a la carpeta de datos de la
+            // app, no al proyecto: no ensucian lo que se edita.
+            let copies = app
+                .path()
+                .app_data_dir()
+                .unwrap_or_else(|_| std::env::temp_dir().join("galera"))
+                .join(autosave::AUTOSAVE_DIR);
+            app.manage(AutosaveDir(copies.clone()));
+            let autosaving = app.handle().clone();
+            std::thread::Builder::new()
+                .name("galera-autoguardado".to_owned())
+                .spawn(move || {
+                    let state = autosaving.state::<AppState>();
+                    let signal = autosaving.state::<AutosaveSignal>();
+                    autosave::run(&state, &copies, &signal);
+                })?;
+
             let handle = app.handle().clone();
             std::thread::Builder::new()
                 .name("galera-compile".to_owned())
@@ -53,10 +80,28 @@ pub fn run() -> tauri::Result<()> {
         .plugin(tauri_plugin_dialog::init())
         // Lo que se suelta sobre la ventana queda anotado antes de que la
         // interfaz pida copiarlo. Ver `commands::assets`.
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) => {
                 window.state::<AppState>().offer_files(paths);
             }
+            // Al perder el foco se copia ya: es cuando más probable es que
+            // la app se quede sin atender.
+            tauri::WindowEvent::Focused(false) => {
+                window.state::<AutosaveSignal>().save_now();
+            }
+            // Con cambios sin guardar no se cierra a la primera: se avisa a
+            // la interfaz, que pregunta qué hacer (ver `ui/CloseDialog.tsx`).
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                if window.state::<AppState>().summary().dirty {
+                    api.prevent_close();
+                    let _ = window.emit(CLOSE_REQUESTED, ());
+                } else {
+                    // Lo último que se haya tocado, copiado antes de salir.
+                    window.state::<AutosaveSignal>().save_now();
+                    std::thread::sleep(Duration::from_millis(50));
+                }
+            }
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             commands::session::session_status,
@@ -65,6 +110,10 @@ pub fn run() -> tauri::Result<()> {
             commands::project::open_project,
             commands::project::save_project,
             commands::project::save_project_as,
+            commands::recovery::pending_recoveries,
+            commands::recovery::recover,
+            commands::recovery::discard_recovery,
+            commands::recovery::close_window,
             commands::render::render_page,
             commands::render::request_compilation,
             commands::selection::element_at,

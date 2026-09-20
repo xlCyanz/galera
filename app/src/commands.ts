@@ -16,6 +16,7 @@
  * de los parámetros de esa función.
  */
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 import type { Diagnostic } from "./types/diagnostic";
@@ -484,4 +485,49 @@ export function fontSample(path: string): Promise<string> {
  */
 export function removeFont(path: string): Promise<AppliedOp> {
   return invoke<AppliedOp>("remove_font", { path });
+}
+
+/** Una copia de autoguardado que se puede recuperar. */
+export interface Recovery {
+  /** El proyecto al que pertenece: su carpeta o su `.galera`. */
+  target: string;
+  /** Cuándo se autoguardó, en segundos desde 1970. */
+  savedAt: number;
+  /** Cuándo se guardó el proyecto de verdad, o `null` si ya no está. */
+  projectSavedAt: number | null;
+}
+
+/**
+ * Las copias de autoguardado más nuevas que lo guardado, de la más reciente
+ * a la más antigua. Vacío si no hay nada que recuperar.
+ */
+export function pendingRecoveries(): Promise<Recovery[]> {
+  return invoke<Recovery[]>("pending_recoveries");
+}
+
+/**
+ * Abre un proyecto con el documento de su copia de autoguardado. Queda con
+ * cambios sin guardar: recuperar no guarda nada.
+ */
+export function recover(target: string): Promise<OpenedProject> {
+  return invoke<OpenedProject>("recover", { target });
+}
+
+/** Tira la copia de un proyecto: se sigue con lo guardado. */
+export function discardRecovery(target: string): Promise<void> {
+  return invoke<void>("discard_recovery", { target });
+}
+
+/** Cierra la ventana de verdad, tras preguntar por los cambios sin guardar. */
+export function closeWindow(): Promise<void> {
+  return invoke<void>("close_window");
+}
+
+/**
+ * Avisa cuando se intenta cerrar la ventana con cambios sin guardar: el
+ * backend no la cierra hasta que se decide (ver `ui/CloseDialog.tsx`).
+ * Fuera de Tauri no escucha nada.
+ */
+export function onCloseRequested(handler: () => void): Promise<() => void> {
+  return listen("app:close-requested", () => handler()).catch(() => () => undefined);
 }

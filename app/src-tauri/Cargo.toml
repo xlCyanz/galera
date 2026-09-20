@@ -14,10 +14,10 @@ tauri-build.workspace = true
 [dependencies]
 galera-core.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 tauri.workspace = true
 tauri-plugin-dialog.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-serde_json.workspace = true
 tempfile.workspace = true
