@@ -14,6 +14,7 @@ const rect = (id: string): Element => ({ type: "rect", id, x: 0, y: 0, w: 1, h: 
 
 const project: OpenedProject = {
   root: "/p",
+  archive: null,
   revision: 1,
   document: {
     version: 1,

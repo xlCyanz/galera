@@ -27,7 +27,7 @@ const at = (x: number): Document => ({
   ],
 });
 
-const project: OpenedProject = { root: "/p", revision: 1, document: at(10) };
+const project: OpenedProject = { root: "/p", revision: 1, archive: null, document: at(10) };
 
 let container: HTMLDivElement;
 let root: Root;

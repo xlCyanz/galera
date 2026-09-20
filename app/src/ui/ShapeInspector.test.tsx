@@ -17,6 +17,7 @@ const line: Element = { type: "line", id: "l1", x: 0, y: 0, x2: 10, y2: 0, rotat
 
 const project: OpenedProject = {
   root: "/p",
+  archive: null,
   revision: 1,
   document: { version: 1, meta: { title: "x" }, fonts: [], assets: {}, variables: {}, pages: [{ id: "p1", size: { width: 10, height: 10, unit: "mm" }, elements: [rect, line] }] },
 };

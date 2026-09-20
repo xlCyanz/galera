@@ -7,6 +7,7 @@ import {
   historyShortcutLabel,
   isExportPdfShortcut,
   isMac,
+  isSaveShortcut,
   isToggleRulersShortcut,
   zoomShortcut,
   zoomShortcutLabel,
@@ -126,5 +127,22 @@ describe("historyShortcut", () => {
     expect(historyShortcutLabel("redo", true)).toBe("⌘⇧Z");
     expect(historyShortcutLabel("undo", false)).toBe("Ctrl+Z");
     expect(historyShortcutLabel("redo", false)).toBe("Ctrl+Shift+Z");
+  });
+});
+
+describe("isSaveShortcut", () => {
+  const key = (overrides: Partial<KeyPress> = {}) => press({ key: "s", shiftKey: false, ...overrides });
+
+  it("es ⌘S en macOS y Ctrl+S en el resto", () => {
+    expect(isSaveShortcut(key({ metaKey: true }), true)).toBe(true);
+    expect(isSaveShortcut(key({ key: "S", metaKey: true }), true)).toBe(true);
+    expect(isSaveShortcut(key({ ctrlKey: true }), false)).toBe(true);
+    expect(isSaveShortcut(key({ ctrlKey: true }), true)).toBe(false);
+  });
+
+  it("no se dispara sin modificador, con Shift o con Alt", () => {
+    expect(isSaveShortcut(key(), true)).toBe(false);
+    expect(isSaveShortcut(key({ metaKey: true, shiftKey: true }), true)).toBe(false);
+    expect(isSaveShortcut(key({ metaKey: true, altKey: true }), true)).toBe(false);
   });
 });

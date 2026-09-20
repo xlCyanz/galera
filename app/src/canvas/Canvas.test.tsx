@@ -105,6 +105,7 @@ function project(): OpenedProject {
   return {
     root: "/proyectos/informe",
     revision: 1,
+    archive: null,
     document: {
       version: 1,
       meta: { title: "Informe" },

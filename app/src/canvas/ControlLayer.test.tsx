@@ -23,6 +23,7 @@ const loader: ImageLoader = {
 const page = { width: 210, height: 297, unit: "mm" } as const;
 const project: OpenedProject = {
   root: "/p",
+  archive: null,
   revision: 1,
   document: {
     version: 1,

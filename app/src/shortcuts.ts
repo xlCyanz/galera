@@ -23,6 +23,20 @@ export function isExportPdfShortcut(event: KeyPress, mac: boolean): boolean {
   return modifier && event.shiftKey && !event.altKey && event.key.toLowerCase() === "e";
 }
 
+/**
+ * Guardar: ⌘S en macOS, Ctrl+S en Windows y Linux. Con Shift, «guardar
+ * como».
+ */
+export function isSaveShortcut(event: KeyPress, mac: boolean): boolean {
+  const modifier = mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+  return modifier && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "s";
+}
+
+/** Cómo se escribe el atajo de guardar. */
+export function saveShortcutLabel(mac: boolean): string {
+  return mac ? "⌘S" : "Ctrl+S";
+}
+
 /** Cómo se escribe el atajo de exportar, para enseñarlo en la interfaz. */
 export function exportPdfShortcutLabel(mac: boolean): string {
   return mac ? "⌘⇧E" : "Ctrl+Shift+E";

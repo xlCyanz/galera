@@ -52,6 +52,7 @@ describe("sessionStatus", () => {
 
 const informe: OpenedProject = {
   root: "/proyectos/informe",
+  archive: null,
   revision: 1,
   document: {
     version: 1,

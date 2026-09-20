@@ -19,6 +19,7 @@ const loader: ImageLoader = {
 
 const project: OpenedProject = {
   root: "/p",
+  archive: null,
   revision: 1,
   document: {
     version: 1,

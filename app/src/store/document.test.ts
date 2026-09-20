@@ -12,6 +12,7 @@ function project(title: string, pageCount: number): OpenedProject {
   return {
     root: `/proyectos/${title}`,
     revision: 1,
+    archive: null,
     document: {
       version: 1,
       meta: { title },

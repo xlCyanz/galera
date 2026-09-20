@@ -61,7 +61,10 @@ pub fn run() -> tauri::Result<()> {
         .invoke_handler(tauri::generate_handler![
             commands::session::session_status,
             commands::project::choose_project_folder,
+            commands::project::choose_project_file,
             commands::project::open_project,
+            commands::project::save_project,
+            commands::project::save_project_as,
             commands::render::render_page,
             commands::render::request_compilation,
             commands::selection::element_at,

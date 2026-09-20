@@ -2,10 +2,13 @@ import { useEffect, useEffectEvent, useState } from "react";
 
 import {
   type SessionStatus,
+  chooseProjectFile,
   chooseProjectFolder,
   errorMessage,
   exportPdf,
   openProject,
+  saveProject,
+  saveProjectAs,
   sessionStatus,
 } from "./commands";
 import { Canvas } from "./canvas/Canvas";
@@ -14,13 +17,17 @@ import {
   historyShortcutLabel,
   isExportPdfShortcut,
   isMac,
+  isSaveShortcut,
+  saveShortcutLabel,
 } from "./shortcuts";
 import { useCompilation } from "./hooks/useCompilation";
 import { runHistory, useUndoRedo } from "./hooks/useUndoRedo";
 import { useCompilationStore } from "./store/compilation";
 import { useLayoutStore } from "./store/layout";
 import {
+  useArchive,
   useCurrentPage,
+  useDirty,
   useDocumentStore,
   useDocumentTitle,
   usePageCount,
@@ -51,6 +58,9 @@ export function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const dirty = useDirty();
+  const archive = useArchive();
 
   async function exportToPdf() {
     setError(null);
@@ -69,6 +79,28 @@ export function App() {
   }
 
   const canExport = title !== null && !exporting;
+  const canSave = title !== null && !saving;
+
+  /**
+   * Guarda donde ya estaba, o en otro sitio si se dice: una carpeta vacía o
+   * un `.galera`. A partir de ahí se guarda ahí.
+   */
+  async function save(as?: "folder" | "archive") {
+    setError(null);
+    setNotice(null);
+    setSaving(true);
+    try {
+      const saved = as === undefined ? await saveProject() : await saveProjectAs(as === "archive");
+      if (saved !== null) {
+        useDocumentStore.getState().saved(saved);
+        setNotice(`Guardado en ${saved.path}`);
+      }
+    } catch (reason) {
+      setError(errorMessage(reason));
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // Un evento de efecto ve siempre el estado actual, así que el atajo se
   // registra una sola vez y no en cada render.
@@ -76,6 +108,9 @@ export function App() {
     if (canExport && isExportPdfShortcut(event, mac)) {
       event.preventDefault();
       void exportToPdf();
+    } else if (canSave && isSaveShortcut(event, mac)) {
+      event.preventDefault();
+      void save();
     }
   });
 
@@ -85,12 +120,12 @@ export function App() {
     return () => window.removeEventListener("keydown", listener);
   }, []);
 
-  async function open() {
+  async function open(from: "folder" | "archive") {
     setError(null);
     setNotice(null);
     setOpening(true);
     try {
-      const folder = await chooseProjectFolder();
+      const folder = from === "folder" ? await chooseProjectFolder() : await chooseProjectFile();
       if (folder !== null) {
         // El backend empieza a compilarlo solo; el resultado llega por
         // eventos (ver `hooks/useCompilation.ts`).
@@ -122,8 +157,26 @@ export function App() {
     <main className="galera">
       <h1>Galera</h1>
       <div className="actions">
-        <button type="button" onClick={open} disabled={opening}>
-          Abrir proyecto…
+        <button type="button" onClick={() => void open("folder")} disabled={opening}>
+          Abrir carpeta…
+        </button>
+        <button type="button" onClick={() => void open("archive")} disabled={opening}>
+          Abrir .galera…
+        </button>
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={!canSave}
+          aria-keyshortcuts={mac ? "Meta+S" : "Control+S"}
+          title={archive === null ? "Guardar en la carpeta del proyecto" : `Guardar en ${archive}`}
+        >
+          {dirty ? "Guardar •" : "Guardar"} <kbd>{saveShortcutLabel(mac)}</kbd>
+        </button>
+        <button type="button" onClick={() => void save("folder")} disabled={!canSave}>
+          Guardar como carpeta…
+        </button>
+        <button type="button" onClick={() => void save("archive")} disabled={!canSave}>
+          Guardar como .galera…
         </button>
         <button
           type="button"
