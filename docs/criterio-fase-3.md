@@ -41,13 +41,13 @@ los compara. Lleva, en una página A4:
 | Empezar un proyecto nuevo | ✅ | «Nuevo proyecto…» / «Nuevo .galera…» ([#155](https://github.com/xlCyanz/galera/issues/155)) |
 | Título del documento | ✅ | Campo «Título» del inspector, sin selección ([#156](https://github.com/xlCyanz/galera/issues/156)) |
 | Bloque de código | ✅ | Herramienta `C` y campo «Código Typst» del inspector ([#157](https://github.com/xlCyanz/galera/issues/157)) |
-| **Variables del documento** | ❌ | [#158](https://github.com/xlCyanz/galera/issues/158) |
+| Variables del documento | ✅ | Pestaña «Variables» ([#158](https://github.com/xlCyanz/galera/issues/158)) |
 | **Ids cortos (`r1`, `t1`…)** | ❌ | [#159](https://github.com/xlCyanz/galera/issues/159) |
 | **Negrita dentro del texto** | ❌ | Ya planificado: F4-08 ([#62](https://github.com/xlCyanz/galera/issues/62)) |
 
 Es decir: **la maqueta se construye entera desde la app** (fondo, texto,
 imagen, fuentes, medidas, capas y guardado), y lo que obliga a tocar el JSON
-son las dos cosas de arriba, cada una con su issue.
+es lo de arriba: los ids cortos y, ya planificada, la negrita por tramos.
 
 ## Cómo hacer la sesión
 

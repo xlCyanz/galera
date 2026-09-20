@@ -778,3 +778,126 @@ fn the_title_changes_and_comes_back() {
         );
     }
 }
+
+#[test]
+fn variables_are_set_renamed_and_removed() {
+    let mut original = document();
+    original
+        .variables
+        .insert("nombre".into(), "Cooperativa".into());
+
+    // Crear una nueva: deshacerla la quita.
+    let created = Op::SetVariable {
+        name: "anio".into(),
+        value: "2026".into(),
+    }
+    .apply(&original)
+    .expect("se aplica");
+    assert_eq!(created.document.variables["anio"], "2026");
+    assert_eq!(
+        created.undo,
+        Op::RemoveVariable {
+            name: "anio".into()
+        }
+    );
+    assert_eq!(
+        created
+            .undo
+            .apply(&created.document)
+            .expect("se deshace")
+            .document,
+        original
+    );
+
+    // Cambiar una que ya está: deshacerla devuelve el valor de antes.
+    let changed = Op::SetVariable {
+        name: "nombre".into(),
+        value: "Otra".into(),
+    }
+    .apply(&original)
+    .expect("se aplica");
+    assert_eq!(
+        changed.undo,
+        Op::SetVariable {
+            name: "nombre".into(),
+            value: "Cooperativa".into()
+        }
+    );
+
+    let renamed = Op::RenameVariable {
+        from: "nombre".into(),
+        to: "empresa".into(),
+    }
+    .apply(&original)
+    .expect("se aplica");
+    assert_eq!(renamed.document.variables["empresa"], "Cooperativa");
+    assert!(!renamed.document.variables.contains_key("nombre"));
+    assert_eq!(
+        renamed
+            .undo
+            .apply(&renamed.document)
+            .expect("se deshace")
+            .document,
+        original
+    );
+
+    let removed = Op::RemoveVariable {
+        name: "nombre".into(),
+    }
+    .apply(&original)
+    .expect("se aplica");
+    assert!(removed.document.variables.is_empty());
+    assert_eq!(
+        removed
+            .undo
+            .apply(&removed.document)
+            .expect("se deshace")
+            .document,
+        original
+    );
+}
+
+#[test]
+fn a_variable_name_has_to_be_new_and_valid() {
+    let mut original = document();
+    original.variables.insert("nombre".into(), "x".into());
+    original.variables.insert("anio".into(), "2026".into());
+
+    assert_eq!(
+        Op::SetVariable {
+            name: "con espacio".into(),
+            value: "x".into()
+        }
+        .apply(&original),
+        Err(OpError::InvalidVariableName {
+            name: "con espacio".into()
+        })
+    );
+    assert_eq!(
+        Op::RenameVariable {
+            from: "nombre".into(),
+            to: "anio".into()
+        }
+        .apply(&original),
+        Err(OpError::VariableNameTaken {
+            name: "anio".into()
+        })
+    );
+    assert_eq!(
+        Op::RemoveVariable {
+            name: "nadie".into()
+        }
+        .apply(&original),
+        Err(OpError::VariableNotFound {
+            name: "nadie".into()
+        })
+    );
+    assert_eq!(
+        Op::SetVariable {
+            name: "nombre".into(),
+            value: "y".into()
+        }
+        .describe(),
+        "Cambiar la variable nombre"
+    );
+}

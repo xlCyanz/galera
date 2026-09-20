@@ -92,7 +92,27 @@ path: string, } | { "op": "remove_asset",
 /**
  * La clave.
  */
-key: string, } | { "op": "set_title", 
+key: string, } | { "op": "set_variable", 
+/**
+ * Su nombre.
+ */
+name: string, 
+/**
+ * Su valor nuevo.
+ */
+value: string, } | { "op": "remove_variable", 
+/**
+ * Su nombre.
+ */
+name: string, } | { "op": "rename_variable", 
+/**
+ * El nombre de ahora.
+ */
+from: string, 
+/**
+ * El nombre nuevo.
+ */
+to: string, } | { "op": "set_title", 
 /**
  * El título nuevo, sin espacios sobrantes a los lados.
  */
