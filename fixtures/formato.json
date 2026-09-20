@@ -17,7 +17,11 @@
             { "text": "revisado", "underline": true },
             { "text": " y " },
             { "text": "aprobado", "color": "#B4161B" },
-            { "text": ".", "bold": true, "italic": true, "underline": true, "color": "#1A7F4B" }
+            { "text": ".", "bold": true, "italic": true, "underline": true, "color": "#1A7F4B" },
+            { "text": " Más en " },
+            { "text": "la web", "link": "https://typst.app/docs", "underline": true, "color": "#2563EB" },
+            { "text": " o escribe a " },
+            { "text": "la cooperativa", "link": "mailto:hola@example.com" }
           ],
           "style": { "font": "Inter", "size": 14, "color": "#1F2733", "align": "left", "leading": 0.65 } },
         { "id": "saltos", "type": "text", "x": 20, "y": 40, "w": 170, "h": null,

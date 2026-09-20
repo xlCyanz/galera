@@ -37,6 +37,7 @@ pub mod validate;
 
 pub use validate::{
     Location, Problem, ValidationError, ValidationErrors, is_valid_color, is_valid_id,
+    is_valid_link,
 };
 
 /// Un documento completo de Galera.
@@ -524,6 +525,11 @@ pub struct Run {
     /// Color del tramo, `#RRGGBB` o `#RRGGBBAA`. Sin él, el del bloque.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub color: Option<String>,
+
+    /// A dónde lleva el tramo, si es un enlace. Solo `http://`, `https://`
+    /// y `mailto:` (ver [`is_valid_link`](crate::model::is_valid_link)).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub link: Option<String>,
 }
 
 impl Run {
@@ -535,6 +541,7 @@ impl Run {
             italic: false,
             underline: false,
             color: None,
+            link: None,
         }
     }
 }

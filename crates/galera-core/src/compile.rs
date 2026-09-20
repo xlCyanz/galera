@@ -295,6 +295,42 @@ mod tests {
         document
     }
 
+    /// El criterio de la tarea: un tramo con enlace llega al PDF como
+    /// enlace de verdad, con su destino.
+    #[test]
+    fn a_link_reaches_the_pdf() {
+        let dir = project_dir();
+        let document = Document::from_json_str(
+            r##"{
+              "version": 1,
+              "meta": { "title": "Enlace" },
+              "fonts": ["fonts/LibertinusSerif-Regular.otf"],
+              "pages": [{ "id": "p1", "size": { "width": 100, "height": 50, "unit": "mm" },
+                          "elements": [
+                            { "id": "t1", "type": "text", "x": 10, "y": 10, "w": 80, "h": null,
+                              "content": [
+                                { "text": "Ver " },
+                                { "text": "la web", "link": "https://typst.app/docs" }
+                              ],
+                              "style": { "font": "Libertinus Serif", "size": 12,
+                                         "color": "#1F2733", "align": "left", "leading": 0.65 } }
+                          ] }]
+            }"##,
+        )
+        .expect("es un documento");
+
+        let pdf = compile(&document, &open(&dir))
+            .expect("compila")
+            .to_pdf()
+            .expect("se exporta");
+        let text = String::from_utf8_lossy(&pdf);
+        assert!(
+            text.contains("https://typst.app/docs"),
+            "el destino tiene que estar en el PDF"
+        );
+        assert!(text.contains("/URI"), "y como acción de enlace");
+    }
+
     /// Borrar todo el texto de un bloque (`ops::text`) lo deja sin tramos,
     /// y eso tiene que seguir compilando: un marco vacío.
     #[test]

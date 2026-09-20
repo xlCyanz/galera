@@ -90,6 +90,12 @@ pub enum Problem {
         /// El valor que tenía.
         value: f64,
     },
+    /// Un enlace no lleva a la web ni al correo.
+    InvalidLink {
+        /// El destino tal como está en el JSON.
+        value: String,
+    },
+
     /// Un color no tiene forma de color hexadecimal.
     InvalidColor {
         /// Qué color, como se llama en el JSON.
@@ -120,6 +126,10 @@ impl fmt::Display for Problem {
             Problem::Negative { field, value } => {
                 write!(f, "{field} no puede ser negativo, y es {value}")
             }
+            Problem::InvalidLink { value } => write!(
+                f,
+                "el enlace {value:?} no vale: solo http://, https:// y mailto:"
+            ),
             Problem::InvalidColor { field, value } => write!(
                 f,
                 "{field} = {value:?} no es un color: se espera #RGB, #RGBA, #RRGGBB o #RRGGBBAA"
@@ -221,6 +231,22 @@ pub fn is_valid_color(value: &str) -> bool {
     matches!(digits.len(), 3 | 4 | 6 | 8) && digits.chars().all(|c| c.is_ascii_hexdigit())
 }
 
+/// ¿Es un destino de enlace aceptable?
+///
+/// Solo la web y el correo: `http://`, `https://` y `mailto:`. Nada de
+/// `javascript:` ni `file:`, que en un lector de PDF no son ir a una página
+/// sino hacer algo en el ordenador de quien lo abre. Un documento de Galera
+/// es lo que se ve, no lo que hace (principio 6).
+///
+/// Tampoco se aceptan espacios ni caracteres de control: el destino acaba
+/// dentro de una cadena de Typst y en el PDF.
+pub fn is_valid_link(value: &str) -> bool {
+    let known = ["http://", "https://", "mailto:"]
+        .iter()
+        .any(|scheme| value.len() > scheme.len() && value.starts_with(scheme));
+    known && !value.chars().any(|c| c.is_whitespace() || c.is_control())
+}
+
 impl Document {
     /// Comprueba todo lo que se puede saber del documento sin leer archivos.
     ///
@@ -281,6 +307,16 @@ impl Document {
                         report.color("style.color", &style.color, at);
                         for run in content {
                             report.optional_color("content.color", run.color.as_deref(), at);
+                            if let Some(link) = &run.link
+                                && !is_valid_link(link)
+                            {
+                                report.push(
+                                    at(),
+                                    Problem::InvalidLink {
+                                        value: link.clone(),
+                                    },
+                                );
+                            }
                         }
                     }
                     Element::Image { asset, .. } => {

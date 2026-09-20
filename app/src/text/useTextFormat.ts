@@ -9,7 +9,7 @@
  * Sin nada seleccionado no hace nada: el formato se aplica a un tramo, y el
  * de lo que se escriba a continuación es el del tramo de su izquierda.
  */
-import { applyOp } from "../commands";
+import { applyOp, errorMessage } from "../commands";
 import { useShortcut } from "../hooks/useShortcuts";
 import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
@@ -17,18 +17,27 @@ import type { Format } from "../types/ops";
 import { formatOf, toggle } from "./format";
 import { textOf } from "./change";
 
-/** Aplica un cambio de formato a lo que haya seleccionado. */
-export function applyFormat(change: Format): void {
+/**
+ * Aplica un cambio de formato a lo que haya seleccionado.
+ *
+ * Devuelve lo que diga el núcleo si no lo acepta —un enlace que no lleva a
+ * la web, por ejemplo—, para poder decirlo; y `null` si salió bien o si no
+ * había nada seleccionado.
+ */
+export async function applyFormat(change: Format): Promise<string | null> {
   const { element, start, end } = useEditingStore.getState();
   if (element === null || start === end) {
-    return;
+    return null;
   }
   const [from, to] = start <= end ? [start, end] : [end, start];
-  void applyOp({ op: "format_text", id: element, from, to, format: change })
-    .then((applied) => useDocumentStore.getState().applyEdit(applied))
-    .catch(() => {
-      // Si el núcleo no lo acepta, el texto se queda como estaba.
-    });
+  try {
+    const applied = await applyOp({ op: "format_text", id: element, from, to, format: change });
+    useDocumentStore.getState().applyEdit(applied);
+    return null;
+  } catch (reason: unknown) {
+    // El texto se queda como estaba.
+    return errorMessage(reason);
+  }
 }
 
 /** Registra ⌘B, ⌘I y ⌘U mientras haya un texto abierto. */
@@ -47,7 +56,7 @@ export function useTextFormat(): void {
       if (found === undefined || found.type !== "text") {
         return false;
       }
-      applyFormat(toggle(formatOf(found.content, start, end), what));
+      void applyFormat(toggle(formatOf(found.content, start, end), what));
       return true;
     });
   }

@@ -570,6 +570,21 @@ body {
   font-weight: 600;
 }
 
+.format-link {
+  width: 12rem;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid var(--panel-border, #cbd5e0);
+  border-radius: 4px;
+  font: inherit;
+}
+
+.format-problem {
+  max-width: 16rem;
+  margin: 0 0 0 0.35rem;
+  color: #c53030;
+  font-size: 0.8rem;
+}
+
 /* Cada botón se ve como lo que aplica. */
 .format-button[aria-label="Negrita"] {
   font-weight: 700;

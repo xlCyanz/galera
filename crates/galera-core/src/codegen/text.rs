@@ -42,8 +42,9 @@
 //!
 //! Cada tramo se envuelve en el marcado que le toca, de dentro afuera:
 //! `emph` para la cursiva, `strong` para la negrita, `underline` para el
-//! subrayado y `text(fill: …)` para el color. Un tramo sin formato se
-//! escribe tal cual, sin envoltorio.
+//! subrayado, `text(fill: …)` para el color y `link(…)` para el destino,
+//! que va por fuera de todo. Un tramo sin formato se escribe tal cual, sin
+//! envoltorio.
 //!
 //! ```typst
 //! Informe #strong[anual] de #text(fill: rgb("#B4161B"))[#emph[2026]]
@@ -57,7 +58,7 @@
 //! El texto sigue pasando por `escape_into` tramo a trozo: el formato no es
 //! una vía para colar marcado (principio 6).
 
-use crate::model::{Align, ElementBox, Run, TextStyle};
+use crate::model::{Align, ElementBox, Run, TextStyle, is_valid_link};
 
 use super::{CodegenError, color, escape_into, millimeters, number, typst_string};
 
@@ -164,6 +165,16 @@ fn emit_run(piece: &str, run: &Run, out: &mut String) -> Result<(), CodegenError
     }
     if let Some(value) = &run.color {
         wrapped = format!("#text(fill: {})[{wrapped}]", color(value)?);
+    }
+    // El enlace, lo último: envuelve a todo lo demás, y su destino va como
+    // cadena de Typst, no como marcado.
+    if let Some(target) = &run.link {
+        if !is_valid_link(target) {
+            return Err(CodegenError::InvalidLink {
+                value: target.clone(),
+            });
+        }
+        wrapped = format!("#link({})[{wrapped}]", typst_string(target));
     }
 
     out.push_str(&wrapped);
@@ -427,6 +438,84 @@ mod tests {
                  "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##,
         );
         assert!(typst.contains(r"[#strong[\#let x = 1]]"), "{typst}");
+    }
+
+    /// El criterio de la tarea: un tramo con enlace se envuelve en
+    /// `link(…)`, con el destino como cadena de Typst, no como marcado.
+    #[test]
+    fn a_run_with_a_link_becomes_a_link() {
+        let typst = generate_with(
+            r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                 "content": [ { "text": "la web", "link": "https://typst.app" } ],
+                 "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##,
+        );
+        assert!(
+            typst.contains(r#"[#link("https://typst.app")[la web]]"#),
+            "{typst}"
+        );
+    }
+
+    /// El destino va escapado como cadena: ni comillas ni barras pueden
+    /// cerrarla y escribir código detrás.
+    #[test]
+    fn the_target_of_a_link_cannot_break_out_of_its_string() {
+        let typst = generate_with(
+            r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                 "content": [ { "text": "raro", "link": "https://example.com/a\"b\\c" } ],
+                 "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##,
+        );
+        assert!(
+            typst.contains(r#"#link("https://example.com/a\"b\\c")[raro]"#),
+            "{typst}"
+        );
+    }
+
+    /// El enlace envuelve al resto del formato, no al revés.
+    #[test]
+    fn a_link_wraps_the_rest_of_the_format() {
+        let typst = generate_with(
+            r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                 "content": [ { "text": "aquí", "bold": true, "link": "https://example.com" } ],
+                 "style": { "font": "Inter", "size": 12, "color": "#000000" } }"##,
+        );
+        assert!(
+            typst.contains(r#"[#link("https://example.com")[#strong[aquí]]]"#),
+            "{typst}"
+        );
+    }
+
+    /// Un destino que no lleva a la web ni al correo no se escribe: en un
+    /// lector de PDF, `javascript:` no es ir a una página.
+    #[test]
+    fn a_link_that_is_not_web_or_mail_is_refused() {
+        for target in [
+            "javascript:alert(1)",
+            "file:///etc/passwd",
+            "https://con espacio.com",
+            "https://",
+        ] {
+            let json = format!(
+                r##"{{
+                  "version": 1,
+                  "meta": {{ "title": "Texto" }},
+                  "pages": [{{
+                    "id": "p1",
+                    "size": {{ "width": 210, "height": 297, "unit": "mm" }},
+                    "elements": [
+                      {{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                         "content": [ {{ "text": "texto", "link": {} }} ],
+                         "style": {{ "font": "Inter", "size": 12, "color": "#000000" }} }}
+                    ]
+                  }}]
+                }}"##,
+                serde_json::to_string(target).expect("serializa")
+            );
+            let document = Document::from_json_str(&json).expect("el documento debe deserializar");
+            assert!(
+                document.validate().is_err(),
+                "{target:?} no tendría que valer"
+            );
+        }
     }
 
     /// Un color que no es un color no se escribe: se rechaza el documento.

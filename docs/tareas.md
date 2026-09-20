@@ -134,7 +134,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F4-06** — Dibujar el cursor a partir de las posiciones de glifos | [#60](https://github.com/xlCyanz/galera/issues/60) | #59, #56 |
 | ✅ | **F4-07** — Selección de texto con clic y arrastre | [#61](https://github.com/xlCyanz/galera/issues/61) | #60 |
 | ✅ | **F4-08** — Formato: negrita, cursiva, subrayado y color | [#62](https://github.com/xlCyanz/galera/issues/62) | #57, #61 |
-| ⬜ | **F4-09** — Enlaces y listas | [#63](https://github.com/xlCyanz/galera/issues/63) | #62 |
+| 🟡 | **F4-09** — Enlaces y listas (los enlaces, hechos; las listas, [#174](https://github.com/xlCyanz/galera/issues/174)) | [#63](https://github.com/xlCyanz/galera/issues/63) | #62 |
 | ⬜ | **F4-10** — Aviso de desbordamiento en cajas de altura fija | [#64](https://github.com/xlCyanz/galera/issues/64) | #59, #7 |
 | ⬜ | **F4-11** — Banco de rendimiento: menos de 50 ms por tecla | [#65](https://github.com/xlCyanz/galera/issues/65) | #58, #60 |
 | ⬜ | **F4-12** — Prueba de fidelidad: cortes de línea idénticos al PDF | [#66](https://github.com/xlCyanz/galera/issues/66) | #59, #12 |

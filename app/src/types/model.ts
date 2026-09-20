@@ -514,7 +514,12 @@ underline: boolean,
 /**
  * Color del tramo, `#RRGGBB` o `#RRGGBBAA`. Sin él, el del bloque.
  */
-color?: string | null, };
+color?: string | null, 
+/**
+ * A dónde lleva el tramo, si es un enlace. Solo `http://`, `https://`
+ * y `mailto:` (ver [`is_valid_link`](crate::model::is_valid_link)).
+ */
+link?: string | null, };
 
 /**
  * Trazo de un borde o de una línea.

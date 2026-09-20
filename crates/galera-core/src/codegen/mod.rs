@@ -108,6 +108,16 @@ pub enum CodegenError {
         value: String,
     },
 
+    /// Un enlace no lleva a la web ni al correo.
+    ///
+    /// El destino acaba en el PDF como una acción del lector: aceptar
+    /// cualquier esquema dejaría escribir `javascript:` ahí.
+    #[error("el enlace {value:?} no vale: solo http://, https:// y mailto:")]
+    InvalidLink {
+        /// El destino tal como venía en el documento.
+        value: String,
+    },
+
     /// Una imagen se refiere a una clave que no está en `assets`.
     #[error("la imagen {element_id:?} usa el recurso {key:?}, que no está declarado en assets")]
     UnknownAsset {
