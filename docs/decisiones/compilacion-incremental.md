@@ -52,6 +52,10 @@ compatible con el texto que fluye de la Fase 7 ni con la numeración.
 
 ## Medido
 
+Las cifras de una tecla, con el camino entero y su percentil 95, están en
+[rendimiento.md](../rendimiento.md). Lo de aquí es el desglose que llevó a
+esta decisión.
+
 `cargo bench -p galera-core`, con el binario optimizado, en un Apple M4 con
 rustc 1.97.0. Una tecla al final de la última página; se mide el camino
 entero —generar el código, compilar y dibujar todas las páginas—, mediana de

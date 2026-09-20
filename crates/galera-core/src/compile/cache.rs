@@ -282,8 +282,8 @@ mod tests {
         }
     }
 
-    /// Lo que tarda cada tecla de una tanda: compilar y dibujar las
-    /// páginas, que es lo que hace la app.
+    /// Lo que tarda cada tecla de una tanda: el camino entero de la app,
+    /// el mismo que mide `benches/compile.rs`.
     fn typing(compiler: &mut Compiler, document: &mut Document, keys: usize) -> Vec<Duration> {
         ('a'..)
             .take(keys)
@@ -292,6 +292,8 @@ mod tests {
                 let started = Instant::now();
                 let compiled = compiler.compile(document).expect("compila");
                 compiler.page_svgs(&compiled);
+                compiled.layout();
+                compiled.glyphs(document, "t5");
                 started.elapsed()
             })
             .collect()
