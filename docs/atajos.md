@@ -32,6 +32,19 @@ En macOS el modificador es ⌘; en Windows y Linux, Ctrl.
 | Mover 1 mm hacia arriba | `↑` | `↑` |
 | Mover 1 mm hacia abajo | `↓` | `↓` |
 
+### Escribiendo en un texto
+
+Doble clic en un bloque de texto entra a escribirlo. Mientras dura, las
+teclas van al texto y no a las herramientas:
+
+- Las flechas mueven el cursor, no el elemento. `↑` y `↓` van por las líneas
+  **que decidió Typst** —no por las del campo, que tiene otro ancho— y
+  conservan la columna de la que se salió.
+- `⌘A`, inicio, fin y `⌥←` / `⌥→` hacen dentro del texto lo que hacen en
+  cualquier campo del sistema.
+- `Esc` sale de escribir. `⌘Z` deshace el documento, no el campo: cada
+  cambio del texto ya es un paso del historial.
+
 ### Herramientas
 
 | Qué hace | macOS | Windows y Linux |

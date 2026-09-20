@@ -16,6 +16,7 @@ import { HIT_TOLERANCE_PX } from "../canvas/useSelection";
 import { type CanvasTransform, toDocument } from "../canvas/transform";
 import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
+import { byteIndex } from "./caret";
 import { textOf } from "./change";
 
 /**
@@ -47,7 +48,9 @@ export function useTextEditing(
           return;
         }
         useDocumentStore.getState().select(id);
-        useEditingStore.getState().edit(id, textOf(element.content).length);
+        // El cursor entra al final, contado en bytes como el núcleo.
+        const text = textOf(element.content);
+        useEditingStore.getState().edit(id, byteIndex(text, text.length));
       })
       .catch(() => {
         // Sin respuesta del núcleo no se entra a escribir.

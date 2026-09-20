@@ -534,6 +534,35 @@ body {
 }
 
 /* El aviso de que falta una fuente para crear un texto. */
+/* El cursor de texto, colocado con lo que dice Typst
+   (`text/Cursor.tsx`). La capa se pone sobre la caja del elemento y gira
+   con él; el cursor va dentro, en coordenadas de la caja. */
+.text-cursor-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.text-cursor {
+  position: absolute;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ruler-pointer);
+  animation: text-cursor-blink 1.06s step-end infinite;
+}
+
+@keyframes text-cursor-blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
 /* El campo que recibe el teclado al escribir en un texto
    (`text/HiddenInput.tsx`). No se ve, pero está en el árbol de
    accesibilidad y puede tener el foco: sin foco no hay IME. */

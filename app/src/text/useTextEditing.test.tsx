@@ -96,7 +96,13 @@ beforeEach(() => {
   });
 
   found = null;
-  mockIPC((command) => (command === "element_at" ? found : null));
+  mockIPC((command) => {
+    if (command === "element_at") {
+      return found;
+    }
+    // Sin compilación no hay glifos.
+    return command === "glyphs" ? [] : null;
+  });
 
   useDocumentStore.setState(useDocumentStore.getInitialState(), true);
   useLayoutStore.setState(useLayoutStore.getInitialState(), true);

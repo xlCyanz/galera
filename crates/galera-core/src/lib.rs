@@ -65,6 +65,7 @@ pub use error::{Diagnostic, GaleraError, Result, Severity};
 pub use fonts::{
     ImportFontError, ImportedFont, default_text_style, font_users, import_font, sample_document,
 };
+pub use layout::glyphs::{Glyph, glyphs};
 pub use layout::{LayoutBox, MmRect, layout};
 pub use model::{
     Align, DEFAULT_PARAGRAPH_SPACING, Dash, Document, Element, ElementBox, Layer, Meta, Page,

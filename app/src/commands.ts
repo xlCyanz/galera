@@ -20,7 +20,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 import type { Diagnostic } from "./types/diagnostic";
-import type { LayoutBox } from "./types/layout";
+import type { Glyph, LayoutBox } from "./types/layout";
 import type { Document, TextStyle } from "./types/model";
 import type { Op } from "./types/ops";
 
@@ -281,6 +281,17 @@ export interface CompilationFailed {
   diagnostics: Diagnostic[];
   /** Por qué falló. */
   error: CommandError;
+}
+
+/**
+ * Dónde quedó cada glifo de un bloque de texto, en mm de la página y sin
+ * girar, según la última compilación buena: la que se está viendo.
+ *
+ * Sale vacío si todavía no hay nada compilado, si el elemento no existe o
+ * si no es un bloque de texto.
+ */
+export function glyphs(id: string): Promise<Glyph[]> {
+  return invoke<Glyph[]>("glyphs", { id });
 }
 
 /**
