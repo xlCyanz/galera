@@ -18,6 +18,7 @@ use galera_core::{Document, Project, Severity, codegen, compile};
 const FIXTURES: &[&str] = &[
     "capas",
     "codigo",
+    "denso",
     "elipse",
     "escape",
     "formato",

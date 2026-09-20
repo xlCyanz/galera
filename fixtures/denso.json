@@ -1,0 +1,266 @@
+{
+  "version": 1,
+  "meta": {
+    "title": "Documento denso"
+  },
+  "fonts": [
+    "fonts/Inter-Regular.ttf"
+  ],
+  "pages": [
+    {
+      "id": "p1",
+      "size": {
+        "width": 210,
+        "height": 297,
+        "unit": "mm"
+      },
+      "elements": [
+        {
+          "id": "titulo-1",
+          "type": "text",
+          "x": 20,
+          "y": 20,
+          "w": 170,
+          "h": null,
+          "content": [
+            {
+              "text": "Sección 1",
+              "bold": true
+            }
+          ],
+          "style": {
+            "font": "Inter",
+            "size": 18,
+            "color": "#1F2733",
+            "align": "left",
+            "leading": 0.65
+          }
+        },
+        {
+          "id": "cuerpo-1",
+          "type": "text",
+          "x": 20,
+          "y": 35,
+          "w": 170,
+          "h": null,
+          "content": [
+            {
+              "text": "Informe anual, página 1\n\nLa cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía."
+            }
+          ],
+          "style": {
+            "font": "Inter",
+            "size": 11,
+            "color": "#1F2733",
+            "align": "justify",
+            "leading": 0.65
+          }
+        }
+      ]
+    },
+    {
+      "id": "p2",
+      "size": {
+        "width": 210,
+        "height": 297,
+        "unit": "mm"
+      },
+      "elements": [
+        {
+          "id": "titulo-2",
+          "type": "text",
+          "x": 20,
+          "y": 20,
+          "w": 170,
+          "h": null,
+          "content": [
+            {
+              "text": "Sección 2",
+              "bold": true
+            }
+          ],
+          "style": {
+            "font": "Inter",
+            "size": 18,
+            "color": "#1F2733",
+            "align": "left",
+            "leading": 0.65
+          }
+        },
+        {
+          "id": "cuerpo-2",
+          "type": "text",
+          "x": 20,
+          "y": 35,
+          "w": 170,
+          "h": null,
+          "content": [
+            {
+              "text": "Informe anual, página 2\n\nLa cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía."
+            }
+          ],
+          "style": {
+            "font": "Inter",
+            "size": 11,
+            "color": "#1F2733",
+            "align": "justify",
+            "leading": 0.65
+          }
+        }
+      ]
+    },
+    {
+      "id": "p3",
+      "size": {
+        "width": 210,
+        "height": 297,
+        "unit": "mm"
+      },
+      "elements": [
+        {
+          "id": "titulo-3",
+          "type": "text",
+          "x": 20,
+          "y": 20,
+          "w": 170,
+          "h": null,
+          "content": [
+            {
+              "text": "Sección 3",
+              "bold": true
+            }
+          ],
+          "style": {
+            "font": "Inter",
+            "size": 18,
+            "color": "#1F2733",
+            "align": "left",
+            "leading": 0.65
+          }
+        },
+        {
+          "id": "cuerpo-3",
+          "type": "text",
+          "x": 20,
+          "y": 35,
+          "w": 170,
+          "h": null,
+          "content": [
+            {
+              "text": "Informe anual, página 3\n\nLa cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía."
+            }
+          ],
+          "style": {
+            "font": "Inter",
+            "size": 11,
+            "color": "#1F2733",
+            "align": "justify",
+            "leading": 0.65
+          }
+        }
+      ]
+    },
+    {
+      "id": "p4",
+      "size": {
+        "width": 210,
+        "height": 297,
+        "unit": "mm"
+      },
+      "elements": [
+        {
+          "id": "titulo-4",
+          "type": "text",
+          "x": 20,
+          "y": 20,
+          "w": 170,
+          "h": null,
+          "content": [
+            {
+              "text": "Sección 4",
+              "bold": true
+            }
+          ],
+          "style": {
+            "font": "Inter",
+            "size": 18,
+            "color": "#1F2733",
+            "align": "left",
+            "leading": 0.65
+          }
+        },
+        {
+          "id": "cuerpo-4",
+          "type": "text",
+          "x": 20,
+          "y": 35,
+          "w": 170,
+          "h": null,
+          "content": [
+            {
+              "text": "Informe anual, página 4\n\nLa cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía."
+            }
+          ],
+          "style": {
+            "font": "Inter",
+            "size": 11,
+            "color": "#1F2733",
+            "align": "justify",
+            "leading": 0.65
+          }
+        }
+      ]
+    },
+    {
+      "id": "p5",
+      "size": {
+        "width": 210,
+        "height": 297,
+        "unit": "mm"
+      },
+      "elements": [
+        {
+          "id": "titulo-5",
+          "type": "text",
+          "x": 20,
+          "y": 20,
+          "w": 170,
+          "h": null,
+          "content": [
+            {
+              "text": "Sección 5",
+              "bold": true
+            }
+          ],
+          "style": {
+            "font": "Inter",
+            "size": 18,
+            "color": "#1F2733",
+            "align": "left",
+            "leading": 0.65
+          }
+        },
+        {
+          "id": "cuerpo-5",
+          "type": "text",
+          "x": 20,
+          "y": 35,
+          "w": 170,
+          "h": null,
+          "content": [
+            {
+              "text": "Informe anual, página 5\n\nLa cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía. La cooperativa agrícola del este cerró el ejercicio con una cosecha de trigo y cebada por encima de la media de los últimos cinco años, con un rendimiento medio de cuatro mil kilos por hectárea en secano y de seis mil en regadío. El consejo rector aprobó repartir el excedente entre las socias en proporción a las entregas, reservar una parte para renovar la maquinaria de la planta de selección y dejar el resto en el fondo de garantía."
+            }
+          ],
+          "style": {
+            "font": "Inter",
+            "size": 11,
+            "color": "#1F2733",
+            "align": "justify",
+            "leading": 0.65
+          }
+        }
+      ]
+    }
+  ]
+}

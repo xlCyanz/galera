@@ -10,12 +10,12 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 1 — Ventana y vista fiel](https://github.com/xlCyanz/galera/milestone/2) | 13 | 12 |
 | [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 11 |
 | [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 13 |
-| [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 9 |
+| [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 10 |
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 0 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **61** |
+| **Total** | **95** | **62** |
 
 
 ---
@@ -136,7 +136,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F4-08** — Formato: negrita, cursiva, subrayado y color | [#62](https://github.com/xlCyanz/galera/issues/62) | #57, #61 |
 | ✅ | **F4-09** — Enlaces y listas ([#174](https://github.com/xlCyanz/galera/issues/174) acabó las listas) | [#63](https://github.com/xlCyanz/galera/issues/63) | #62 |
 | ✅ | **F4-10** — Aviso de desbordamiento en cajas de altura fija | [#64](https://github.com/xlCyanz/galera/issues/64) | #59, #7 |
-| ⬜ | **F4-11** — Banco de rendimiento: menos de 50 ms por tecla | [#65](https://github.com/xlCyanz/galera/issues/65) | #58, #60 |
+| ✅ | **F4-11** — Banco de rendimiento: menos de 50 ms por tecla ([medidas](rendimiento.md)) | [#65](https://github.com/xlCyanz/galera/issues/65) | #58, #60 |
 | ⬜ | **F4-12** — Prueba de fidelidad: cortes de línea idénticos al PDF | [#66](https://github.com/xlCyanz/galera/issues/66) | #59, #12 |
 
 ---
