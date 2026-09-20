@@ -201,6 +201,50 @@ fn collect(
     Ok(())
 }
 
+/// Crea un proyecto vacío en `dest`, como carpeta o como `.galera` según su
+/// nombre ([`ProjectFormat::of`]).
+///
+/// Una carpeta nueva nace con `fonts/` y `assets/` dentro, para que se vea
+/// dónde van las fuentes y las imágenes. Un `.galera` solo lleva el
+/// documento: las carpetas aparecen al añadir la primera fuente o imagen.
+///
+/// # Errores
+///
+/// [`ArchiveError::AlreadyThere`] si ya hay algo ahí, o los de escribir.
+pub fn create(dest: &Path, document: &Document) -> Result<(), ArchiveError> {
+    match ProjectFormat::of(dest) {
+        ProjectFormat::Folder => {
+            let empty = match fs::read_dir(dest) {
+                Ok(mut entries) => entries.next().is_none(),
+                Err(error) if error.kind() == io::ErrorKind::NotFound => true,
+                Err(error) => return Err(io("leer", dest)(error)),
+            };
+            if !empty {
+                return Err(ArchiveError::AlreadyThere {
+                    path: dest.to_owned(),
+                });
+            }
+            for dir in PACKED_DIRS {
+                let path = dest.join(dir);
+                fs::create_dir_all(&path).map_err(io("escribir", &path))?;
+            }
+            save_document(dest, document)
+        }
+        ProjectFormat::Archive => {
+            if dest.exists() {
+                return Err(ArchiveError::AlreadyThere {
+                    path: dest.to_owned(),
+                });
+            }
+            let mut files = BTreeMap::new();
+            files.insert(DOCUMENT_FILE.to_owned(), document_bytes(document)?);
+            let zip = zip::write(&files);
+            fs::write(dest, &zip).map_err(io("escribir", dest))?;
+            Ok(())
+        }
+    }
+}
+
 /// Guarda el proyecto como **carpeta** en `dest`: copia `fonts/` y
 /// `assets/` y escribe el documento.
 ///
@@ -473,5 +517,55 @@ mod tests {
             save_as_folder(&project, &document, &dest),
             Err(ArchiveError::AlreadyThere { .. })
         ));
+    }
+
+    #[test]
+    fn a_new_project_is_a_page_ready_to_edit() {
+        let dir = TempDir::new().expect("carpeta temporal");
+        let folder = dir.path().join("nuevo");
+        create(&folder, &Document::new("Sin título")).expect("se crea");
+        assert!(folder.join("fonts").is_dir());
+        assert!(folder.join("assets").is_dir());
+
+        let opened = open(&folder).expect("el proyecto nuevo abre");
+        assert_eq!(opened.document.meta.title, "Sin título");
+        assert_eq!(opened.document.pages.len(), 1);
+        assert!(opened.document.pages[0].elements.is_empty());
+        let size = &opened.document.pages[0].size;
+        assert_eq!((size.width, size.height), (210.0, 297.0));
+        crate::compile(&opened.document, &opened.project).expect("compila");
+
+        // Y como `.galera`, se extrae y abre igual.
+        let archive = dir.path().join("nuevo.galera");
+        create(&archive, &Document::new("Otro")).expect("se crea");
+        let unpacked = dir.path().join("extraido");
+        unpack(&archive, &unpacked).expect("se extrae");
+        assert_eq!(open(&unpacked).expect("abre").document.meta.title, "Otro");
+    }
+
+    #[test]
+    fn a_new_project_never_overwrites_what_is_there() {
+        let dir = TempDir::new().expect("carpeta temporal");
+        let taken = dir.path().join("ocupada");
+        fs::create_dir(&taken).expect("carpeta");
+        fs::write(taken.join("mío.txt"), b"no me toques").expect("archivo");
+        assert!(matches!(
+            create(&taken, &Document::new("x")),
+            Err(ArchiveError::AlreadyThere { .. })
+        ));
+        assert!(taken.join("mío.txt").exists());
+
+        let archive = dir.path().join("ya.galera");
+        fs::write(&archive, b"algo").expect("archivo");
+        assert!(matches!(
+            create(&archive, &Document::new("x")),
+            Err(ArchiveError::AlreadyThere { .. })
+        ));
+        assert_eq!(fs::read(&archive).expect("existe"), b"algo");
+
+        // Una carpeta vacía sí vale.
+        let empty = dir.path().join("vacía");
+        fs::create_dir(&empty).expect("carpeta");
+        create(&empty, &Document::new("x")).expect("se crea");
     }
 }

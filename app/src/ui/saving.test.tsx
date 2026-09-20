@@ -35,6 +35,8 @@ let calls: Array<{ command: string; args: unknown }>;
 let chosenFolder: string | null;
 let chosenFile: string | null;
 let savedAs: SavedProject | null;
+/** Lo que contesta el backend al crear un proyecto. */
+let created: OpenedProject | null;
 let saveFails: string | null;
 
 beforeEach(async () => {
@@ -42,6 +44,7 @@ beforeEach(async () => {
   chosenFolder = folder.root;
   chosenFile = fromArchive.archive;
   savedAs = null;
+  created = { root: "/proyectos/nuevo", revision: 1, archive: null, document: document_ };
   saveFails = null;
   mockIPC((command, args) => {
     calls.push({ command, args });
@@ -70,6 +73,9 @@ beforeEach(async () => {
     }
     if (command === "save_project_as") {
       return savedAs;
+    }
+    if (command === "new_project") {
+      return created;
     }
     return null;
   });
@@ -185,5 +191,34 @@ describe("guardar y abrir", () => {
     await click("Guardar");
     expect(container.textContent).toContain("ya existe");
     expect(useDocumentStore.getState().dirty).toBe(true);
+  });
+});
+
+describe("proyecto nuevo", () => {
+  it("crea una carpeta o un .galera y lo deja abierto", async () => {
+    await click("Nuevo proyecto…");
+    expect(calls.find((c) => c.command === "new_project")?.args).toEqual({ archive: false });
+    expect(useDocumentStore.getState().root).toBe("/proyectos/nuevo");
+    expect(useDocumentStore.getState().dirty).toBe(false);
+    expect(container.textContent).toContain("Proyecto nuevo en /proyectos/nuevo");
+
+    created = { root: "/tmp/galera/nuevo-1", revision: 1, archive: "/proyectos/nuevo.galera", document: document_ };
+    await click("Nuevo .galera…");
+    expect(calls.filter((c) => c.command === "new_project").at(-1)?.args).toEqual({ archive: true });
+    expect(useDocumentStore.getState().archive).toBe("/proyectos/nuevo.galera");
+  });
+
+  it("⌘N crea uno nuevo, y si se cancela el diálogo no pasa nada", async () => {
+    await act(async () => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "n", ctrlKey: true, cancelable: true }));
+    });
+    await settle();
+    expect(calls.filter((c) => c.command === "new_project")).toHaveLength(1);
+
+    // Cancelar el diálogo no cambia lo que hay abierto.
+    created = null;
+    await click("Nuevo proyecto…");
+    expect(calls.filter((c) => c.command === "new_project")).toHaveLength(2);
+    expect(useDocumentStore.getState().root).toBe("/proyectos/nuevo");
   });
 });
