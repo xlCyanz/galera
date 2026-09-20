@@ -165,6 +165,7 @@ cargo test -p galera-core export_bindings
 ### Pruebas
 
 - Núcleo: `cargo test`, con instantáneas `insta` para el código Typst generado.
+- Fidelidad: `cargo test -p galera-core --test fidelidad` comprueba que los cortes de línea y las posiciones que usa el editor son los del PDF exportado. Lee el PDF por fuera, sin usar el código que prueba.
 - Cualquier corrección de bug entra con una prueba que falle antes del arreglo.
 - Interfaz: Vitest para lógica pura; no se testean píxeles.
 - Rendimiento: `cargo bench -p galera-core` mide lo que cuesta una tecla —el comando de texto, la compilación, el SVG, las cajas y los glifos— desde cero y con el compilador guardado. Los resultados se anotan en [docs/rendimiento.md](docs/rendimiento.md), con el documento y la máquina usados; el desglose por piezas está en [docs/decisiones/compilacion-incremental.md](docs/decisiones/compilacion-incremental.md).
