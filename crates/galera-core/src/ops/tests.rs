@@ -1589,3 +1589,204 @@ fn ungrouping_a_turned_group_turns_its_children() {
     // 90° en sentido horario, va a (60,25); su caja es 30×40.
     assert_eq!(child.position(), (45.0, 5.0));
 }
+
+/// Una página vacía, como la que se añade desde la interfaz.
+fn blank(id: &str) -> crate::model::Page {
+    crate::model::Page {
+        id: id.to_owned(),
+        size: crate::model::PageSize {
+            width: 210.0,
+            height: 297.0,
+            unit: crate::model::Unit::Mm,
+        },
+        elements: Vec::new(),
+    }
+}
+
+/// El criterio de la tarea: añadir, y deshacerlo.
+#[test]
+fn a_page_is_added_where_it_is_asked_for() {
+    let document = apply_and_check_undo(&Op::InsertPage {
+        index: Some(1),
+        page: blank("p3"),
+    });
+    assert_eq!(
+        document
+            .pages
+            .iter()
+            .map(|page| page.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["p1", "p3", "p2"]
+    );
+
+    // Sin posición, al final.
+    let last = apply_and_check_undo(&Op::InsertPage {
+        index: None,
+        page: blank("p3"),
+    });
+    assert_eq!(last.pages.last().map(|page| page.id.as_str()), Some("p3"));
+}
+
+/// El criterio de la tarea: quitar una página se deshace con todo dentro.
+#[test]
+fn removing_a_page_takes_its_elements_and_undo_brings_them_back() {
+    let document = apply_and_check_undo(&Op::RemovePage { id: "p1".into() });
+    assert_eq!(document.pages.len(), 1);
+    assert_eq!(document.pages[0].id, "p2");
+    assert!(document.element("r1").is_none(), "se fue con su página");
+}
+
+/// El criterio de la tarea: la última página no se quita.
+#[test]
+fn the_last_page_cannot_be_removed() {
+    let one = Op::RemovePage { id: "p2".into() }
+        .apply(&document())
+        .expect("quedan dos")
+        .document;
+    let error = Op::RemovePage { id: "p1".into() }
+        .apply(&one)
+        .expect_err("es la última");
+    assert!(matches!(error, OpError::NotApplicable { .. }));
+
+    let ghost = Op::RemovePage {
+        id: "fantasma".into(),
+    }
+    .apply(&document())
+    .expect_err("no existe");
+    assert!(matches!(ghost, OpError::PageNotFound { .. }));
+}
+
+/// El criterio de la tarea: duplicar da ids nuevos a todos los elementos.
+#[test]
+fn duplicating_a_page_gives_every_element_a_new_id() {
+    let document = apply_and_check_undo(&Op::DuplicatePage {
+        id: "p1".into(),
+        to: "p3".into(),
+    });
+
+    // La copia va justo detrás de la original.
+    assert_eq!(
+        document
+            .pages
+            .iter()
+            .map(|page| page.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["p1", "p3", "p2"]
+    );
+    let copy = &document.pages[1];
+    assert_eq!(
+        copy.elements.iter().map(Element::id).collect::<Vec<_>>(),
+        vec!["r1-2", "l1-2", "t1-2", "i1-2", "c1-2"]
+    );
+    // Y los originales siguen donde estaban, con su id.
+    assert_eq!(
+        document.pages[0]
+            .elements
+            .iter()
+            .map(Element::id)
+            .collect::<Vec<_>>(),
+        vec!["r1", "l1", "t1", "i1", "c1"]
+    );
+    // Lo copiado es lo mismo salvo el id: misma posición, mismo contenido.
+    let original = element(&document, "r1").base().expect("caja").clone();
+    let copied = element(&document, "r1-2").base().expect("caja").clone();
+    assert_eq!(
+        (copied.x, copied.y, copied.w),
+        (original.x, original.y, original.w)
+    );
+}
+
+/// Copiar dos veces no repite ids, y la segunda copia cuenta desde la raíz.
+#[test]
+fn duplicating_twice_keeps_looking_for_free_ids() {
+    let once = Op::DuplicatePage {
+        id: "p1".into(),
+        to: "p3".into(),
+    }
+    .apply(&document())
+    .expect("se copia");
+    let twice = Op::DuplicatePage {
+        id: "p3".into(),
+        to: "p4".into(),
+    }
+    .apply(&once.document)
+    .expect("se copia otra vez");
+
+    let ids: Vec<&str> = twice.document.pages[2]
+        .elements
+        .iter()
+        .map(Element::id)
+        .collect();
+    assert_eq!(ids, vec!["r1-3", "l1-3", "t1-3", "i1-3", "c1-3"]);
+}
+
+#[test]
+fn duplicating_a_page_renames_what_is_inside_a_group_too() {
+    let grouped = Op::Group {
+        ids: vec!["r1".into(), "l1".into()],
+        id: "g1".into(),
+        rect: crate::layout::MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 100.0,
+            h: 100.0,
+        },
+    }
+    .apply(&document())
+    .expect("se agrupa");
+
+    let copied = Op::DuplicatePage {
+        id: "p1".into(),
+        to: "p3".into(),
+    }
+    .apply(&grouped.document)
+    .expect("se copia");
+
+    assert!(copied.document.element("g1-2").is_some());
+    assert!(copied.document.element("r1-2").is_some(), "el hijo también");
+    assert_eq!(
+        copied
+            .document
+            .element("g1-2")
+            .expect("está")
+            .children()
+            .len(),
+        2
+    );
+}
+
+#[test]
+fn a_page_with_an_id_that_is_taken_does_not_go_in() {
+    let taken = Op::InsertPage {
+        index: None,
+        page: blank("p1"),
+    }
+    .apply(&document())
+    .expect_err("ese id ya es de otra");
+    assert!(matches!(taken, OpError::DuplicateId { .. }));
+
+    let copy = Op::DuplicatePage {
+        id: "p1".into(),
+        to: "p2".into(),
+    }
+    .apply(&document())
+    .expect_err("ese id ya es de otra");
+    assert!(matches!(copy, OpError::DuplicateId { .. }));
+}
+
+/// El criterio de la tarea: reordenar, y deshacerlo.
+#[test]
+fn pages_are_reordered_and_undo_puts_them_back() {
+    let document = apply_and_check_undo(&Op::ReorderPage {
+        id: "p1".into(),
+        index: 1,
+    });
+    assert_eq!(
+        document
+            .pages
+            .iter()
+            .map(|page| page.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["p2", "p1"]
+    );
+}
