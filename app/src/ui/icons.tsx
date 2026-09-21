@@ -36,6 +36,13 @@ export const ELEMENT_ICONS: Record<Element["type"], ReactNode> = {
   line: TOOL_ICONS.line,
   image: TOOL_ICONS.image,
   code: TOOL_ICONS.code,
+  // Una tabla: una rejilla de dos por dos.
+  table: (
+    <>
+      <rect x="3.5" y="4.5" width="13" height="11" rx="0.5" />
+      <path d="M3.5 8h13M10 4.5v11" />
+    </>
+  ),
   // Una zona de un texto que fluye: una caja con la flecha de continuar.
   flow: (
     <>

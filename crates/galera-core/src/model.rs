@@ -33,10 +33,12 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 pub mod flow;
+pub mod table;
 pub mod text;
 pub mod validate;
 
 pub use flow::Flow;
+pub use table::{ColumnWidth, TableCell, TableRow};
 pub use validate::{
     Location, Problem, ValidationError, ValidationErrors, is_valid_color, is_valid_id,
     is_valid_link,
@@ -490,6 +492,37 @@ pub enum Element {
         source: String,
     },
 
+    /// Una tabla: una rejilla de celdas con texto.
+    ///
+    /// El ancho de cada columna puede ser fijo, automático o una parte de
+    /// lo que sobre; el alto de cada fila lo mide Typst con su contenido
+    /// (principio 3). Ver [`table`].
+    Table {
+        /// Identidad, posición y tamaño.
+        #[serde(flatten)]
+        base: ElementBox,
+        /// Las columnas, de izquierda a derecha, con lo que mide cada una.
+        #[serde(default)]
+        columns: Vec<ColumnWidth>,
+        /// Las filas, de arriba abajo, con sus celdas.
+        #[serde(default)]
+        rows: Vec<TableRow>,
+        /// Estilo del texto de las celdas que no digan otro.
+        style: TextStyle,
+        /// Borde de las celdas, o `None` para una tabla sin líneas.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(test, ts(optional))]
+        stroke: Option<Stroke>,
+        /// Lo que se deja entre el borde de una celda y su texto, en
+        /// milímetros.
+        #[serde(default = "default_inset")]
+        inset: f64,
+        /// Color de fondo de las celdas que no digan otro.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(test, ts(optional))]
+        fill: Option<String>,
+    },
+
     /// Una zona de un texto que fluye.
     ///
     /// No lleva texto: lo lleva su flujo ([`Flow`]), que pasa por esta zona
@@ -537,6 +570,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Table { base, .. }
             | Element::Flow { base, .. }
             | Element::Group { base, .. } => &base.id,
             Element::Line { id, .. } => id,
@@ -553,6 +587,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Table { base, .. }
             | Element::Flow { base, .. }
             | Element::Group { base, .. } => base.id = id,
             Element::Line { id: current, .. } => *current = id,
@@ -568,6 +603,7 @@ impl Element {
             Element::Line { .. } => "line",
             Element::Image { .. } => "image",
             Element::Code { .. } => "code",
+            Element::Table { .. } => "table",
             Element::Flow { .. } => "flow",
             Element::Group { .. } => "group",
         }
@@ -583,6 +619,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Table { base, .. }
             | Element::Flow { base, .. }
             | Element::Group { base, .. } => (base.x, base.y),
             Element::Line { x, y, .. } => (*x, *y),
@@ -597,6 +634,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Table { base, .. }
             | Element::Flow { base, .. }
             | Element::Group { base, .. } => &base.layer,
             Element::Line { layer, .. } => layer,
@@ -611,6 +649,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Table { base, .. }
             | Element::Flow { base, .. }
             | Element::Group { base, .. } => &mut base.layer,
             Element::Line { layer, .. } => layer,
@@ -625,6 +664,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Table { base, .. }
             | Element::Flow { base, .. }
             | Element::Group { base, .. } => base.rotation,
             Element::Line { rotation, .. } => *rotation,
@@ -639,6 +679,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Table { base, .. }
             | Element::Flow { base, .. }
             | Element::Group { base, .. } => Some(base),
             Element::Line { .. } => None,
@@ -653,6 +694,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Table { base, .. }
             | Element::Flow { base, .. }
             | Element::Group { base, .. } => Some(base),
             Element::Line { .. } => None,
@@ -792,6 +834,14 @@ pub struct TextStyle {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(test, ts(optional))]
     pub spacing: Option<f64>,
+}
+
+/// Lo que se deja entre el borde de una celda y su texto si la tabla no
+/// dice otra cosa, en milímetros.
+pub const DEFAULT_TABLE_INSET: f64 = 1.5;
+
+fn default_inset() -> f64 {
+    DEFAULT_TABLE_INSET
 }
 
 /// El espacio entre párrafos que usa Typst si el estilo no dice otro, como

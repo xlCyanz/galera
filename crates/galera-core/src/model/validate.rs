@@ -32,7 +32,8 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
 use crate::model::{
-    Document, Element, ElementBox, MAX_GROUP_DEPTH, MAX_LIST_LEVEL, Stroke, VariableKind, flow,
+    ColumnWidth, Document, Element, ElementBox, MAX_GROUP_DEPTH, MAX_LIST_LEVEL, Stroke,
+    VariableKind, flow, table,
 };
 use crate::variables;
 
@@ -145,6 +146,25 @@ pub enum Problem {
         value: String,
     },
 
+    /// Una fila de una tabla no cabe en sus columnas.
+    RowTooWide {
+        /// Qué fila, contando desde 0.
+        row: usize,
+        /// Cuántas columnas ocuparían sus celdas.
+        needed: usize,
+        /// Cuántas tiene la tabla.
+        columns: usize,
+    },
+    /// Una celda dice no ocupar ninguna columna o ninguna fila.
+    EmptySpan {
+        /// Qué fila, contando desde 0.
+        row: usize,
+        /// Qué celda de esa fila, contando desde 0.
+        cell: usize,
+    },
+    /// Una tabla no tiene ninguna columna: no hay dónde poner las celdas.
+    NoColumns,
+
     /// Una zona nombra un flujo que el documento no declara.
     UnknownFlow {
         /// El nombre que no se encontró.
@@ -229,6 +249,19 @@ impl fmt::Display for Problem {
                 f,
                 "el enlace {value:?} no vale: solo http://, https:// y mailto:"
             ),
+            Problem::RowTooWide {
+                row,
+                needed,
+                columns,
+            } => write!(
+                f,
+                "la fila {row} ocupa {needed} columnas y la tabla tiene {columns}"
+            ),
+            Problem::EmptySpan { row, cell } => write!(
+                f,
+                "la celda {cell} de la fila {row} dice no ocupar ninguna columna o ninguna fila"
+            ),
+            Problem::NoColumns => write!(f, "la tabla no tiene ninguna columna"),
             Problem::UnknownFlow { name } => write!(
                 f,
                 "es una zona del flujo {name:?}, que no está declarado en flows"
@@ -485,6 +518,80 @@ impl Document {
                             }
                         }
                     }
+                    Element::Table {
+                        columns,
+                        rows,
+                        style,
+                        stroke,
+                        inset,
+                        fill,
+                        ..
+                    } => {
+                        report.positive("style.size", style.size, at);
+                        report.color("style.color", &style.color, at);
+                        report.optional_stroke(stroke.as_ref(), at);
+                        report.not_negative("inset", *inset, at);
+                        report.optional_color("fill", fill.as_deref(), at);
+
+                        if columns.is_empty() && !rows.is_empty() {
+                            report.push(at(), Problem::NoColumns);
+                        }
+                        for width in columns {
+                            match width {
+                                ColumnWidth::Fixed { mm } => report.positive("columns.mm", *mm, at),
+                                ColumnWidth::Fraction { fr } => {
+                                    report.positive("columns.fr", *fr, at);
+                                }
+                                ColumnWidth::Auto => {}
+                            }
+                        }
+
+                        for row in rows {
+                            report.optional_color("rows.fill", row.fill.as_deref(), at);
+                            for cell in &row.cells {
+                                report.optional_color("cells.fill", cell.fill.as_deref(), at);
+                                for run in &cell.content {
+                                    report.optional_color(
+                                        "content.color",
+                                        run.color.as_deref(),
+                                        at,
+                                    );
+                                    if let Some(link) = &run.link
+                                        && !is_valid_link(link)
+                                    {
+                                        report.push(
+                                            at(),
+                                            Problem::InvalidLink {
+                                                value: link.clone(),
+                                            },
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        // Y que la rejilla cuadre: las celdas combinadas
+                        // tapan las de debajo, así que no basta con contar.
+                        for problem in table::check_grid(columns.len(), rows) {
+                            report.push(
+                                at(),
+                                match problem {
+                                    table::GridProblem::RowTooWide {
+                                        row,
+                                        needed,
+                                        columns,
+                                    } => Problem::RowTooWide {
+                                        row,
+                                        needed,
+                                        columns,
+                                    },
+                                    table::GridProblem::EmptySpan { row, cell } => {
+                                        Problem::EmptySpan { row, cell }
+                                    }
+                                },
+                            );
+                        }
+                    }
                     Element::Image { asset, .. } => {
                         if !self.assets.contains_key(asset) {
                             report.push(at(), Problem::UnknownAsset { key: asset.clone() });
@@ -575,6 +682,18 @@ impl Document {
         }
 
         for element in self.elements() {
+            if let Element::Table { style, .. } = element
+                && !available.contains(&style.font.to_lowercase())
+            {
+                report.push(
+                    Location::Element {
+                        id: element.id().to_owned(),
+                    },
+                    Problem::UnknownFontFamily {
+                        family: style.font.clone(),
+                    },
+                );
+            }
             if let Element::Text { style, .. } = element
                 && !available.contains(&style.font.to_lowercase())
             {
@@ -709,6 +828,118 @@ mod tests {
 
     const RECT: &str = r##"{ "id": "r1", "type": "rect", "x": 0, "y": 0, "w": 10, "h": 10,
                               "fill": "#000000", "stroke": null }"##;
+
+    /// Una tabla con las columnas y las filas que se pasen.
+    fn table(columns: &str, rows: &str) -> Document {
+        with_elements(&format!(
+            r##"{{ "id": "tb1", "type": "table", "x": 0, "y": 0, "w": 100, "h": null,
+                   "columns": [{columns}], "rows": [{rows}],
+                   "style": {{ "font": "Inter", "size": 10, "color": "#000000" }} }}"##
+        ))
+    }
+
+    const CELL: &str = r##"{ "content": [{ "text": "x" }] }"##;
+
+    /// El criterio de la tarea: una tabla normal vale.
+    #[test]
+    fn a_table_that_fits_its_columns_is_valid() {
+        let rows = format!(r##"{{ "cells": [{CELL}, {CELL}] }}"##);
+        assert!(
+            problems(&table(
+                r#"{ "width": "auto" }, { "width": "fraction", "fr": 1 }"#,
+                &rows
+            ))
+            .is_empty()
+        );
+    }
+
+    #[test]
+    fn a_row_that_does_not_fit_is_reported() {
+        let rows = format!(r##"{{ "cells": [{CELL}, {CELL}, {CELL}] }}"##);
+        assert_eq!(
+            problems(&table(r#"{ "width": "auto" }, { "width": "auto" }"#, &rows)),
+            vec![element(
+                "tb1",
+                Problem::RowTooWide {
+                    row: 0,
+                    needed: 3,
+                    columns: 2
+                }
+            )]
+        );
+    }
+
+    #[test]
+    fn a_cell_that_occupies_nothing_is_reported() {
+        let rows = r##"{ "cells": [{ "content": [], "colspan": 0 }] }"##;
+        assert_eq!(
+            problems(&table(r#"{ "width": "auto" }"#, rows)),
+            vec![element("tb1", Problem::EmptySpan { row: 0, cell: 0 })]
+        );
+    }
+
+    #[test]
+    fn a_table_without_columns_has_nowhere_to_put_its_cells() {
+        let rows = format!(r##"{{ "cells": [{CELL}] }}"##);
+        let found = problems(&table("", &rows));
+        assert!(
+            found
+                .iter()
+                .any(|error| error.problem == Problem::NoColumns),
+            "{found:#?}"
+        );
+    }
+
+    #[test]
+    fn a_column_that_measures_nothing_is_reported() {
+        let rows = format!(r##"{{ "cells": [{CELL}] }}"##);
+        assert_eq!(
+            problems(&table(r#"{ "width": "fixed", "mm": 0 }"#, &rows)),
+            vec![element(
+                "tb1",
+                Problem::NotPositive {
+                    field: "columns.mm",
+                    value: 0.0
+                }
+            )]
+        );
+    }
+
+    #[test]
+    fn the_colors_of_a_table_are_checked_everywhere() {
+        let rows = r##"{ "fill": "azul", "cells": [{ "content": [{ "text": "x" }], "fill": "#GG0000" }] }"##;
+        let found = problems(&table(r#"{ "width": "auto" }"#, rows));
+
+        assert_eq!(found.len(), 2, "{found:#?}");
+        assert!(found.iter().any(|error| matches!(
+            &error.problem,
+            Problem::InvalidColor { field, .. } if *field == "rows.fill"
+        )));
+        assert!(found.iter().any(|error| matches!(
+            &error.problem,
+            Problem::InvalidColor { field, .. } if *field == "cells.fill"
+        )));
+    }
+
+    /// La familia de una tabla también tiene que venir en las fuentes del
+    /// proyecto (principio 4).
+    #[test]
+    fn the_font_family_of_a_table_has_to_be_there() {
+        let rows = format!(r##"{{ "cells": [{CELL}] }}"##);
+        let errors = table(r#"{ "width": "auto" }"#, &rows)
+            .validate_font_families(&["Otra".to_owned()])
+            .expect_err("Inter no está");
+
+        assert_eq!(
+            errors.0,
+            vec![element(
+                "tb1",
+                Problem::UnknownFontFamily {
+                    family: "Inter".to_owned()
+                }
+            )]
+        );
+    }
 
     const TEXT: &str = r##"{ "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
                               "content": [{ "text": "x" }],

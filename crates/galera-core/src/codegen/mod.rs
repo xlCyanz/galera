@@ -63,6 +63,7 @@ pub(crate) use flow::{PieceSpan as FlowPieceSpan, piece_spans as flow_piece_span
 mod group;
 mod image;
 mod shapes;
+mod table;
 mod text;
 
 pub use escape::{escape, escape_into};
@@ -362,6 +363,25 @@ fn emit_body(element: &Element, document: &Document, out: &mut String) -> Result
             code::emit_code(base, source, out);
             Ok(())
         }
+        Element::Table {
+            base,
+            columns,
+            rows,
+            style,
+            stroke,
+            inset,
+            fill,
+        } => table::emit_table(
+            base,
+            columns,
+            rows,
+            style,
+            stroke.as_ref(),
+            *inset,
+            fill.as_deref(),
+            document,
+            out,
+        ),
         Element::Flow { base, flow: name } => {
             flow::emit_zone(base, name, document, out);
             Ok(())

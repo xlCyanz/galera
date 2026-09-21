@@ -1,0 +1,12 @@
+---
+source: crates/galera-core/tests/fixtures.rs
+expression: code
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set document(title: "Tabla")
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 20mm, dy: 30mm)[#block(width: 170mm, { set text(font: "Inter", size: 10pt, fill: rgb("#1F2733")); set par(leading: 0.65em); table(columns: (auto, 1fr, 2fr, 25mm, ), inset: 2mm, stroke: 0.2mm + rgb("#94A3B8"), align: left, table.cell(colspan: 4, fill: rgb("#1e40af"), align: center)[#strong[Ventas de T1 2026]], table.cell(fill: rgb("#F1F5F9"))[Mes], table.cell(fill: rgb("#F1F5F9"))[Zona], table.cell(fill: rgb("#F1F5F9"))[Responsable], table.cell(fill: rgb("#F1F5F9"), align: right)[Total], table.cell(rowspan: 2)[Enero], [Norte], [Ana \*Ruiz\*], table.cell(align: right)[12 500], [Sur], [Luis \#Prado], table.cell(align: right)[9 750], table.cell(colspan: 3)[#strong[Total]], table.cell(fill: rgb("#FEF3C7"), align: right)[#strong[22 250]]) })] <el-tb1>
+#place(top + left, dx: 20mm, dy: 120mm)[#block(width: 100mm, { set text(font: "Inter", size: 10pt, fill: rgb("#1F2733")); set par(leading: 0.65em); table(columns: (auto, auto, ), inset: 0mm, stroke: none, align: left, [Sin bordes], [ni relleno]) })] <el-tb2>
