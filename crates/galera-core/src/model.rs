@@ -73,8 +73,11 @@ pub struct Document {
     pub assets: BTreeMap<String, String>,
 
     /// Variables del documento, para plantillas y generación en lote.
+    ///
+    /// Se usan dentro de los textos y de los bloques de código escribiendo
+    /// `{{nombre}}` (ver [`crate::variables`]).
     #[serde(default)]
-    pub variables: BTreeMap<String, String>,
+    pub variables: BTreeMap<String, Variable>,
 
     /// Páginas, en el orden en que se imprimen.
     #[serde(default)]
@@ -215,6 +218,84 @@ impl Unit {
             Unit::In => value * 25.4,
             Unit::Pt => value * 25.4 / 72.0,
         }
+    }
+}
+
+/// Una variable del documento: de qué es y qué vale.
+///
+/// Se escribe como `{ "kind": "date", "value": "2026-09-21" }`, y se **lee**
+/// también como el valor a secas —`"nombre": "Cooperativa"`—, que es como
+/// se escribían antes de tener tipo: los documentos que ya existían siguen
+/// abriéndose, y al guardarlos quedan con su tipo escrito.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
+pub struct Variable {
+    /// De qué es: texto, número, fecha o imagen.
+    pub kind: VariableKind,
+    /// Su valor, tal cual se escribió.
+    pub value: String,
+}
+
+impl Variable {
+    /// Una variable de texto con ese valor.
+    pub fn text(value: impl Into<String>) -> Self {
+        Variable {
+            kind: VariableKind::Text,
+            value: value.into(),
+        }
+    }
+}
+
+impl<T: Into<String>> From<T> for Variable {
+    fn from(value: T) -> Self {
+        Variable::text(value)
+    }
+}
+
+/// De qué es una variable.
+///
+/// El tipo no cambia cómo se sustituye —siempre es texto lo que entra en el
+/// documento—, pero sí **qué valores se admiten**: una fecha que no existe o
+/// una imagen que no está son problemas del documento, y se dicen al
+/// validarlo.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "model.ts"))]
+#[serde(rename_all = "lowercase")]
+pub enum VariableKind {
+    /// Cualquier texto.
+    #[default]
+    Text,
+    /// Un número, con punto decimal: `-12.5`.
+    Number,
+    /// Una fecha del calendario, `AAAA-MM-DD`.
+    Date,
+    /// La clave de un recurso del documento.
+    Image,
+}
+
+/// Cómo se escribe una variable en el JSON: a secas si es texto, y con su
+/// tipo si no.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum VariableRepr {
+    Plain(String),
+    Typed {
+        #[serde(default)]
+        kind: VariableKind,
+        #[serde(default)]
+        value: String,
+    },
+}
+
+impl<'de> Deserialize<'de> for Variable {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(match VariableRepr::deserialize(deserializer)? {
+            VariableRepr::Plain(value) => Variable::text(value),
+            VariableRepr::Typed { kind, value } => Variable { kind, value },
+        })
     }
 }
 
@@ -811,7 +892,10 @@ mod tests {
             ["fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf"]
         );
         assert_eq!(doc.assets["logo"], "assets/logo.png");
-        assert_eq!(doc.variables["nombre"], "Cooperativa Agrícola del Este");
+        assert_eq!(
+            doc.variables["nombre"].value,
+            "Cooperativa Agrícola del Este"
+        );
 
         let page = &doc.pages[0];
         assert_eq!(page.id, "p1");

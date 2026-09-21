@@ -450,6 +450,22 @@ export function checkCode(source: string): Promise<CodeError[]> {
   return invoke<CodeError[]>("check_code", { source });
 }
 
+/** Lo que se sabe de una variable, además de su valor. */
+export interface VariableStatus {
+  /** Los elementos que la usan, por su id y en orden del documento. */
+  usedBy: string[];
+  /** Por qué su valor no vale para su tipo, o `null` si vale. */
+  invalid: string | null;
+}
+
+/**
+ * Dónde se usa una variable y si su valor vale para su tipo. Las dos cosas
+ * las decide el núcleo.
+ */
+export function variableStatus(name: string): Promise<VariableStatus> {
+  return invoke<VariableStatus>("variable_status", { name });
+}
+
 /** Un comando de edición aplicado, tal como lo devuelve `apply_op`. */
 export interface AppliedOp {
   /** La revisión con la que queda el documento; su compilación ya incluye el cambio. */

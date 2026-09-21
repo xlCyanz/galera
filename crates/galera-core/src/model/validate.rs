@@ -31,7 +31,10 @@ use std::fmt;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use crate::model::{Document, Element, ElementBox, MAX_GROUP_DEPTH, MAX_LIST_LEVEL, Stroke};
+use crate::model::{
+    Document, Element, ElementBox, MAX_GROUP_DEPTH, MAX_LIST_LEVEL, Stroke, VariableKind,
+};
+use crate::variables;
 
 /// El elemento y todo lo que lleva dentro, con a qué profundidad está cada
 /// uno: 0 el de la página, 1 el hijo de un grupo, y así.
@@ -57,6 +60,11 @@ pub enum Location {
         /// El id del elemento.
         id: String,
     },
+    /// En una variable del documento, por su nombre.
+    Variable {
+        /// El nombre de la variable.
+        name: String,
+    },
 }
 
 impl fmt::Display for Location {
@@ -64,6 +72,7 @@ impl fmt::Display for Location {
         match self {
             Location::Page { id } => write!(f, "página {id:?}"),
             Location::Element { id } => write!(f, "elemento {id:?}"),
+            Location::Variable { name } => write!(f, "variable {name:?}"),
         }
     }
 }
@@ -117,6 +126,13 @@ pub enum Problem {
         /// La profundidad a la que estaba el elemento.
         depth: usize,
     },
+    /// El valor de una variable no vale para su tipo.
+    InvalidVariable {
+        /// De qué es la variable.
+        expected: VariableKind,
+        /// El valor que tenía.
+        value: String,
+    },
     /// Un enlace no lleva a la web ni al correo.
     InvalidLink {
         /// El destino tal como está en el JSON.
@@ -165,6 +181,15 @@ impl fmt::Display for Problem {
                 f,
                 "un grupo no se puede anidar hasta el nivel {depth}: el máximo es {MAX_GROUP_DEPTH}"
             ),
+            Problem::InvalidVariable { expected, value } => {
+                let what = match expected {
+                    VariableKind::Text => "texto",
+                    VariableKind::Number => "un número",
+                    VariableKind::Date => "una fecha AAAA-MM-DD que exista",
+                    VariableKind::Image => "la clave de un recurso del documento",
+                };
+                write!(f, "{value:?} no vale: se espera {what}")
+            }
             Problem::InvalidLink { value } => write!(
                 f,
                 "el enlace {value:?} no vale: solo http://, https:// y mailto:"
@@ -302,6 +327,19 @@ impl Document {
     pub fn validate(&self) -> Result<(), ValidationErrors> {
         let mut report = Report::default();
         let mut seen_ids = HashSet::new();
+
+        // Las variables: su valor tiene que valer para su tipo.
+        for (name, variable) in &self.variables {
+            if variables::check(self, variable).is_err() {
+                report.push(
+                    Location::Variable { name: name.clone() },
+                    Problem::InvalidVariable {
+                        expected: variable.kind,
+                        value: variable.value.clone(),
+                    },
+                );
+            }
+        }
 
         for page in &self.pages {
             let at_page = || Location::Page {
@@ -855,5 +893,36 @@ mod tests {
             message,
             "el documento tiene 1 problema\n  - elemento \"r1\": w tiene que ser mayor que cero, y es -3"
         );
+    }
+
+    /// El criterio de la tarea: el valor tiene que valer para su tipo.
+    #[test]
+    fn a_variable_with_a_value_that_does_not_fit_its_kind_is_a_problem() {
+        let document = crate::model::Document::from_json_str(
+            r##"{
+              "version": 1,
+              "meta": { "title": "x" },
+              "variables": {
+                "fecha": { "kind": "date", "value": "2026-02-31" },
+                "total": { "kind": "number", "value": "doce" },
+                "sello": { "kind": "image", "value": "loquesea" },
+                "nombre": "lo que sea",
+                "vacia": { "kind": "number", "value": "" }
+              },
+              "pages": [ { "id": "p1", "size": { "width": 210, "height": 297 } } ]
+            }"##,
+        )
+        .expect("es un documento");
+
+        let errors = document.validate().expect_err("hay problemas");
+        let names: Vec<&str> = errors
+            .0
+            .iter()
+            .filter_map(|error| match &error.location {
+                Location::Variable { name } => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(names, vec!["fecha", "sello", "total"]);
     }
 }

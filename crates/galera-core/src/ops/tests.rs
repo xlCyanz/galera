@@ -836,11 +836,11 @@ fn variables_are_set_renamed_and_removed() {
     // Crear una nueva: deshacerla la quita.
     let created = Op::SetVariable {
         name: "anio".into(),
-        value: "2026".into(),
+        variable: "2026".into(),
     }
     .apply(&original)
     .expect("se aplica");
-    assert_eq!(created.document.variables["anio"], "2026");
+    assert_eq!(created.document.variables["anio"].value, "2026");
     assert_eq!(
         created.undo,
         Op::RemoveVariable {
@@ -859,7 +859,7 @@ fn variables_are_set_renamed_and_removed() {
     // Cambiar una que ya está: deshacerla devuelve el valor de antes.
     let changed = Op::SetVariable {
         name: "nombre".into(),
-        value: "Otra".into(),
+        variable: "Otra".into(),
     }
     .apply(&original)
     .expect("se aplica");
@@ -867,7 +867,7 @@ fn variables_are_set_renamed_and_removed() {
         changed.undo,
         Op::SetVariable {
             name: "nombre".into(),
-            value: "Cooperativa".into()
+            variable: "Cooperativa".into()
         }
     );
 
@@ -877,7 +877,7 @@ fn variables_are_set_renamed_and_removed() {
     }
     .apply(&original)
     .expect("se aplica");
-    assert_eq!(renamed.document.variables["empresa"], "Cooperativa");
+    assert_eq!(renamed.document.variables["empresa"].value, "Cooperativa");
     assert!(!renamed.document.variables.contains_key("nombre"));
     assert_eq!(
         renamed
@@ -913,7 +913,7 @@ fn a_variable_name_has_to_be_new_and_valid() {
     assert_eq!(
         Op::SetVariable {
             name: "con espacio".into(),
-            value: "x".into()
+            variable: "x".into()
         }
         .apply(&original),
         Err(OpError::InvalidVariableName {
@@ -942,7 +942,7 @@ fn a_variable_name_has_to_be_new_and_valid() {
     assert_eq!(
         Op::SetVariable {
             name: "nombre".into(),
-            value: "y".into()
+            variable: "y".into()
         }
         .describe(),
         "Cambiar la variable nombre"

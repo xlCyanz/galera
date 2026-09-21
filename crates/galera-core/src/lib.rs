@@ -21,6 +21,7 @@
 //! - [`ops`]: comandos de edición, cada uno con cómo deshacerlo, y el historial.
 //! - [`clipboard`]: copiar y pegar elementos, también de un documento a otro.
 //! - [`code`](mod@code): dónde está roto el código de un bloque, por líneas.
+//! - [`variables`]: las variables del documento, dónde se usan y qué admiten.
 //! - [`snap`](mod@snap): guías de alineación y ajuste al mover un elemento.
 //!
 //! # Principio que ordena todo lo demás
@@ -53,6 +54,7 @@ pub mod project;
 pub mod snap;
 #[cfg(test)]
 mod testing;
+pub mod variables;
 pub mod world;
 pub mod zip;
 
@@ -76,7 +78,8 @@ pub use layout::glyphs::{Glyph, glyphs};
 pub use layout::{LayoutBox, MmRect, layout, overflowing};
 pub use model::{
     Align, DEFAULT_PARAGRAPH_SPACING, Dash, Document, Element, ElementBox, Layer, Meta, Page,
-    PageSize, Run, Stroke, TextStyle, Unit, ValidationError, ValidationErrors,
+    PageSize, Run, Stroke, TextStyle, Unit, ValidationError, ValidationErrors, Variable,
+    VariableKind,
 };
 pub use open::{DOCUMENT_FILE, OpenError, Opened, open};
 pub use ops::history::History;

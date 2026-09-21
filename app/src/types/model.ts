@@ -44,8 +44,11 @@ fonts: Array<string>,
 assets: { [key in string]: string }, 
 /**
  * Variables del documento, para plantillas y generación en lote.
+ *
+ * Se usan dentro de los textos y de los bloques de código escribiendo
+ * `{{nombre}}` (ver [`crate::variables`]).
  */
-variables: { [key in string]: string }, 
+variables: { [key in string]: Variable }, 
 /**
  * Páginas, en el orden en que se imprimen.
  */
@@ -656,3 +659,31 @@ spacing?: number, };
  * Unidad de medida.
  */
 export type Unit = "mm" | "cm" | "in" | "pt";
+
+/**
+ * Una variable del documento: de qué es y qué vale.
+ *
+ * Se escribe como `{ "kind": "date", "value": "2026-09-21" }`, y se **lee**
+ * también como el valor a secas —`"nombre": "Cooperativa"`—, que es como
+ * se escribían antes de tener tipo: los documentos que ya existían siguen
+ * abriéndose, y al guardarlos quedan con su tipo escrito.
+ */
+export type Variable = { 
+/**
+ * De qué es: texto, número, fecha o imagen.
+ */
+kind: VariableKind, 
+/**
+ * Su valor, tal cual se escribió.
+ */
+value: string, };
+
+/**
+ * De qué es una variable.
+ *
+ * El tipo no cambia cómo se sustituye —siempre es texto lo que entra en el
+ * documento—, pero sí **qué valores se admiten**: una fecha que no existe o
+ * una imagen que no está son problemas del documento, y se dicen al
+ * validarlo.
+ */
+export type VariableKind = "text" | "number" | "date" | "image";

@@ -22,5 +22,6 @@ pub mod selection;
 pub mod session;
 pub mod snap;
 pub mod text;
+pub mod variables;
 
 pub use error::CommandError;

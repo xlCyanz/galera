@@ -1585,3 +1585,48 @@ body {
   color: #7f1d1d;
   font-size: 0.75rem;
 }
+
+/* Las variables, con su tipo y dónde se usan (`ui/VariablesPanel.tsx`). */
+.variable {
+  display: grid;
+  grid-template-columns: minmax(4rem, 1fr) auto minmax(4rem, 1fr) auto;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.variable-kind {
+  font-size: 0.75rem;
+}
+
+.variable-uses,
+.variable-invalid {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.7rem;
+}
+
+.variable-uses {
+  color: #64748b;
+}
+
+.variable-invalid {
+  color: #b91c1c;
+}
+
+.variable-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+  margin-bottom: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #f59e0b;
+  border-radius: 4px;
+  background: #fffbeb;
+  font-size: 0.75rem;
+}
+
+.variable-confirm p {
+  margin: 0;
+  width: 100%;
+}
