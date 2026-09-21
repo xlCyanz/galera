@@ -138,6 +138,7 @@ pub fn run() -> tauri::Result<()> {
             commands::ops::scale_group,
             commands::snap::snap,
             commands::text::glyphs,
+            commands::text::flow_glyphs,
             commands::ops::apply_op,
             commands::ops::undo,
             commands::ops::redo,

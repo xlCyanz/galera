@@ -26,6 +26,13 @@ to: number, };
  */
 export type Glyph = { 
 /**
+ * La página donde se dibujó, contando desde 0.
+ *
+ * Un bloque de texto está en una sola página, pero un texto que fluye
+ * pasa por zonas de varias (ver [`Compiled::flow_glyphs`]).
+ */
+page: number, 
+/**
  * Dónde empieza, en bytes, el texto que compone este glifo dentro del
  * texto del elemento (los tramos, uno detrás de otro).
  */

@@ -56,6 +56,11 @@ const SAME_LINE: Abs = Abs::raw(1e-9);
 #[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "layout.ts"))]
 pub struct Glyph {
+    /// La página donde se dibujó, contando desde 0.
+    ///
+    /// Un bloque de texto está en una sola página, pero un texto que fluye
+    /// pasa por zonas de varias (ver [`Compiled::flow_glyphs`]).
+    pub page: usize,
     /// Dónde empieza, en bytes, el texto que compone este glifo dentro del
     /// texto del elemento (los tramos, uno detrás de otro).
     pub text_index: usize,
@@ -96,11 +101,50 @@ impl Compiled {
             return Vec::new();
         };
 
-        let mut items = Vec::new();
-        for page in self.paged().pages() {
+        let mut glyphs = Vec::new();
+        for (number, page) in self.paged().pages().iter().enumerate() {
+            let mut items = Vec::new();
             text_items(&page.frame, id, &mut items);
+            glyphs.extend(place(number, &items, self.source(), &map));
         }
-        place(&items, self.source(), &map)
+        glyphs
+    }
+}
+
+impl Compiled {
+    /// Dónde quedó cada glifo del texto de un flujo, **de toda su cadena**,
+    /// en el orden en que se lee: primero los de su primera zona, después
+    /// los de la segunda, aunque estén en otra página.
+    ///
+    /// El índice de cada glifo es del texto del flujo entero, así que el
+    /// cursor cruza de una zona a la siguiente sin traducir nada, y `page`
+    /// dice en qué página quedó cada uno.
+    pub fn flow_glyphs(&self, document: &Document, flow: &str) -> Vec<Glyph> {
+        let Some(one) = document.flows.get(flow) else {
+            return Vec::new();
+        };
+        let Some(map) = TextMap::flow(self.source(), document, flow) else {
+            return Vec::new();
+        };
+
+        let mut glyphs = Vec::new();
+        let mut line = 0;
+        // Por zonas y en el orden de la cadena, no por páginas: el orden de
+        // lectura es el de la cadena, que puede ir hacia atrás.
+        for zone in &one.zones {
+            for (number, page) in self.paged().pages().iter().enumerate() {
+                let mut items = Vec::new();
+                text_items(&page.frame, zone, &mut items);
+                if items.is_empty() {
+                    continue;
+                }
+                let placed = place_from(number, line, &items, self.source(), &map);
+                line = placed.last().map_or(line, |glyph| glyph.line + 1);
+                glyphs.extend(placed);
+            }
+        }
+
+        glyphs
     }
 }
 
@@ -175,9 +219,21 @@ fn collect<'a>(frame: &'a Frame, offset: Point, out: &mut Vec<(Point, &'a TextIt
 /// medido. Los tramos que comparten línea base son la misma línea, aunque
 /// vengan en fuentes distintas: una palabra en japonés dentro de un párrafo
 /// se compone aparte, con la fuente que la cubra.
-fn place(items: &[(Point, &TextItem)], source: &Source, map: &TextMap) -> Vec<Glyph> {
+fn place(page: usize, items: &[(Point, &TextItem)], source: &Source, map: &TextMap) -> Vec<Glyph> {
+    place_from(page, 0, items, source, map)
+}
+
+/// Como [`place`], pero numerando las líneas desde `first`: las de una zona
+/// siguen a las de la zona anterior de la cadena.
+fn place_from(
+    page: usize,
+    first: usize,
+    items: &[(Point, &TextItem)],
+    source: &Source,
+    map: &TextMap,
+) -> Vec<Glyph> {
     let mut glyphs = Vec::new();
-    let mut line = 0;
+    let mut line = first;
     let mut previous: Option<Abs> = None;
 
     for (position, item) in items {
@@ -195,6 +251,7 @@ fn place(items: &[(Point, &TextItem)], source: &Source, map: &TextMap) -> Vec<Gl
             let advance = glyph.x_advance.at(item.size);
             if let Some(text_index) = source_offset(source, glyph).and_then(|at| map.index(at)) {
                 glyphs.push(Glyph {
+                    page,
                     text_index,
                     line,
                     x: x.to_mm(),
@@ -253,8 +310,110 @@ struct TextMap {
     indices: Vec<usize>,
 }
 
-/// Los saltos de línea que escribe el codegen.
+/// Los saltos de línea que escribe el codegen dentro de un bloque de texto.
 const BREAKS: [&str; 2] = ["#linebreak();", "#parbreak();"];
+
+/// Los que escribe dentro de una pieza de un flujo, donde no hacen falta
+/// los `;` que separan lo de un bloque.
+const PIECE_BREAKS: [&str; 2] = ["#linebreak()", "#parbreak()"];
+
+/// Lo que el codegen escribe antes del contenido de una pieza de un flujo.
+const OPENING: &str = "body: [";
+
+/// Y lo que escribe detrás.
+const CLOSING: &str = "]), ";
+
+/// Recorre el contenido de una pieza de un flujo junto a su texto.
+///
+/// Devuelve cuántos bytes del código ocupa —sin el `]` que la cierra— y, por
+/// cada uno, a qué posición del texto del flujo corresponde. `None` si el
+/// código y el texto no van de la mano, que sería un error del codegen o de
+/// este módulo.
+fn walk_piece(
+    code: &str,
+    piece: &crate::codegen::FlowPieceSpan,
+    variables: &std::collections::BTreeMap<String, crate::model::Variable>,
+) -> Option<(usize, Vec<usize>)> {
+    // La palabra va escapada y con su formato; el espacio de detrás se
+    // escribe como espacio o como salto, y apunta a donde empieza.
+    let word = &piece.text[..piece.word];
+    let (resolved, back) = crate::variables::substitute_with_map(word, variables);
+
+    let mut indices: Vec<usize> = Vec::new();
+    let mut rest = code;
+    let mut at = 0;
+    let mut open = 0usize;
+
+    loop {
+        if let Some(brk) = PIECE_BREAKS.iter().find(|brk| rest.starts_with(**brk)) {
+            indices.extend(std::iter::repeat_n(piece.word, brk.len()));
+            rest = &rest[brk.len()..];
+            continue;
+        }
+
+        if let Some(wrapper) = WRAPPERS.iter().find(|wrapper| rest.starts_with(**wrapper)) {
+            let count = if wrapper.ends_with('(') {
+                opening_bracket(rest)? + 1
+            } else {
+                wrapper.len()
+            };
+            indices.extend(std::iter::repeat_n(at, count));
+            rest = &rest[count..];
+            open += 1;
+            continue;
+        }
+
+        let character = rest.chars().next()?;
+        if character == ']' {
+            if open == 0 {
+                // Aquí acaba la pieza.
+                break;
+            }
+            indices.extend(std::iter::repeat_n(at, 1));
+            rest = &rest[1..];
+            open -= 1;
+            continue;
+        }
+
+        if character == ' ' && at >= resolved.len() {
+            // El espacio que separa esta pieza de la siguiente.
+            indices.push(piece.word);
+            rest = &rest[1..];
+            continue;
+        }
+
+        // Detrás de `\` va el carácter del documento, tal cual.
+        let escaped = character == '\\';
+        let character = if escaped {
+            rest[1..].chars().next()?
+        } else {
+            character
+        };
+        if !resolved[at..].starts_with(character) {
+            return None;
+        }
+
+        let width = character.len_utf8();
+        indices.extend(std::iter::repeat_n(at, width + usize::from(escaped)));
+        at += width;
+        rest = &rest[width + usize::from(escaped)..];
+    }
+
+    if at != resolved.len() {
+        return None;
+    }
+
+    // Las posiciones son del texto ya sustituido: se traducen al del
+    // documento, y se cuentan desde donde empieza la pieza.
+    for index in &mut indices {
+        if *index <= resolved.len() {
+            *index = back.get(*index).copied().unwrap_or(*index);
+        }
+        *index += piece.start;
+    }
+
+    Some((code.len() - rest.len(), indices))
+}
 
 /// Lo que el codegen escribe alrededor de un tramo con formato. Lo que va
 /// entre `[` y `]` sí es texto del documento; el envoltorio, no.
@@ -274,6 +433,48 @@ enum Open {
 }
 
 impl TextMap {
+    /// El mapa de un flujo: el arreglo de piezas que el codegen escribe en
+    /// el preámbulo (ver [`crate::codegen`]).
+    ///
+    /// El texto de un flujo no está donde se dibuja: las zonas componen
+    /// trozos de un arreglo, y los glifos apuntan **al arreglo**. Como el
+    /// arreglo está entero y seguido en el código, el mapa es el mismo tipo
+    /// que el de un bloque de texto: de posición en el código a posición en
+    /// el texto del modelo.
+    fn flow(source: &Source, document: &Document, name: &str) -> Option<Self> {
+        let index = document.flows.keys().position(|key| key == name)?;
+        let flow = document.flows.get(name)?;
+        let code = source.text();
+
+        let literal = code.find(&format!("#let galera-flow-{index}-pieces = ("))?;
+        let start = literal + code[literal..].find('(')? + 1;
+
+        let mut indices = Vec::new();
+        let mut rest = &code[start..];
+
+        for piece in crate::codegen::flow_piece_spans(flow) {
+            // Lo que abre la pieza —`(len: N, body: [`— no es texto del
+            // documento: apunta a donde empieza la pieza.
+            let opening = rest.find(OPENING)? + OPENING.len();
+            indices.extend(std::iter::repeat_n(piece.start, opening));
+            rest = &rest[opening..];
+
+            let (consumed, mapped) = walk_piece(rest, &piece, &document.variables)?;
+            indices.extend(mapped);
+            rest = &rest[consumed..];
+
+            // Y lo que la cierra, a donde acaba.
+            if !rest.starts_with(CLOSING) {
+                return None;
+            }
+            let end = piece.start + piece.text.len();
+            indices.extend(std::iter::repeat_n(end, CLOSING.len()));
+            rest = &rest[CLOSING.len()..];
+        }
+
+        Some(Self { start, indices })
+    }
+
     /// Recorre el contenido del elemento `id` en `source` junto a su `text`.
     /// `None` si el elemento no está en el código o si los dos no van de la
     /// mano, que sería un error del codegen o de este módulo.
@@ -828,5 +1029,130 @@ mod tests {
             .filter(|at| *at == chip)
             .collect();
         assert!(!drawn.is_empty(), "se ve en la página");
+    }
+}
+
+#[cfg(test)]
+mod flow_tests {
+    use super::*;
+    use crate::testing::{fixture, project};
+
+    /// El texto entero de un flujo, como lo guarda el documento.
+    fn text_of(document: &Document, name: &str) -> String {
+        document.flows[name]
+            .content
+            .iter()
+            .map(|run| run.text.as_str())
+            .collect()
+    }
+
+    fn glyphs_of(name: &str) -> (Document, Vec<Glyph>) {
+        let document = fixture("flujo");
+        let compiled = crate::compile(&document, &project()).expect("compila");
+        let found = compiled.flow_glyphs(&document, name);
+        (document, found)
+    }
+
+    /// El criterio de la tarea: el cursor cruza de una zona a la siguiente,
+    /// y para eso los glifos de toda la cadena vienen seguidos.
+    #[test]
+    fn the_glyphs_of_the_whole_chain_come_in_reading_order() {
+        let (document, found) = glyphs_of("cuerpo");
+        let text = text_of(&document, "cuerpo");
+
+        assert!(!found.is_empty());
+        // Los índices no retroceden: la cadena se lee en orden.
+        for pair in found.windows(2) {
+            assert!(
+                pair[1].text_index >= pair[0].text_index,
+                "{} después de {}",
+                pair[1].text_index,
+                pair[0].text_index
+            );
+        }
+        // Y apuntan dentro del texto del flujo.
+        assert!(found.iter().all(|glyph| glyph.text_index < text.len()));
+        assert_eq!(found[0].text_index, 0);
+    }
+
+    /// El criterio de la tarea: la selección puede abarcar varias páginas,
+    /// así que cada glifo dice en cuál quedó.
+    #[test]
+    fn the_glyphs_say_which_page_they_are_on() {
+        let (_, found) = glyphs_of("cuerpo");
+        let pages: Vec<usize> = {
+            let mut seen: Vec<usize> = found.iter().map(|glyph| glyph.page).collect();
+            seen.dedup();
+            seen
+        };
+
+        // La cadena del fixture pasa por dos zonas de la página 0 y una de
+        // la 1, en ese orden.
+        assert_eq!(pages, vec![0, 1], "{pages:?}");
+    }
+
+    /// Las líneas siguen contando de una zona a la siguiente: son las de un
+    /// texto, no las de tres.
+    #[test]
+    fn the_lines_keep_counting_across_zones() {
+        let (_, found) = glyphs_of("cuerpo");
+        let last_of_first_page = found
+            .iter()
+            .filter(|glyph| glyph.page == 0)
+            .map(|glyph| glyph.line)
+            .max()
+            .expect("hay glifos");
+        let first_of_second = found
+            .iter()
+            .find(|glyph| glyph.page == 1)
+            .expect("hay glifos en la segunda página");
+
+        assert!(
+            first_of_second.line > last_of_first_page,
+            "{} no sigue a {last_of_first_page}",
+            first_of_second.line
+        );
+    }
+
+    /// Lo que compone cada glifo tiene que ser el texto del documento, letra
+    /// por letra: si el mapa se desalineara, el cursor caería donde no es.
+    #[test]
+    fn every_glyph_points_at_what_it_draws() {
+        let (document, found) = glyphs_of("cuerpo");
+        let text = text_of(&document, "cuerpo");
+
+        // La primera palabra del texto, letra a letra.
+        let expected: Vec<char> = "La galera".chars().collect();
+        let drawn: Vec<char> = found
+            .iter()
+            .take(expected.len())
+            .map(|glyph| text[glyph.text_index..].chars().next().expect("hay letra"))
+            .collect();
+
+        assert_eq!(drawn, expected, "{:?}", &found[..expected.len()]);
+    }
+
+    /// Un tramo con formato dentro del flujo no desplaza el mapa: lo que
+    /// escribe el codegen alrededor no es texto del documento.
+    #[test]
+    fn a_bold_run_does_not_move_the_map() {
+        let (document, found) = glyphs_of("cuerpo");
+        let text = text_of(&document, "cuerpo");
+        let at = text
+            .find("De ahí viene el nombre")
+            .expect("está en el fixture");
+
+        let glyph = found
+            .iter()
+            .find(|glyph| glyph.text_index == at)
+            .unwrap_or_else(|| panic!("ningún glifo empieza en {at}"));
+        assert_eq!(text[glyph.text_index..].chars().next(), Some('D'));
+    }
+
+    #[test]
+    fn a_flow_that_is_not_there_has_no_glyphs() {
+        let (document, _) = glyphs_of("cuerpo");
+        let compiled = crate::compile(&document, &project()).expect("compila");
+        assert!(compiled.flow_glyphs(&document, "nada").is_empty());
     }
 }

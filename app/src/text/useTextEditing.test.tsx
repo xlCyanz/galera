@@ -82,6 +82,7 @@ const scene: Glyph[] = [0, 1, 2, 3, 6, 7, 8, 9, 10].map((text_index) => {
   const line = text_index < 6 ? 0 : 1;
   const column = line === 0 ? text_index : text_index - 6;
   return {
+    page: 0,
     text_index,
     line,
     x: 10 + column * 5,

@@ -32,6 +32,11 @@ export interface Caret {
   height: number;
   /** En qué línea de las que decidió Typst está. */
   line: number;
+  /**
+   * En qué página cayó. De un texto normal es la suya; de un flujo, la de
+   * la zona donde quedó esa parte del texto.
+   */
+  page: number;
 }
 
 const encoder = new TextEncoder();
@@ -77,7 +82,13 @@ export function caretAt(glyphs: readonly Glyph[], byte: number): Caret | null {
   // Delante de un glifo: en su borde izquierdo.
   const exact = glyphs.find((glyph) => glyph.text_index === byte);
   if (exact !== undefined) {
-    return { x: exact.x, y: exact.y, height: exact.line_height, line: exact.line };
+    return {
+      x: exact.x,
+      y: exact.y,
+      height: exact.line_height,
+      line: exact.line,
+      page: exact.page,
+    };
   }
 
   // Si no, detrás del último que empieza antes: el final de una línea
@@ -90,13 +101,20 @@ export function caretAt(glyphs: readonly Glyph[], byte: number): Caret | null {
   }
   if (previous === null) {
     const first = glyphs[0]!;
-    return { x: first.x, y: first.y, height: first.line_height, line: first.line };
+    return {
+      x: first.x,
+      y: first.y,
+      height: first.line_height,
+      line: first.line,
+      page: first.page,
+    };
   }
   return {
     x: previous.x + previous.width,
     y: previous.y,
     height: previous.line_height,
     line: previous.line,
+    page: previous.page,
   };
 }
 

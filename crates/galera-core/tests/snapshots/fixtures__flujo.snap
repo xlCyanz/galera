@@ -5,10 +5,18 @@ expression: code
 // Generado por Galera a partir de document.json.
 // No editar a mano: este archivo se reescribe entero en cada compilación.
 #set document(title: "Texto que fluye")
-#let galera-flow-ranges(pieces, zones, style) = {
+#let galera-flow-ranges(pieces, zones, style, upto) = {
   let ranges = ()
   let at = 0
+  // Cuántas piezas se llevó la zona anterior: dos zonas parecidas se
+  // llevan parecido, y empezar por ahí ahorra casi todas las medidas.
+  let guess = 1
+  let index = 0
+
   for zone in zones {
+    if index > upto { break }
+    index = index + 1
+
     if at >= pieces.len() {
       ranges.push((at, at))
     } else if zone.h == none {
@@ -20,31 +28,57 @@ expression: code
         width: zone.w,
         style(pieces.slice(at, k).map(p => p.body).join()),
       )).height <= zone.h
-      let lo = at + 1
-      let hi = pieces.len()
-      if not fits(hi) {
-        while lo < hi {
-          let mid = calc.ceil((lo + hi) / 2)
-          if fits(mid) { lo = mid } else { hi = mid - 1 }
+
+      let low = at
+      let high = none
+      let first = calc.min(at + calc.max(guess, 1), pieces.len())
+
+      if fits(first) {
+        low = first
+        if first == pieces.len() {
+          high = first
+        } else {
+          // Cabe más: se prueba de más en más, doblando.
+          let step = calc.max(1, calc.floor(guess / 4))
+          while high == none {
+            let next = calc.min(low + step, pieces.len())
+            if fits(next) {
+              low = next
+              if next == pieces.len() { high = next } else { step = step * 2 }
+            } else {
+              high = next
+            }
+          }
         }
-        hi = lo
+      } else {
+        // No cabe tanto: el corte está entre lo que hay y el tanteo.
+        high = first
       }
-      ranges.push((at, hi))
-      at = hi
+
+      // Y entre lo último que cabe y lo primero que no, binaria.
+      while low + 1 < high {
+        let mid = calc.floor((low + high) / 2)
+        if fits(mid) { low = mid } else { high = mid }
+      }
+
+      ranges.push((at, low))
+      guess = calc.max(low - at, 1)
+      at = low
     }
   }
+
   ranges
 }
 #let galera-flow-0-style = (body) => { set text(font: "Inter", size: 11pt, fill: rgb("#1F2733")); set par(leading: 0.65em, justify: true); align(left)[#body] }
-#let galera-flow-0-pieces = ((len: 3, body: [La ]), (len: 7, body: [galera ]), (len: 4, body: [era ]), (len: 3, body: [la ]), (len: 5, body: [mesa ]), (len: 6, body: [donde ]), (len: 3, body: [el ]), (len: 8, body: [cajista ]), (len: 7, body: [dejaba ]), (len: 4, body: [las ]), (len: 7, body: [líneas ]), (len: 3, body: [ya ]), (len: 11, body: [compuestas ]), (len: 6, body: [antes ]), (len: 3, body: [de ]), (len: 9, body: [atarlas. ]), (len: 3, body: [#strong[De] ]), (len: 4, body: [#strong[ahí] ]), (len: 6, body: [#strong[viene] ]), (len: 3, body: [#strong[el] ]), (len: 6, body: [#strong[nombre]]), (len: 2, body: [, ]), (len: 2, body: [y ]), (len: 3, body: [de ]), (len: 4, body: [ahí ]), (len: 6, body: [viene ]), (len: 8, body: [también ]), (len: 6, body: [esto: ]), (len: 3, body: [el ]), (len: 6, body: [texto ]), (len: 3, body: [se ]), (len: 8, body: [compone ]), (len: 8, body: [seguido ]), (len: 2, body: [y ]), (len: 5, body: [pasa ]), (len: 3, body: [de ]), (len: 4, body: [una ]), (len: 5, body: [zona ]), (len: 2, body: [a ]), (len: 3, body: [la ]), (len: 10, body: [siguiente ]), (len: 7, body: [cuando ]), (len: 3, body: [la ]), (len: 8, body: [primera ]), (len: 3, body: [se ]), (len: 7, body: [llena, ]), (len: 7, body: [aunque ]), (len: 3, body: [la ]), (len: 10, body: [siguiente ]), (len: 5, body: [esté ]), (len: 3, body: [en ]), (len: 5, body: [otra ]), (len: 7, body: [página.]), )
-#let galera-flow-0-zones = ((w: 75mm, h: 40mm), (w: 75mm, h: 40mm), (w: 170mm, h: none), )
+#let galera-flow-0-pieces = ((len: 3, body: [La ]), (len: 7, body: [galera ]), (len: 4, body: [era ]), (len: 3, body: [la ]), (len: 5, body: [mesa ]), (len: 6, body: [donde ]), (len: 3, body: [el ]), (len: 8, body: [cajista ]), (len: 7, body: [dejaba ]), (len: 4, body: [las ]), (len: 8, body: [líneas ]), (len: 3, body: [ya ]), (len: 11, body: [compuestas ]), (len: 6, body: [antes ]), (len: 3, body: [de ]), (len: 9, body: [atarlas. ]), (len: 3, body: [#strong[De] ]), (len: 5, body: [#strong[ahí] ]), (len: 6, body: [#strong[viene] ]), (len: 3, body: [#strong[el] ]), (len: 6, body: [#strong[nombre]]), (len: 2, body: [, ]), (len: 2, body: [y ]), (len: 3, body: [de ]), (len: 5, body: [ahí ]), (len: 6, body: [viene ]), (len: 9, body: [también ]), (len: 6, body: [esto: ]), (len: 3, body: [el ]), (len: 6, body: [texto ]), (len: 3, body: [se ]), (len: 8, body: [compone ]), (len: 8, body: [seguido ]), (len: 2, body: [y ]), (len: 5, body: [pasa ]), (len: 3, body: [de ]), (len: 4, body: [una ]), (len: 5, body: [zona ]), (len: 2, body: [a ]), (len: 3, body: [la ]), (len: 10, body: [siguiente ]), (len: 7, body: [cuando ]), (len: 3, body: [la ]), (len: 8, body: [primera ]), (len: 3, body: [se ]), (len: 7, body: [llena, ]), (len: 7, body: [aunque ]), (len: 3, body: [la ]), (len: 10, body: [siguiente ]), (len: 6, body: [esté ]), (len: 3, body: [en ]), (len: 5, body: [otra ]), (len: 8, body: [página.]), )
+#let galera-flow-0-zones = ((w: 75mm, h: 18mm), (w: 75mm, h: 18mm), (w: 170mm, h: none), )
 #set page(width: 210mm, height: 297mm, margin: 0pt)
 
 // p1
-#place(top + left, dx: 20mm, dy: 30mm)[#block(width: 75mm, height: 40mm, context { let pieces = galera-flow-0-pieces; let range = galera-flow-ranges(pieces, galera-flow-0-zones, galera-flow-0-style).at(0); let before = pieces.slice(0, range.at(0)).fold(0, (sum, piece) => sum + piece.len); let here = pieces.slice(range.at(0), range.at(1)).fold(0, (sum, piece) => sum + piece.len); metadata((from: before, to: before + here)); galera-flow-0-style(pieces.slice(range.at(0), range.at(1)).map(piece => piece.body).join()) })] <el-z1>
-#place(top + left, dx: 115mm, dy: 30mm)[#block(width: 75mm, height: 40mm, context { let pieces = galera-flow-0-pieces; let range = galera-flow-ranges(pieces, galera-flow-0-zones, galera-flow-0-style).at(1); let before = pieces.slice(0, range.at(0)).fold(0, (sum, piece) => sum + piece.len); let here = pieces.slice(range.at(0), range.at(1)).fold(0, (sum, piece) => sum + piece.len); metadata((from: before, to: before + here)); galera-flow-0-style(pieces.slice(range.at(0), range.at(1)).map(piece => piece.body).join()) })] <el-z2>
+#place(top + left, dx: 20mm, dy: 30mm)[#block(width: 75mm, height: 18mm, context { let pieces = galera-flow-0-pieces; let range = galera-flow-ranges(pieces, galera-flow-0-zones, galera-flow-0-style, 0).at(0); let before = pieces.slice(0, range.at(0)).fold(0, (sum, piece) => sum + piece.len); let here = pieces.slice(range.at(0), range.at(1)).fold(0, (sum, piece) => sum + piece.len); metadata((from: before, to: before + here)); galera-flow-0-style(pieces.slice(range.at(0), range.at(1)).map(piece => piece.body).join()) })] <el-z1>
+#place(top + left, dx: 115mm, dy: 30mm)[#block(width: 75mm, height: 18mm, context { let pieces = galera-flow-0-pieces; let range = galera-flow-ranges(pieces, galera-flow-0-zones, galera-flow-0-style, 1).at(1); let before = pieces.slice(0, range.at(0)).fold(0, (sum, piece) => sum + piece.len); let here = pieces.slice(range.at(0), range.at(1)).fold(0, (sum, piece) => sum + piece.len); metadata((from: before, to: before + here)); galera-flow-0-style(pieces.slice(range.at(0), range.at(1)).map(piece => piece.body).join()) })] <el-z2>
 
 #pagebreak()
 
 // p2
-#place(top + left, dx: 20mm, dy: 30mm)[#block(width: 170mm, context { let pieces = galera-flow-0-pieces; let range = galera-flow-ranges(pieces, galera-flow-0-zones, galera-flow-0-style).at(2); let before = pieces.slice(0, range.at(0)).fold(0, (sum, piece) => sum + piece.len); let here = pieces.slice(range.at(0), range.at(1)).fold(0, (sum, piece) => sum + piece.len); metadata((from: before, to: before + here)); galera-flow-0-style(pieces.slice(range.at(0), range.at(1)).map(piece => piece.body).join()) })] <el-z3>
+#place(top + left, dx: 20mm, dy: 30mm)[#block(width: 170mm, context { let pieces = galera-flow-0-pieces; let range = galera-flow-ranges(pieces, galera-flow-0-zones, galera-flow-0-style, 2).at(2); let before = pieces.slice(0, range.at(0)).fold(0, (sum, piece) => sum + piece.len); let here = pieces.slice(range.at(0), range.at(1)).fold(0, (sum, piece) => sum + piece.len); metadata((from: before, to: before + here)); galera-flow-0-style(pieces.slice(range.at(0), range.at(1)).map(piece => piece.body).join()) })] <el-z3>

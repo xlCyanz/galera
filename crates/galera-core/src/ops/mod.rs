@@ -338,6 +338,46 @@ pub enum Op {
         index: Option<usize>,
     },
 
+    /// Mete texto en el texto de un flujo.
+    InsertFlowText {
+        /// El flujo.
+        flow: String,
+        /// Dónde, en bytes del texto del flujo.
+        at: usize,
+        /// Lo que se mete.
+        text: String,
+    },
+
+    /// Borra un tramo del texto de un flujo.
+    DeleteFlowText {
+        /// El flujo.
+        flow: String,
+        /// Desde dónde, en bytes.
+        from: usize,
+        /// Hasta dónde, en bytes, sin incluirlo.
+        to: usize,
+    },
+
+    /// Cambia el formato de un tramo del texto de un flujo.
+    FormatFlowText {
+        /// El flujo.
+        flow: String,
+        /// Desde dónde, en bytes.
+        from: usize,
+        /// Hasta dónde, en bytes, sin incluirlo.
+        to: usize,
+        /// Qué se cambia.
+        format: Format,
+    },
+
+    /// Deja un flujo como estaba: es el deshacer de los cambios de su texto.
+    RestoreFlow {
+        /// Cuál.
+        name: String,
+        /// Cómo estaba.
+        flow: Flow,
+    },
+
     /// Saca una zona de su cadena y la pasa a un flujo suyo.
     UnlinkZone {
         /// La zona.
@@ -602,6 +642,10 @@ impl Op {
             Op::RemoveFlow { name } => format!("Quitar el flujo {name}"),
             Op::LinkZone { flow, zone, .. } => format!("Enlazar {zone} con {flow}"),
             Op::UnlinkZone { zone, .. } => format!("Desenlazar {zone}"),
+            Op::InsertFlowText { flow, .. } => format!("Escribir en {flow}"),
+            Op::DeleteFlowText { flow, .. } => format!("Borrar texto de {flow}"),
+            Op::FormatFlowText { flow, .. } => format!("Dar formato a {flow}"),
+            Op::RestoreFlow { name, .. } => format!("Restaurar {name}"),
             Op::Batch { ops } => describe_batch(ops),
         }
     }
@@ -637,7 +681,11 @@ impl Op {
             | Op::AddFont { .. }
             | Op::RemoveFont { .. }
             | Op::CreateFlow { .. }
-            | Op::RemoveFlow { .. } => None,
+            | Op::RemoveFlow { .. }
+            | Op::InsertFlowText { .. }
+            | Op::DeleteFlowText { .. }
+            | Op::FormatFlowText { .. }
+            | Op::RestoreFlow { .. } => None,
             Op::LinkZone { zone, .. } | Op::UnlinkZone { zone, .. } => Some(zone),
             // Solo si todos son del mismo elemento.
             Op::Batch { ops } => {
@@ -682,6 +730,23 @@ impl Op {
             Op::LinkZone { flow, zone, index } => flow::apply_link(document, flow, zone, *index),
 
             Op::UnlinkZone { zone, to } => flow::apply_unlink(document, zone, to),
+
+            Op::InsertFlowText { flow, at, text } => {
+                flow::apply_insert_text(document, flow, *at, text)
+            }
+
+            Op::DeleteFlowText { flow, from, to } => {
+                flow::apply_delete_text(document, flow, *from, *to)
+            }
+
+            Op::FormatFlowText {
+                flow,
+                from,
+                to,
+                format,
+            } => flow::apply_format_text(document, flow, *from, *to, format),
+
+            Op::RestoreFlow { name, flow } => flow::apply_restore(document, name, flow),
 
             Op::Batch { ops } => {
                 let mut undos = Vec::with_capacity(ops.len());

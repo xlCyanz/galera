@@ -25,10 +25,11 @@ import { type CanvasTransform, toDocument } from "../canvas/transform";
 import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
 import { useLayoutStore } from "../store/layout";
-import type { LayoutBox } from "../types/layout";
+import type { Glyph, LayoutBox } from "../types/layout";
 import { byteIndex } from "./caret";
 import { textOf } from "./change";
 import { indexAt, paragraphAt, unrotate, wordAt } from "./selection";
+import { inBox, runsOf } from "./target";
 
 /** Cuánto se ensancha la caja del texto para seguir señalando dentro, en
  * mm: pulsar justo en el borde no tendría que salirse. */
@@ -63,31 +64,63 @@ export function useTextEditing(transform: CanvasTransform | null, page: number):
     return toDocument(transform, event.clientX - area.left, event.clientY - area.top);
   };
 
-  /** El texto que se está escribiendo y su caja, si el punto cae dentro. */
-  const editedAt = (x: number, y: number): { box: LayoutBox; text: string } | null => {
-    const { element } = useEditingStore.getState();
-    if (element === null) {
-      return null;
-    }
-    const box = useLayoutStore.getState().boxes[element];
-    const document = useDocumentStore.getState().document;
-    if (box === undefined || document === undefined || document === null) {
-      return null;
-    }
+  /** Si el punto cae dentro de la caja, con un margen para el borde. */
+  const within = (box: LayoutBox, x: number, y: number) => {
     const local = unrotate(box, x, y);
-    const inside =
+    return (
       local.x >= box.x - EDGE_MM &&
       local.x <= box.x + box.w + EDGE_MM &&
       local.y >= box.y - EDGE_MM &&
-      local.y <= box.y + box.h + EDGE_MM;
-    if (!inside) {
+      local.y <= box.y + box.h + EDGE_MM
+    );
+  };
+
+  /**
+   * El texto que se está escribiendo y la caja por la que se señala, si el
+   * punto cae dentro.
+   *
+   * De un flujo vale **cualquiera de sus zonas**: el texto es uno solo, así
+   * que señalar en la tercera zona es señalar en el mismo texto que en la
+   * primera. Los glifos que se miran son los de la página que se ve, que es
+   * donde se ha pulsado.
+   */
+  const editedAt = (
+    x: number,
+    y: number,
+  ): { box: LayoutBox; text: string; glyphs: Glyph[] } | null => {
+    const { element, flow, glyphs } = useEditingStore.getState();
+    const document = useDocumentStore.getState().document;
+    if (document === undefined || document === null) {
+      return null;
+    }
+    const boxes = useLayoutStore.getState().boxes;
+
+    if (flow !== null) {
+      const chain = document.flows?.[flow]?.zones ?? [];
+      const zone = chain
+        .map((id) => boxes[id])
+        .find((box) => box !== undefined && box.page === page && within(box, x, y));
+      if (zone === undefined) {
+        return null;
+      }
+      const runs = runsOf(document, { kind: "flow", name: flow });
+      return runs === null
+        ? null
+        : { box: zone, text: textOf(runs), glyphs: inBox(glyphs, zone) };
+    }
+
+    if (element === null) {
+      return null;
+    }
+    const box = boxes[element];
+    if (box === undefined || !within(box, x, y)) {
       return null;
     }
     const found = document.pages
       .flatMap((one) => one.elements)
       .find((candidate) => candidate.id === element);
     return found !== undefined && found.type === "text"
-      ? { box, text: textOf(found.content) }
+      ? { box, text: textOf(found.content), glyphs }
       : null;
   };
 
@@ -107,8 +140,8 @@ export function useTextEditing(transform: CanvasTransform | null, page: number):
       return false;
     }
 
-    const { box, text } = edited;
-    const { glyphs, start, end } = useEditingStore.getState();
+    const { box, text, glyphs } = edited;
+    const { start, end } = useEditingStore.getState();
     const local = unrotate(box, point.x, point.y);
     const at = indexAt(glyphs, text, local.x, local.y);
     const select = useEditingStore.getState().select;
@@ -142,8 +175,13 @@ export function useTextEditing(transform: CanvasTransform | null, page: number):
       }
       const area = viewport.getBoundingClientRect();
       const inCanvas = toDocument(view, moved.clientX - area.left, moved.clientY - area.top);
-      const there = unrotate(box, inCanvas.x, inCanvas.y);
-      useEditingStore.getState().select(from, indexAt(glyphs, text, there.x, there.y));
+      // Al arrastrar por un flujo se cruzan zonas: la que vale es la que
+      // haya debajo ahora, con sus glifos. Fuera de todas —o fuera de la
+      // caja de un bloque— sigue valiendo la de donde empezó, para que
+      // arrastrar más allá del texto llegue hasta el final.
+      const over = editedAt(inCanvas.x, inCanvas.y) ?? { box, text, glyphs };
+      const there = unrotate(over.box, inCanvas.x, inCanvas.y);
+      useEditingStore.getState().select(from, indexAt(over.glyphs, over.text, there.x, there.y));
     };
     const release = () => {
       anchor.current = null;
@@ -180,7 +218,24 @@ export function useTextEditing(transform: CanvasTransform | null, page: number):
           .getState()
           .document?.pages.flatMap((one) => one.elements)
           .find((candidate) => candidate.id === id);
-        if (element === undefined || element.type !== "text") {
+        if (element === undefined) {
+          return;
+        }
+        // Una zona no lleva texto: lo lleva su flujo, y se escribe entero.
+        if (element.type === "flow") {
+          const runs = runsOf(
+            useDocumentStore.getState().document,
+            { kind: "flow", name: element.flow },
+          );
+          if (runs === null) {
+            return;
+          }
+          useDocumentStore.getState().select(id);
+          const text = textOf(runs);
+          useEditingStore.getState().editFlow(element.flow, byteIndex(text, text.length));
+          return;
+        }
+        if (element.type !== "text") {
           return;
         }
         useDocumentStore.getState().select(id);

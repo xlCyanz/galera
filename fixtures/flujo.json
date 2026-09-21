@@ -18,8 +18,8 @@
       "id": "p1",
       "size": { "width": 210, "height": 297, "unit": "mm" },
       "elements": [
-        { "id": "z1", "type": "flow", "x": 20, "y": 30, "w": 75, "h": 40, "flow": "cuerpo" },
-        { "id": "z2", "type": "flow", "x": 115, "y": 30, "w": 75, "h": 40, "flow": "cuerpo" }
+        { "id": "z1", "type": "flow", "x": 20, "y": 30, "w": 75, "h": 18, "flow": "cuerpo" },
+        { "id": "z2", "type": "flow", "x": 115, "y": 30, "w": 75, "h": 18, "flow": "cuerpo" }
       ]
     },
     {

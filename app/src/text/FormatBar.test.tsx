@@ -55,6 +55,7 @@ const project = (): OpenedProject => ({
 
 /** Un glifo de 5 mm por letra de «uno dos», todo en una línea. */
 const glyphs: Glyph[] = [0, 1, 2, 3, 4, 5, 6].map((text_index) => ({
+  page: 0,
   text_index,
   line: 0,
   x: 20 + text_index * 5,

@@ -27,16 +27,24 @@ export interface CursorProps {
   box: LayoutBox;
   /** Dónde está la página y a qué escala. */
   transform: CanvasTransform;
+  /**
+   * Qué página se está viendo, si el texto pasa por varias: de un flujo
+   * solo se dibuja aquí lo que quedó en esta.
+   */
+  page?: number;
 }
 
-export function Cursor({ box, transform }: CursorProps) {
+export function Cursor({ box, transform, page }: CursorProps) {
   const glyphs = useEditingStore((state) => state.glyphs);
   // Se dibuja donde está el extremo que se mueve.
   const end = useEditingStore((state) => state.end);
   const typedAt = useEditingStore((state) => state.typedAt);
 
+  // El cursor sale de todos los glifos, también los de otras páginas: hay
+  // que saber dónde cayó de verdad. Lo que no se dibuja es el de una
+  // página que no se está viendo.
   const caret = caretAt(glyphs, end);
-  if (caret === null) {
+  if (caret === null || (page !== undefined && caret.page !== page)) {
     return null;
   }
 

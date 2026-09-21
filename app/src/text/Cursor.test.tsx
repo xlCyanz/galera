@@ -27,6 +27,7 @@ const box: LayoutBox = {
 const glyphs: Glyph[] = [0, 1, 2, 4, 5, 6].map((text_index, at) => {
   const line = at < 3 ? 0 : 1;
   return {
+    page: 0,
     text_index,
     line,
     x: 20 + (at % 3) * 5,

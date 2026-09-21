@@ -55,7 +55,7 @@ import {
   useSelectedElement,
   useSelection as useSelectedElements,
 } from "../store/document";
-import { useEditingElement, useEditingStore } from "../store/editing";
+import { useEditTarget, useEditingElement, useEditingFlow, useEditingStore } from "../store/editing";
 import { useElementBox, useLayoutStore, useOverflowing } from "../store/layout";
 import { useTool, useToolStore } from "../store/tool";
 import { Cursor } from "../text/Cursor";
@@ -63,6 +63,9 @@ import { FormatBar } from "../text/FormatBar";
 import { ChipPicker } from "../text/ChipPicker";
 import { HiddenInput } from "../text/HiddenInput";
 import { SelectionLayer } from "../text/SelectionLayer";
+import type { LayoutBox } from "../types/layout";
+import { linesOf, runsOf } from "../text/target";
+import { FlowChain } from "./FlowChain";
 import { applyFormat, applyLines, useTextFormat } from "../text/useTextFormat";
 import { useTextEditing } from "../text/useTextEditing";
 import { ControlLayer } from "./ControlLayer";
@@ -121,15 +124,14 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const overflowing = useOverflowing(currentPage);
   const editing = useEditingElement();
   const editingBox = useElementBox(editing);
+  // Escribir en un flujo: el texto es uno solo aunque pase por zonas de
+  // varias páginas, así que sus capas se anclan a la página entera y cada
+  // una se queda con los glifos que cayeron aquí.
+  const editingFlow = useEditingFlow();
+  const target = useEditTarget();
   // Los tramos del texto que se escribe, para enseñar su formato.
-  const editingElement =
-    editing === null
-      ? undefined
-      : document?.pages.flatMap((one) => one.elements).find((one) => one.id === editing);
-  const editingRuns =
-    editingElement !== undefined && editingElement.type === "text" ? editingElement.content : [];
-  const editingLines =
-    editingElement !== undefined && editingElement.type === "text" ? (editingElement.lines ?? []) : [];
+  const editingRuns = target === null ? [] : (runsOf(document, target) ?? []);
+  const editingLines = target === null ? [] : linesOf(document, target);
   // Un elemento bloqueado se selecciona desde el panel de capas, pero en el
   // lienzo no se agarra ni se empuja con las flechas.
   const selectedLocked =
@@ -139,6 +141,28 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
 
   const viewport = useRef<HTMLDivElement>(null);
   const page = document?.pages[currentPage];
+  // La página entera como caja, para anclar lo que no es de un elemento
+  // sino de la página: las capas de un flujo, que la cruza.
+  const pageBox: LayoutBox | null =
+    page === undefined
+      ? null
+      : {
+          id: page.id,
+          page: currentPage,
+          x: 0,
+          y: 0,
+          w: toMillimeters(page.size.width, page.size.unit),
+          h: toMillimeters(page.size.height, page.size.unit),
+          rotation: 0,
+          bounds: {
+            x: 0,
+            y: 0,
+            w: toMillimeters(page.size.width, page.size.unit),
+            h: toMillimeters(page.size.height, page.size.unit),
+          },
+          line: null,
+          overflow: 0,
+        };
   const { zoom, scroll, viewportSize, run, panReady, panning, viewportHandlers } =
     useCanvasNavigation(viewport, page?.size ?? null, tool === "hand");
 
@@ -482,9 +506,28 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
               }}
             />
           )}
+          {editingFlow !== null && transform !== null && pageBox !== null && (
+            <>
+              <FlowChain flow={editingFlow} page={currentPage} transform={transform} />
+              <HiddenInput
+                target={{ kind: "flow", name: editingFlow }}
+                box={pageBox}
+                transform={transform}
+              />
+              <SelectionLayer box={pageBox} transform={transform} page={currentPage} />
+              <Cursor box={pageBox} transform={transform} page={currentPage} />
+              <FormatBar
+                runs={editingRuns}
+                lines={editingLines}
+                transform={transform}
+                onFormat={applyFormat}
+                onLines={applyLines}
+              />
+            </>
+          )}
           {editing !== null && editingBox !== null && editingBox.page === currentPage && transform !== null && (
             <>
-              <HiddenInput id={editing} box={editingBox} transform={transform} />
+              <HiddenInput target={{ kind: "element", id: editing }} box={editingBox} transform={transform} />
               <ChipPicker
                 text={editingRuns.map((run) => run.text).join("")}
                 box={editingBox}
