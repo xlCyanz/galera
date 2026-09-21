@@ -24,6 +24,7 @@ import type { Glyph, LayoutBox, MmRect } from "./types/layout";
 import type { Document, TextStyle } from "./types/model";
 import type { Op } from "./types/ops";
 import type { Alignment, Spread } from "./types/align";
+import type { Csv, Encoding, Mapping, Row } from "./types/batch";
 import type { CodeError } from "./types/code";
 import type { CodeSpan } from "./types/codegen";
 import type { Grips, Settings as SnapSettings, Snapped } from "./types/snap";
@@ -493,6 +494,38 @@ export function templates(): Promise<TemplateCard[]> {
  */
 export function newFromTemplate(id: string, archive: boolean): Promise<OpenedProject | null> {
   return invoke<OpenedProject | null>("new_from_template", { id, archive });
+}
+
+/** Un CSV leído, tal como lo devuelve `choose_csv`. */
+export interface LoadedCsv extends Csv {
+  /** De dónde salió. */
+  path: string;
+  /** Qué columna le toca a cada variable. */
+  mapping: Mapping;
+  /** Las filas ya miradas: lo que valdría cada variable y lo que falta. */
+  checked: Row[];
+}
+
+/**
+ * Enseña el diálogo para elegir un CSV y lo lee, con el separador y la
+ * codificación adivinados. `null` si se cancela.
+ */
+export function chooseCsv(): Promise<LoadedCsv | null> {
+  return invoke<LoadedCsv | null>("choose_csv");
+}
+
+/** Vuelve a leer un CSV ya elegido con otro separador u otra codificación. */
+export function readCsv(
+  path: string,
+  separator: string,
+  encoding: Encoding,
+): Promise<LoadedCsv> {
+  return invoke<LoadedCsv>("read_csv", { path, separator, encoding });
+}
+
+/** Vuelve a mirar las filas con otro emparejamiento, sin releer el archivo. */
+export function checkRows(csv: Csv, mapping: Mapping): Promise<Row[]> {
+  return invoke<Row[]>("check_rows", { csv, mapping });
 }
 
 /** Un comando de edición aplicado, tal como lo devuelve `apply_op`. */

@@ -1730,3 +1730,65 @@ body {
   gap: 0.25rem;
   margin-top: auto;
 }
+
+/* El panel de lote: la tabla con la que se generará (`ui/BatchPanel.tsx`). */
+.batch-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.4rem 0;
+  font-size: 0.75rem;
+}
+
+.batch-options label {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.batch-count {
+  margin: 0;
+  color: #64748b;
+}
+
+.batch-mapping {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+}
+
+.batch-mapping li {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.batch-preview {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+}
+
+.batch-preview caption {
+  margin-bottom: 0.2rem;
+  color: #64748b;
+  text-align: left;
+}
+
+.batch-preview th,
+.batch-preview td {
+  padding: 0.15rem 0.3rem;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.batch-preview tr.is-broken td {
+  background: #fef2f2;
+  color: #7f1d1d;
+}

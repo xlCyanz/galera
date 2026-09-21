@@ -23,6 +23,7 @@
 //! - [`code`](mod@code): dónde está roto el código de un bloque, por líneas.
 //! - [`variables`]: las variables del documento, dónde se usan y qué admiten.
 //! - [`templates`]: plantillas, y empezar un documento a partir de una.
+//! - [`batch`]: leer una tabla para generar muchos documentos de uno.
 //! - [`snap`](mod@snap): guías de alineación y ajuste al mover un elemento.
 //!
 //! # Principio que ordena todo lo demás
@@ -40,6 +41,7 @@
 
 pub mod archive;
 pub mod assets;
+pub mod batch;
 pub mod clipboard;
 pub mod code;
 pub mod codegen;
