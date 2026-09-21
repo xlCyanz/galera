@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "meta": { "title": "Credencial" },
+  "fonts": ["fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf"],
+  "assets": {},
+  "variables": {
+    "nombre": { "kind": "text", "value": "Ana Ruiz" },
+    "cargo": { "kind": "text", "value": "Diseñadora" },
+    "empresa": { "kind": "text", "value": "Cooperativa del Este" },
+    "evento": { "kind": "text", "value": "Encuentro de edición 2026" }
+  },
+  "pages": [
+    {
+      "id": "credencial",
+      "size": { "width": 100, "height": 70, "unit": "mm" },
+      "elements": [
+        { "id": "banda", "type": "rect", "x": 0, "y": 0, "w": 100, "h": 16,
+          "fill": "#1F2733", "stroke": null },
+        { "id": "evento", "type": "text", "x": 6, "y": 4.5, "w": 88, "h": null,
+          "content": [ { "text": "{{evento}}" } ],
+          "style": { "font": "Inter", "size": 9, "color": "#FFFFFF" } },
+
+        { "id": "nombre", "type": "text", "x": 6, "y": 26, "w": 88, "h": null,
+          "content": [ { "text": "{{nombre}}", "bold": true } ],
+          "style": { "font": "Inter", "size": 18, "color": "#1F2733" } },
+        { "id": "cargo", "type": "text", "x": 6, "y": 40, "w": 88, "h": null,
+          "content": [ { "text": "{{cargo}}" } ],
+          "style": { "font": "Inter", "size": 10, "color": "#5B6472" } },
+
+        { "id": "filete", "type": "line", "x": 6, "y": 54, "x2": 94, "y2": 54,
+          "stroke": { "color": "#CBD5E1", "width": 0.3 } },
+        { "id": "empresa", "type": "text", "x": 6, "y": 57, "w": 88, "h": null,
+          "content": [ { "text": "{{empresa}}" } ],
+          "style": { "font": "Inter", "size": 9, "color": "#1F2733" } }
+      ]
+    }
+  ]
+}

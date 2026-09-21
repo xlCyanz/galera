@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "meta": { "title": "Boletín" },
+  "fonts": ["fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf"],
+  "assets": {},
+  "variables": {
+    "titulo": { "kind": "text", "value": "Boletín de la cooperativa" },
+    "numero": { "kind": "text", "value": "14" },
+    "fecha": { "kind": "date", "value": "2026-09-21" },
+    "firma": { "kind": "text", "value": "El consejo rector" }
+  },
+  "flows": {
+    "cuerpo": {
+      "content": [
+        { "text": "Un semestre de papeles bien hechos\n", "bold": true },
+        { "text": "Cerramos el semestre con una novedad que no se ve desde fuera pero que nos ha cambiado el día a día: todo lo que sale de la cooperativa —las facturas, las cartas a los socios, los certificados de los cursos y las acreditaciones de las jornadas— se compone ahora a partir de un juego de plantillas común.\n\n" },
+        { "text": "Hasta ahora cada área tenía su archivo heredado, con el logotipo pegado donde cupo y una tipografía distinta en cada documento. Quien entraba nuevo empezaba por buscar quién tenía la última versión del modelo, y el resultado dependía de qué fuentes tuviera instaladas en su ordenador.\n\n" },
+
+        { "text": "Lo que hemos cambiado\n", "bold": true },
+        { "text": "Cada plantilla es ahora una carpeta que se lleva dentro lo que necesita: el documento, sus imágenes y sus fuentes. Eso último es lo que hace que una factura hecha en la oficina y la misma factura abierta en casa salgan exactamente igual, con las mismas líneas y los mismos cortes de palabra. Nada depende de lo que cada máquina tenga instalado.\n\n" },
+        { "text": "Los datos que cambian de un documento a otro —el nombre del socio, el importe, la fecha— ya no se escriben a mano en el sitio de siempre: son fichas que el documento lleva declaradas, y se rellenan de una en una o de golpe, leyendo un CSV. Las acreditaciones de las últimas jornadas salieron así: una hoja de cálculo con ciento veinte filas y un PDF por persona, generado en el tiempo que se tarda en preparar el café.\n\n" },
+
+        { "text": "El texto va donde tiene que ir\n", "bold": true },
+        { "text": "Este mismo boletín es un ejemplo de lo otro que hemos ganado. Lo que está leyendo no es un texto cortado a mano para que cupiera: es un solo texto que pasa de esta columna a la de al lado cuando la primera se llena, y de ahí a la página siguiente. Al añadir un párrafo al principio, lo demás se recoloca solo y nadie tiene que repasar dónde había que cortar.\n\n" },
+        { "text": "Quien edita puede mover las columnas, hacerlas más anchas o más estrechas, y el reparto se rehace entero. Lo que nunca pasa es que sobre texto dibujado fuera de su sitio: si algo no cabe en toda la cadena, el editor lo dice en su panel de problemas en vez de dejarlo asomando por el borde del papel.\n\n" },
+        { "text": "Las tablas, por fin, se editan como tablas: se entra en una celda con doble clic, se pasa a la siguiente con el tabulador y se añaden filas y columnas sin tocar ningún archivo. El ancho de cada columna se decide arrastrando su borde, y lo que no se dice se calcula según lo que pida el contenido.\n\n" },
+
+        { "text": "Lo que viene\n", "bold": true },
+        { "text": "Para el semestre que entra queremos dos cosas más. La primera, que el catálogo de socios se genere entero desde la misma base de datos que usa administración, sin exportaciones intermedias. La segunda, revisar la accesibilidad de lo que publicamos: cuerpos de letra, contrastes y orden de lectura, que hasta ahora hemos mirado de oído.\n\n" },
+        { "text": "Si alguien del equipo quiere una plantilla nueva para su área, el procedimiento es el de siempre: abrir una de las que hay, guardarla con otro nombre y pedirnos que la revisemos antes de darla por buena. Es más rápido que empezar de cero y evita que vuelvan los quince modelos distintos.\n\n" },
+        { "text": "Gracias a todas las áreas por la paciencia durante el cambio, y en especial a quienes se ofrecieron a probar las primeras versiones y a decir, sin rodeos, lo que no funcionaba.\n\n" },
+
+        { "text": "Dónde pedir ayuda\n", "bold": true },
+        { "text": "Las plantillas viven en la carpeta compartida, en «Documentos de la cooperativa». Quien necesite una copia para empezar un documento nuevo no tiene que pedir permiso a nadie: se abre la plantilla, se guarda con otro nombre y a partir de ahí es un archivo suyo, que no toca el original por mucho que lo cambie.\n\n" },
+        { "text": "Para las dudas del día a día hemos abierto un canal en el chat interno. Las tres preguntas que más se repiten ya tienen respuesta escrita: cómo cambiar el logotipo de una plantilla, cómo añadir una fuente nueva y qué hacer cuando un texto no cabe en su caja.\n\n" },
+
+        { "text": "Calendario del trimestre\n", "bold": true },
+        { "text": "En octubre revisamos las plantillas de administración; en noviembre, las de formación, que son las que más fichas usan; y en diciembre cerramos con las de comunicación, este boletín incluido. Cada revisión son dos horas con el área implicada, y de ahí sale la lista de lo que hay que arreglar.\n\n" },
+        { "text": "Quien quiera participar en alguna de las tres sesiones que lo diga antes de fin de mes: preferimos que sobre gente a que luego falte quien conozca los documentos por dentro.\n\n" },
+        { "text": "{{firma}}" }
+      ],
+      "style": { "font": "Inter", "size": 10, "color": "#1F2733", "align": "justify", "leading": 0.7 },
+      "zones": ["columna-1", "columna-2", "columna-3"]
+    }
+  },
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "banda", "type": "rect", "x": 0, "y": 0, "w": 210, "h": 32,
+          "fill": "#1F2733", "stroke": null },
+        { "id": "titulo", "type": "text", "x": 20, "y": 8, "w": 130, "h": null,
+          "content": [ { "text": "{{titulo}}", "bold": true } ],
+          "style": { "font": "Inter", "size": 18, "color": "#FFFFFF" } },
+        { "id": "numero", "type": "text", "x": 150, "y": 13, "w": 40, "h": null,
+          "content": [ { "text": "Nº {{numero}}" } ],
+          "style": { "font": "Inter", "size": 10, "color": "#C9A227", "align": "right" } },
+        { "id": "fecha", "type": "text", "x": 20, "y": 38, "w": 170, "h": null,
+          "content": [ { "text": "{{fecha}}" } ],
+          "style": { "font": "Inter", "size": 9, "color": "#5B6472" } },
+
+        { "id": "columna-1", "type": "flow", "x": 20, "y": 50, "w": 80, "h": 215,
+          "flow": "cuerpo" },
+        { "id": "columna-2", "type": "flow", "x": 110, "y": 50, "w": 80, "h": 215,
+          "flow": "cuerpo" },
+
+        { "id": "pie", "type": "text", "x": 20, "y": 275, "w": 170, "h": null,
+          "content": [ { "text": "{{titulo}} · Nº {{numero}}" } ],
+          "style": { "font": "Inter", "size": 8, "color": "#5B6472" } }
+      ]
+    },
+    {
+      "id": "p2",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "columna-3", "type": "flow", "x": 20, "y": 30, "w": 80, "h": null,
+          "flow": "cuerpo" },
+        { "id": "pie-2", "type": "text", "x": 20, "y": 275, "w": 170, "h": null,
+          "content": [ { "text": "{{titulo}} · Nº {{numero}} · página 2" } ],
+          "style": { "font": "Inter", "size": 8, "color": "#5B6472" } }
+      ]
+    }
+  ]
+}

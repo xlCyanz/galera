@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "meta": { "title": "Certificado" },
+  "fonts": ["fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf"],
+  "assets": {},
+  "variables": {
+    "nombre": { "kind": "text", "value": "Ana Ruiz Prado" },
+    "curso": { "kind": "text", "value": "Composición y maquetación con Galera" },
+    "horas": { "kind": "number", "value": "40" },
+    "fecha": { "kind": "date", "value": "2026-09-21" },
+    "firmante": { "kind": "text", "value": "Johan Sierra, dirección académica" }
+  },
+  "pages": [
+    {
+      "id": "certificado",
+      "size": { "width": 297, "height": 210, "unit": "mm" },
+      "elements": [
+        { "id": "orla-externa", "type": "rect", "x": 12, "y": 12, "w": 273, "h": 186,
+          "fill": null, "stroke": { "color": "#1F2733", "width": 1.2 } },
+        { "id": "orla-interna", "type": "rect", "x": 16, "y": 16, "w": 265, "h": 178,
+          "fill": null, "stroke": { "color": "#C9A227", "width": 0.4 } },
+
+        { "id": "antetitulo", "type": "text", "x": 40, "y": 40, "w": 217, "h": null,
+          "content": [ { "text": "CERTIFICADO DE APROVECHAMIENTO" } ],
+          "style": { "font": "Inter", "size": 12, "color": "#C9A227", "align": "center" } },
+        { "id": "formula", "type": "text", "x": 40, "y": 58, "w": 217, "h": null,
+          "content": [ { "text": "Se certifica que" } ],
+          "style": { "font": "Inter", "size": 11, "color": "#5B6472", "align": "center" } },
+        { "id": "nombre", "type": "text", "x": 30, "y": 72, "w": 237, "h": null,
+          "content": [ { "text": "{{nombre}}", "bold": true } ],
+          "style": { "font": "Inter", "size": 30, "color": "#1F2733", "align": "center" } },
+        { "id": "cuerpo", "type": "text", "x": 45, "y": 104, "w": 207, "h": null,
+          "content": [
+            { "text": "ha completado el curso " },
+            { "text": "{{curso}}", "bold": true },
+            { "text": ", con una duración de {{horas}} horas lectivas." }
+          ],
+          "style": { "font": "Inter", "size": 12, "color": "#1F2733", "align": "center", "leading": 0.75 } },
+
+        { "id": "firma-linea", "type": "line", "x": 98, "y": 158, "x2": 199, "y2": 158,
+          "stroke": { "color": "#1F2733", "width": 0.3 } },
+        { "id": "firmante", "type": "text", "x": 78, "y": 161, "w": 141, "h": null,
+          "content": [ { "text": "{{firmante}}" } ],
+          "style": { "font": "Inter", "size": 10, "color": "#1F2733", "align": "center" } },
+        { "id": "fecha", "type": "text", "x": 78, "y": 176, "w": 141, "h": null,
+          "content": [ { "text": "Expedido el {{fecha}}" } ],
+          "style": { "font": "Inter", "size": 9, "color": "#5B6472", "align": "center" } }
+      ]
+    }
+  ]
+}
