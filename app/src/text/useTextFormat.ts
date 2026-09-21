@@ -17,8 +17,8 @@ import type { Line } from "../types/model";
 import type { Format, Op } from "../types/ops";
 import { targetOf } from "../store/editing";
 import { formatOf, toggle } from "./format";
-import { formatOp, runsOf as runsOfTarget } from "./target";
-import { count, textOf } from "./change";
+import { type EditTarget, formatOp, runsOf as runsOfTarget } from "./target";
+import { charactersBefore, count, textOf } from "./change";
 
 /**
  * Aplica un cambio de formato a lo que haya seleccionado.
@@ -40,9 +40,7 @@ export async function applyFormat(change: Format): Promise<string | null> {
   const ops =
     target.kind === "cell" && marked.length > 0
       ? wholeCells(target.table, [{ row: target.row, column: target.column }, ...marked], change)
-      : start === end
-        ? []
-        : [formatOp(target, Math.min(start, end), Math.max(start, end), change)];
+      : selected(target, start, end, change);
 
   const op = ops.length === 1 ? ops[0] : { op: "batch" as const, ops };
   if (ops.length === 0 || op === undefined) {
@@ -57,6 +55,26 @@ export async function applyFormat(change: Format): Promise<string | null> {
     // El texto se queda como estaba.
     return errorMessage(reason);
   }
+}
+
+/**
+ * El comando del tramo seleccionado, o ninguno si no hay nada seleccionado.
+ *
+ * El tramo pasa de bytes —como lo guarda la edición— a caracteres, que es
+ * como los cuenta el núcleo.
+ */
+function selected(target: EditTarget, start: number, end: number, change: Format): Op[] {
+  if (start === end) {
+    return [];
+  }
+  const runs = runsOfTarget(useDocumentStore.getState().document, target);
+  if (runs === null) {
+    return [];
+  }
+  const text = textOf(runs);
+  const from = charactersBefore(text, Math.min(start, end));
+  const to = charactersBefore(text, Math.max(start, end));
+  return from === to ? [] : [formatOp(target, from, to, change)];
 }
 
 /** Un comando por celda, cada uno sobre su texto entero. */
@@ -90,7 +108,14 @@ export async function applyLines(style: Line): Promise<string | null> {
   if (element === null) {
     return null;
   }
-  const [from, to] = start <= end ? [start, end] : [end, start];
+  // Como en el formato: el comando cuenta en caracteres, no en bytes.
+  const runs = runsOfTarget(useDocumentStore.getState().document, { kind: "element", id: element });
+  if (runs === null) {
+    return null;
+  }
+  const text = textOf(runs);
+  const from = charactersBefore(text, Math.min(start, end));
+  const to = charactersBefore(text, Math.max(start, end));
   try {
     const applied = await applyOp({ op: "set_lines", id: element, from, to, line: style });
     useDocumentStore.getState().applyEdit(applied);
