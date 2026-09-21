@@ -18,7 +18,8 @@
 //! - [`project`]: la carpeta del proyecto y qué se puede leer de ella.
 //! - [`open`](mod@open): abrir un proyecto comprobando su documento y sus recursos.
 //! - [`layout`](mod@layout): la caja real de cada elemento, tal como la compuso Typst.
-//! - [`ops`]: comandos de edición, cada uno con cómo deshacerlo. El historial, *(pendiente)*.
+//! - [`ops`]: comandos de edición, cada uno con cómo deshacerlo, y el historial.
+//! - [`clipboard`]: copiar y pegar elementos, también de un documento a otro.
 //! - [`snap`](mod@snap): guías de alineación y ajuste al mover un elemento.
 //!
 //! # Principio que ordena todo lo demás
@@ -36,6 +37,7 @@
 
 pub mod archive;
 pub mod assets;
+pub mod clipboard;
 pub mod codegen;
 pub mod compile;
 pub mod error;
@@ -59,6 +61,7 @@ pub use archive::{
 pub use assets::{
     AssetSummary, ImageFormat, ImportImageError, ImportedImage, asset_summaries, import_image,
 };
+pub use clipboard::{Clip, ClipFile};
 pub use codegen::{escape, escape_into};
 pub use compile::cache::Compiler;
 pub use compile::{Compiled, compile, compile_pdf, compile_svg};

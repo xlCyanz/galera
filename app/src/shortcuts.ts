@@ -77,6 +77,10 @@ export const SHORTCUTS = [
     alsoOnOthers: { key: "y", mod: true },
   },
   { id: "deselect", label: "Quitar la selección", group: "Edición", keys: { key: "escape", show: "Esc" } },
+  { id: "copy", label: "Copiar", group: "Edición", keys: { key: "c", mod: true } },
+  { id: "cut", label: "Cortar", group: "Edición", keys: { key: "x", mod: true } },
+  { id: "paste", label: "Pegar", group: "Edición", keys: { key: "v", mod: true } },
+  { id: "duplicate", label: "Duplicar", group: "Edición", keys: { key: "d", mod: true } },
   { id: "group", label: "Agrupar", group: "Edición", keys: { key: "g", mod: true } },
   { id: "ungroup", label: "Desagrupar", group: "Edición", keys: { key: "g", mod: true, shift: true } },
 
@@ -192,7 +196,14 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   );
 }
 
-/** Si un atajo se puede disparar mientras se escribe en un campo. */
+/**
+ * Si un atajo se puede disparar mientras se escribe en un campo.
+ *
+ * Los que llevan ⌘ o Ctrl, salvo los que ahí son del propio campo: deshacer
+ * y rehacer, y copiar, cortar y pegar, que dentro de un texto trabajan con
+ * el texto y no con los elementos.
+ */
 export function worksWhileTyping(id: ShortcutId): boolean {
-  return shortcut(id).keys.mod === true && id !== "undo" && id !== "redo";
+  const own = ["undo", "redo", "copy", "cut", "paste"];
+  return shortcut(id).keys.mod === true && !own.includes(id);
 }
