@@ -23,6 +23,7 @@ import type { Diagnostic } from "./types/diagnostic";
 import type { Glyph, LayoutBox, MmRect } from "./types/layout";
 import type { Document, TextStyle } from "./types/model";
 import type { Op } from "./types/ops";
+import type { Alignment, Spread } from "./types/align";
 import type { Grips, Settings as SnapSettings, Snapped } from "./types/snap";
 
 /**
@@ -355,6 +356,33 @@ export function elementsIn(page: number, rect: MmRect): Promise<string[]> {
  */
 export function scaleGroup(ids: readonly string[], from: MmRect, to: MmRect): Promise<AppliedOp> {
   return invoke<AppliedOp>("scale_group", { ids, from, to });
+}
+
+/**
+ * Alinea varios elementos, respecto a la selección o a la página.
+ *
+ * Las cuentas son del núcleo, con las cajas de la compilación que se ve.
+ * Devuelve `null` si no había nada que mover: entonces no se apunta ningún
+ * paso del historial.
+ */
+export function alignElements(
+  ids: readonly string[],
+  how: Alignment,
+  toPage: boolean,
+): Promise<AppliedOp | null> {
+  return invoke<AppliedOp | null>("align_elements", { ids, how, toPage });
+}
+
+/**
+ * Reparte varios elementos con el mismo hueco entre ellos: entre los dos que
+ * están más lejos, o de borde a borde de la página con `toPage`.
+ */
+export function spreadElements(
+  ids: readonly string[],
+  axis: Spread,
+  toPage: boolean,
+): Promise<AppliedOp | null> {
+  return invoke<AppliedOp | null>("spread_elements", { ids, axis, toPage });
 }
 
 /** Un comando de edición aplicado, tal como lo devuelve `apply_op`. */

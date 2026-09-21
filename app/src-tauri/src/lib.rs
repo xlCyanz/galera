@@ -119,6 +119,8 @@ pub fn run() -> tauri::Result<()> {
             commands::render::request_compilation,
             commands::selection::element_at,
             commands::selection::elements_in,
+            commands::ops::align_elements,
+            commands::ops::spread_elements,
             commands::ops::scale_group,
             commands::snap::snap,
             commands::text::glyphs,

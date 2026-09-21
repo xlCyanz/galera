@@ -22,6 +22,7 @@
 //! cualquier otro documento. Aquí solo se rechaza lo que no se puede
 //! aplicar: un id que no existe, una propiedad que el elemento no tiene.
 
+pub mod align;
 pub mod group;
 pub mod history;
 mod text;

@@ -11,11 +11,11 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 2 — Layout y selección](https://github.com/xlCyanz/galera/milestone/3) | 11 | 11 |
 | [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 13 |
 | [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 11 |
-| [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 4 |
+| [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 5 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 0 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **67** |
+| **Total** | **95** | **68** |
 
 
 ---
@@ -153,7 +153,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F5-02** — Guías inteligentes en el lienzo | [#68](https://github.com/xlCyanz/galera/issues/68) | #67, #34 |
 | ✅ | **F5-03** — Multiselección | [#69](https://github.com/xlCyanz/galera/issues/69) | #32, #33 |
 | ✅ | **F5-04** — Agrupar y desagrupar | [#70](https://github.com/xlCyanz/galera/issues/70) | #69, #2 |
-| ⬜ | **F5-05** — Alinear y distribuir | [#71](https://github.com/xlCyanz/galera/issues/71) | #69 |
+| ✅ | **F5-05** — Alinear y distribuir | [#71](https://github.com/xlCyanz/galera/issues/71) | #69 |
 | ⬜ | **F5-06** — Gestión de páginas | [#72](https://github.com/xlCyanz/galera/issues/72) | #51 |
 | ⬜ | **F5-07** — Copiar y pegar, incluido entre documentos | [#73](https://github.com/xlCyanz/galera/issues/73) | #69, #51 |
 | ⬜ | **F5-08** — Panel de código Typst en solo lectura | [#74](https://github.com/xlCyanz/galera/issues/74) | #20, #31 |
