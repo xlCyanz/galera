@@ -157,6 +157,66 @@ impl Compiled {
 /// # Errores
 ///
 /// Los de [`compile`].
+impl Compiled {
+    /// Los glifos del texto de una celda de una tabla, en el orden en que se
+    /// escriben.
+    ///
+    /// La tabla dibuja el texto de todas sus celdas de una tirada, así que
+    /// aquí se separa el de una: cada glifo dice de qué parte del código
+    /// salió, y el mapa de esta celda solo cubre el suyo ([`TextMap::cell`]).
+    /// Los demás se quedan fuera, y las líneas se cuentan solo dentro de la
+    /// celda.
+    ///
+    /// La lista sale vacía si no hay tal tabla, tal celda, o si su texto no
+    /// cuadra con el código generado.
+    pub fn cell_glyphs(
+        &self,
+        document: &Document,
+        table: &str,
+        row: usize,
+        column: usize,
+    ) -> Vec<Glyph> {
+        let Some(text) = cell_text(document, table, row, column) else {
+            return Vec::new();
+        };
+        let Some(map) = TextMap::cell(
+            self.source(),
+            table,
+            row,
+            column,
+            &text,
+            &document.variables,
+        ) else {
+            return Vec::new();
+        };
+
+        let mut glyphs = Vec::new();
+        for (number, page) in self.paged().pages().iter().enumerate() {
+            let mut items = Vec::new();
+            text_items(&page.frame, table, &mut items);
+            // Solo los tramos de esta celda: si no, las líneas contarían
+            // también las de las celdas de al lado, que comparten altura.
+            items.retain(|(_, item)| {
+                item.glyphs.iter().any(|glyph| {
+                    source_offset(self.source(), glyph).is_some_and(|at| map.index(at).is_some())
+                })
+            });
+            glyphs.extend(place(number, &items, self.source(), &map));
+        }
+        glyphs
+    }
+}
+
+/// El texto de una celda: sus tramos, uno detrás de otro. `None` si no hay
+/// tal tabla o si esa columna de esa fila no la ocupa ninguna celda.
+fn cell_text(document: &Document, table: &str, row: usize, column: usize) -> Option<String> {
+    let Element::Table { columns, rows, .. } = document.element(table)? else {
+        return None;
+    };
+    let index = crate::model::table::cell_at(columns.len(), rows, row, column)?;
+    Some(rows.get(row)?.cells.get(index)?.text())
+}
+
 pub fn glyphs(document: &Document, project: &Project, id: &str) -> Result<Vec<Glyph>> {
     Ok(compile(document, project)?.glyphs(document, id))
 }
@@ -475,6 +535,36 @@ impl TextMap {
         Some(Self { start, indices })
     }
 
+    /// El mapa del texto de una celda de una tabla.
+    ///
+    /// El contenido de una celda se escribe como el de un bloque de texto
+    /// —escapado y con sus envoltorios de formato—, pero no va detrás de un
+    /// `align(…)[` sino detrás de la marca que el codegen le pone,
+    /// `#galera-cell(fila, columna)` (ver [`super::cells`]). Esa marca es
+    /// también lo que distingue una celda de las demás y de las de otra
+    /// tabla, así que se busca dentro de la línea de la tabla.
+    fn cell(
+        source: &Source,
+        table: &str,
+        row: usize,
+        column: usize,
+        text: &str,
+        variables: &std::collections::BTreeMap<String, crate::model::Variable>,
+    ) -> Option<Self> {
+        let code = source.text();
+        let label = code.find(&format!("<{LABEL_PREFIX}{table}>"))?;
+        let line = code[..label].rfind('\n').map_or(0, |at| at + 1);
+        let mark = format!("#galera-cell({row}, {column})");
+        let start = line + code[line..label].find(&mark)? + mark.len();
+
+        let (resolved, back) = crate::variables::substitute_with_map(text, variables);
+        let mut map = Self::walk_from(code, start, &resolved)?;
+        for index in &mut map.indices {
+            *index = back.get(*index).copied().unwrap_or(*index);
+        }
+        Some(map)
+    }
+
     /// Recorre el contenido del elemento `id` en `source` junto a su `text`.
     /// `None` si el elemento no está en el código o si los dos no van de la
     /// mano, que sería un error del codegen o de este módulo.
@@ -511,7 +601,13 @@ impl TextMap {
         // el texto lleve dentro va escapado, así que el primero es este.
         let align = line + code[line..label].find("align(")?;
         let start = align + code[align..label].find('[')? + 1;
+        Self::walk_from(code, start, text)
+    }
 
+    /// El recorrido desde un sitio del código, hasta el `]` que cierra lo
+    /// que hay abierto ahí: es lo mismo para el contenido de un bloque de
+    /// texto y para el de una celda, que se escriben igual.
+    fn walk_from(code: &str, start: usize, text: &str) -> Option<Self> {
         let mut indices = Vec::new();
         let mut rest = &code[start..];
         let mut at = 0;
@@ -1154,5 +1250,120 @@ mod flow_tests {
         let (document, _) = glyphs_of("cuerpo");
         let compiled = crate::compile(&document, &project()).expect("compila");
         assert!(compiled.flow_glyphs(&document, "nada").is_empty());
+    }
+}
+
+/// Los glifos del texto de una celda: los de esa celda y no los de sus
+/// vecinas, aunque la tabla los dibuje todos juntos.
+#[cfg(test)]
+mod cell_tests {
+    use super::*;
+    use crate::testing::{fixture, project};
+
+    fn glyphs_of(row: usize, column: usize) -> (Document, Vec<Glyph>) {
+        let document = fixture("tabla");
+        let compiled = crate::compile(&document, &project()).expect("compila");
+        let glyphs = compiled.cell_glyphs(&document, "tb1", row, column);
+        (document, glyphs)
+    }
+
+    /// El criterio de la tarea: se escribe dentro de una celda, así que el
+    /// cursor tiene que poder ponerse entre sus letras.
+    #[test]
+    fn every_glyph_of_a_cell_points_at_its_own_text() {
+        let (_, glyphs) = glyphs_of(1, 0);
+
+        // «Mes»: una letra, un glifo, en orden.
+        assert_eq!(glyphs.len(), 3, "{glyphs:#?}");
+        assert_eq!(
+            glyphs
+                .iter()
+                .map(|glyph| glyph.text_index)
+                .collect::<Vec<_>>(),
+            vec![0, 1, 2]
+        );
+        for pair in glyphs.windows(2) {
+            assert!(
+                pair[1].x > pair[0].x,
+                "van de izquierda a derecha: {glyphs:#?}"
+            );
+        }
+        assert!(glyphs.iter().all(|glyph| glyph.page == 0));
+    }
+
+    /// Y solo los suyos: la celda de al lado se compone a la misma altura.
+    #[test]
+    fn the_glyphs_of_the_cell_next_door_are_not_these() {
+        let (document, glyphs) = glyphs_of(1, 1);
+        let compiled = crate::compile(&document, &project()).expect("compila");
+        let neighbour = compiled.cell_glyphs(&document, "tb1", 1, 0);
+
+        // «Zona» está a la derecha de «Mes», y son cuatro letras.
+        assert_eq!(glyphs.len(), 4, "{glyphs:#?}");
+        let left = neighbour.last().expect("hay glifos").x;
+        assert!(glyphs[0].x > left, "la celda de al lado empieza después");
+        // Las dos están en su primera línea, cada una por su cuenta.
+        assert!(glyphs.iter().all(|glyph| glyph.line == 0), "{glyphs:#?}");
+    }
+
+    /// El formato de un tramo no mueve el mapa: la celda de la cabecera va
+    /// en negrita y con una ficha de variable dentro.
+    #[test]
+    fn a_bold_cell_with_a_chip_still_points_at_the_document() {
+        let (document, glyphs) = glyphs_of(0, 0);
+        let text = match document.element("tb1") {
+            Some(Element::Table { rows, .. }) => rows[0].cells[0].text(),
+            _ => panic!("es una tabla"),
+        };
+
+        assert_eq!(text, "Ventas de {{trimestre}}");
+        assert!(!glyphs.is_empty(), "la cabecera dibuja algo");
+        // La ficha entera es un solo sitio: todos sus glifos apuntan a donde
+        // empieza.
+        let chip = text.find("{{").expect("hay ficha");
+        let inside: Vec<usize> = glyphs
+            .iter()
+            .map(|glyph| glyph.text_index)
+            .filter(|index| *index >= chip)
+            .collect();
+        assert!(!inside.is_empty(), "{glyphs:#?}");
+        assert!(inside.iter().all(|index| *index == chip), "{inside:?}");
+        assert!(glyphs.iter().all(|glyph| glyph.text_index < text.len()));
+    }
+
+    /// Una celda que no existe no tiene glifos, y tampoco los tiene lo que
+    /// no es una tabla.
+    #[test]
+    fn what_is_not_a_cell_has_no_glyphs() {
+        let document = fixture("tabla");
+        let compiled = crate::compile(&document, &project()).expect("compila");
+
+        assert!(compiled.cell_glyphs(&document, "tb1", 9, 0).is_empty());
+        assert!(compiled.cell_glyphs(&document, "nada", 0, 0).is_empty());
+    }
+
+    /// Los glifos de una celda caen dentro de su caja.
+    #[test]
+    fn the_glyphs_stay_inside_the_cell() {
+        let document = fixture("tabla");
+        let compiled = crate::compile(&document, &project()).expect("compila");
+        let cells = compiled.cells(&document);
+        let cell = cells
+            .iter()
+            .find(|cell| cell.table == "tb1" && cell.row == 2 && cell.column == 2)
+            .expect("está");
+        let glyphs = compiled.cell_glyphs(&document, "tb1", 2, 2);
+
+        assert!(!glyphs.is_empty());
+        for glyph in &glyphs {
+            assert!(
+                glyph.x >= cell.x - 1e-6 && glyph.x + glyph.width <= cell.x + cell.w + 1e-6,
+                "{glyph:?} fuera de {cell:?}"
+            );
+            assert!(
+                glyph.y >= cell.y - 1e-6 && glyph.y <= cell.y + cell.h + 1e-6,
+                "{glyph:?} fuera de {cell:?}"
+            );
+        }
     }
 }

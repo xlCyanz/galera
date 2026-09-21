@@ -6,7 +6,8 @@
  *
  * En un texto, además, su estilo: fuente, tamaño, color, alineación,
  * interlineado y espacio entre párrafos (`TextInspector.tsx`);
- * en una forma, su relleno, borde y radio (`ShapeInspector.tsx`); en un
+ * en una forma, su relleno, borde y radio (`ShapeInspector.tsx`); en una
+ * tabla, sus filas y sus columnas (`TableInspector.tsx`); en un
  * bloque de código, su código (`CodeEditor.tsx`). El id se cambia con
  * doble clic (`IdField.tsx`).
  *
@@ -38,6 +39,7 @@ import { IdField } from "./IdField";
 import { MeasureField } from "./MeasureField";
 import { ShapeInspector } from "./ShapeInspector";
 import { TitleField } from "./TitleField";
+import { TableInspector } from "./TableInspector";
 import { TextInspector } from "./TextInspector";
 import { formatNumber } from "./fieldValue";
 import { type FieldName, fieldOp, groupFields, inspectorFields } from "./inspectorFields";
@@ -135,6 +137,7 @@ function ElementInspector({ element, measured }: { element: Element; measured: R
         })}
       </div>
       {element.type === "text" && <TextInspector element={element} />}
+      {element.type === "table" && <TableInspector element={element} />}
       {element.type === "code" && (
         <Suspense fallback={<p className="code-hint">Cargando el editor…</p>}>
           <CodeEditor id={element.id} source={element.source} />

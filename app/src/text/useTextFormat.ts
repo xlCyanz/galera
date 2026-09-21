@@ -14,11 +14,11 @@ import { useShortcut } from "../hooks/useShortcuts";
 import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
 import type { Line } from "../types/model";
-import type { Format } from "../types/ops";
+import type { Format, Op } from "../types/ops";
 import { targetOf } from "../store/editing";
 import { formatOf, toggle } from "./format";
 import { formatOp, runsOf as runsOfTarget } from "./target";
-import { textOf } from "./change";
+import { count, textOf } from "./change";
 
 /**
  * Aplica un cambio de formato a lo que haya seleccionado.
@@ -30,19 +30,53 @@ import { textOf } from "./change";
 export async function applyFormat(change: Format): Promise<string | null> {
   const state = useEditingStore.getState();
   const target = targetOf(state);
-  const { start, end } = state;
-  if (target === null || start === end) {
+  const { start, end, marked } = state;
+  if (target === null) {
     return null;
   }
-  const [from, to] = start <= end ? [start, end] : [end, start];
+
+  // Con varias celdas marcadas, el formato va al texto entero de todas, y
+  // en un solo comando: un cambio, una compilación y un paso del historial.
+  const ops =
+    target.kind === "cell" && marked.length > 0
+      ? wholeCells(target.table, [{ row: target.row, column: target.column }, ...marked], change)
+      : start === end
+        ? []
+        : [formatOp(target, Math.min(start, end), Math.max(start, end), change)];
+
+  const op = ops.length === 1 ? ops[0] : { op: "batch" as const, ops };
+  if (ops.length === 0 || op === undefined) {
+    return null;
+  }
+
   try {
-    const applied = await applyOp(formatOp(target, from, to, change));
+    const applied = await applyOp(op);
     useDocumentStore.getState().applyEdit(applied);
     return null;
   } catch (reason: unknown) {
     // El texto se queda como estaba.
     return errorMessage(reason);
   }
+}
+
+/** Un comando por celda, cada uno sobre su texto entero. */
+function wholeCells(
+  table: string,
+  cells: readonly { row: number; column: number }[],
+  change: Format,
+): Op[] {
+  const document = useDocumentStore.getState().document;
+  return cells.flatMap((cell) => {
+    const runs = runsOfTarget(document, { kind: "cell", table, ...cell });
+    if (runs === null) {
+      return [];
+    }
+    const text = textOf(runs);
+    // El tramo de un comando va en caracteres, como lo cuenta el núcleo
+    // (`model::text`), no en bytes.
+    const to = count(text, text.length);
+    return to === 0 ? [] : [formatOp({ kind: "cell", table, ...cell }, 0, to, change)];
+  });
 }
 
 /**
@@ -73,8 +107,10 @@ export function useTextFormat(): void {
     useShortcut(what, () => {
       const state = useEditingStore.getState();
       const target = targetOf(state);
-      const { start, end } = state;
-      if (target === null || start === end) {
+      const { start, end, marked } = state;
+      // Con celdas marcadas vale sin selección: el formato es de las celdas
+      // enteras.
+      if (target === null || (start === end && marked.length === 0)) {
         return false;
       }
       const runs = runsOfTarget(useDocumentStore.getState().document, target);

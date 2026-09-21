@@ -31,6 +31,19 @@ export interface EditingState {
    * varias páginas: la selección es del texto del flujo, no de una zona.
    */
   flow: string | null;
+  /**
+   * La celda de la tabla que se está escribiendo, o `null`.
+   *
+   * Se dice por su sitio en la rejilla —fila y columna—, que es como la
+   * nombran el núcleo y el layout: así sigue siendo la misma celda aunque
+   * la fila gane o pierda celdas tapadas.
+   */
+  cell: { table: string; row: number; column: number } | null;
+  /**
+   * Las otras celdas marcadas de la misma tabla, además de la que se
+   * escribe: lo que se marca con ⇧ o ⌘ para dar formato a varias de una vez.
+   */
+  marked: { row: number; column: number }[];
   /** Dónde empieza la selección dentro del texto, en bytes. */
   start: number;
   /** Dónde acaba, en bytes. Si es igual a `start`, es el cursor. */
@@ -60,6 +73,10 @@ export interface EditingState {
   edit: (element: string, at?: number) => void;
   /** Entra a escribir en un flujo, con el cursor donde se diga. */
   editFlow: (flow: string, at?: number) => void;
+  /** Entra a escribir en una celda de una tabla. */
+  editCell: (table: string, row: number, column: number, at?: number) => void;
+  /** Marca o desmarca otra celda de la tabla que se está escribiendo. */
+  markCell: (row: number, column: number) => void;
   /** Sale del modo de escritura. */
   stop: () => void;
   /** Guarda dónde está la selección dentro del texto. La manda el campo
@@ -81,6 +98,8 @@ export interface EditingState {
 export const useEditingStore = create<EditingState>()((set) => ({
   element: null,
   flow: null,
+  cell: null,
+  marked: [],
   start: 0,
   end: 0,
   composing: false,
@@ -91,18 +110,61 @@ export const useEditingStore = create<EditingState>()((set) => ({
   insertRequests: 0,
 
   edit: (element, at = 0) =>
-    set({ element, flow: null, start: at, end: at, composing: false, glyphs: [], typedAt: 0 }),
+    set({
+      element,
+      flow: null,
+      cell: null,
+      marked: [],
+      start: at,
+      end: at,
+      composing: false,
+      glyphs: [],
+      typedAt: 0,
+    }),
   editFlow: (flow, at = 0) =>
-    set({ element: null, flow, start: at, end: at, composing: false, glyphs: [], typedAt: 0 }),
+    set({
+      element: null,
+      flow,
+      cell: null,
+      marked: [],
+      start: at,
+      end: at,
+      composing: false,
+      glyphs: [],
+      typedAt: 0,
+    }),
+  editCell: (table, row, column, at = 0) =>
+    set({
+      element: null,
+      flow: null,
+      cell: { table, row, column },
+      marked: [],
+      start: at,
+      end: at,
+      composing: false,
+      glyphs: [],
+      typedAt: 0,
+    }),
   stop: () =>
     set({
       element: null,
       flow: null,
+      cell: null,
+      marked: [],
       start: 0,
       end: 0,
       composing: false,
       glyphs: [],
       typedAt: 0,
+    }),
+  markCell: (row, column) =>
+    set((state) => {
+      const had = state.marked.some((one) => one.row === row && one.column === column);
+      return {
+        marked: had
+          ? state.marked.filter((one) => !(one.row === row && one.column === column))
+          : [...state.marked, { row, column }],
+      };
     }),
   setSelection: (start, end) => set({ start, end }),
   select: (start, end) =>
@@ -124,10 +186,17 @@ export const useEditingElement = () => useEditingStore((state) => state.element)
 /** El flujo que se está escribiendo, o `null`. */
 export const useEditingFlow = () => useEditingStore((state) => state.flow);
 
-/** Qué texto se está escribiendo, sea de un bloque o de un flujo. */
+/** La celda que se está escribiendo, o `null`. */
+export const useEditingCell = () => useEditingStore((state) => state.cell);
+
+/** Qué texto se está escribiendo, sea de un bloque, de un flujo o de una
+ * celda. */
 export function targetOf(state: EditingState): EditTarget | null {
   if (state.flow !== null) {
     return { kind: "flow", name: state.flow };
+  }
+  if (state.cell !== null) {
+    return { kind: "cell", ...state.cell };
   }
   return state.element === null ? null : { kind: "element", id: state.element };
 }
@@ -136,8 +205,12 @@ export function targetOf(state: EditingState): EditTarget | null {
 export const useEditTarget = (): EditTarget | null => {
   const element = useEditingStore((state) => state.element);
   const flow = useEditingStore((state) => state.flow);
+  const cell = useEditingStore((state) => state.cell);
   if (flow !== null) {
     return { kind: "flow", name: flow };
+  }
+  if (cell !== null) {
+    return { kind: "cell", ...cell };
   }
   return element === null ? null : { kind: "element", id: element };
 };

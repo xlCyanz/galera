@@ -13,9 +13,9 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 11 |
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 9 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 6 |
-| [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 4 |
+| [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 5 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **82** |
+| **Total** | **95** | **83** |
 
 
 ---
@@ -191,7 +191,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F7-02** — Codegen del texto que fluye entre páginas | [#84](https://github.com/xlCyanz/galera/issues/84) | #83, #7 |
 | ✅ | **F7-03** — Edición de texto dentro de un flow | [#85](https://github.com/xlCyanz/galera/issues/85) | #84, #61 |
 | ✅ | **F7-04** — Modelo y codegen de tablas | [#86](https://github.com/xlCyanz/galera/issues/86) | #2, #5 |
-| ⬜ | **F7-05** — Edición de tablas en la interfaz | [#87](https://github.com/xlCyanz/galera/issues/87) | #86, #61 |
+| ✅ | **F7-05** — Edición de tablas en la interfaz | [#87](https://github.com/xlCyanz/galera/issues/87) | #86, #61 |
 
 ---
 

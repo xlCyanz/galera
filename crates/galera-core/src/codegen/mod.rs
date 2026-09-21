@@ -176,6 +176,7 @@ pub fn generate(document: &Document) -> Result<String, CodegenError> {
     // Lo que necesitan los flujos va antes de las páginas: una zona de la
     // página 1 usa lo mismo que una de la 7.
     flow::emit_prelude(document, &mut out)?;
+    table::emit_prelude(document, &mut out);
 
     let mut previous_size: Option<&PageSize> = None;
     for (index, page) in document.pages.iter().enumerate() {

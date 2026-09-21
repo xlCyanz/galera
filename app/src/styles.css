@@ -1078,6 +1078,45 @@ body {
   opacity: 0.7;
 }
 
+/* El inspector de tablas (ver `ui/TableInspector.tsx`). */
+.table-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.table-inspector .inspector-value {
+  flex: 0 0 2em;
+  font-variant-numeric: tabular-nums;
+}
+
+.table-inspector button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: #fff;
+  color: #1f2733;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.table-inspector button:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.table-inspector button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.table-inspector select {
+  min-width: 0;
+  font: inherit;
+}
+
 .inspector-check {
   display: flex;
   gap: 4px;
@@ -1278,6 +1317,93 @@ body {
   font-size: 0.6rem;
   line-height: 1.4;
   white-space: nowrap;
+}
+
+/* Las celdas de la tabla que se escribe (ver `canvas/TableCells.tsx`). */
+.table-cells {
+  position: absolute;
+  pointer-events: none;
+  transform-origin: center;
+}
+
+.table-cell {
+  position: absolute;
+  border: 1px dashed #94a3b8;
+  pointer-events: none;
+}
+
+.table-cell.is-marked {
+  border-color: #6366f1;
+  background: rgb(99 102 241 / 12%);
+}
+
+/* Los bordes de las columnas, para arrastrarlos (ver
+   `canvas/ColumnHandles.tsx`). */
+.column-handles {
+  position: absolute;
+  pointer-events: none;
+  transform-origin: center;
+}
+
+.column-handle {
+  position: absolute;
+  top: 0;
+  width: 9px;
+  height: 100%;
+  margin-left: -4px;
+  background: transparent;
+  cursor: col-resize;
+  pointer-events: auto;
+}
+
+.column-handle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 4px;
+  width: 1px;
+  height: 100%;
+  background: transparent;
+}
+
+.column-handle:hover::before,
+.column-handle.is-dragging::before {
+  background: #6366f1;
+}
+
+/* El menú de una tabla (ver `canvas/TableMenu.tsx`). */
+.table-menu {
+  position: absolute;
+  z-index: 5;
+  min-width: 180px;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgb(15 23 42 / 18%);
+}
+
+.table-menu button {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: #1f2733;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.table-menu button:hover {
+  background: #f1f5f9;
+}
+
+.table-menu hr {
+  margin: 4px 0;
+  border: 0;
+  border-top: 1px solid #e2e8f0;
 }
 
 /* El diálogo de exportar (ver `ui/ExportDialog.tsx`). */

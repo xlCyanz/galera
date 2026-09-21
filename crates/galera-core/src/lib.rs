@@ -80,9 +80,11 @@ pub use export::{Exported, Format, Pages, export, subset, typst_source};
 pub use fonts::{
     ImportFontError, ImportedFont, default_text_style, font_users, import_font, sample_document,
 };
+pub use layout::cells::{CellBox, cell_at, column_edges};
 pub use layout::flows::FlowRange;
 pub use layout::glyphs::{Glyph, glyphs};
 pub use layout::{LayoutBox, MmRect, layout, overflowing};
+pub use model::table::{ColumnWidth, TableCell, TableRow};
 pub use model::{
     Align, DEFAULT_PARAGRAPH_SPACING, Dash, Document, Element, ElementBox, Layer, Meta, Page,
     PageSize, Run, Stroke, TextStyle, Unit, ValidationError, ValidationErrors, Variable,

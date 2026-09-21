@@ -7,11 +7,12 @@
 //! | Evento | Cuándo | Datos |
 //! |---|---|---|
 //! | `compilation:start` | Empieza una compilación | `{ revision }` |
-//! | `compilation:finish` | Ha salido bien | `{ revision, ms, reused, diagnostics, pages, boxes, flows }` |
+//! | `compilation:finish` | Ha salido bien | `{ revision, ms, reused, diagnostics, pages, boxes, flows, cells }` |
 //! | `compilation:error` | Ha fallado | `{ revision, ms, reused, diagnostics, error }` |
 //!
 //! `pages` lleva el SVG de cada página; `boxes`, la caja real de cada
 //! elemento; `flows`, qué rango del texto de cada flujo quedó en cada zona;
+//! `cells`, dónde quedó cada celda de cada tabla;
 //! y `error` tiene la forma de cualquier error de un comando
 //! (`{ kind, message, … }`).
 //!
@@ -35,7 +36,9 @@
 
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 
-use galera_core::{Compiled, Diagnostic, Document, FlowRange, GaleraError, LayoutBox, Project};
+use galera_core::{
+    CellBox, Compiled, Diagnostic, Document, FlowRange, GaleraError, LayoutBox, Project,
+};
 use serde::{Serialize, Serializer};
 use tauri::{AppHandle, Emitter, Runtime};
 
@@ -146,6 +149,9 @@ pub struct Finished {
     /// Qué rango del texto de su flujo quedó en cada zona (ver
     /// `galera_core::layout::flows`).
     pub flows: Vec<FlowRange>,
+    /// Dónde quedó cada celda de cada tabla (ver
+    /// `galera_core::layout::cells`).
+    pub cells: Vec<CellBox>,
 }
 
 /// `compilation:error`.
@@ -242,6 +248,12 @@ where
                 let boxes = compiled.layout();
                 let flows = compiled.flows();
                 let document = state.open_document().map(|(_, document)| document);
+                // Las celdas se leen con el documento de esta compilación:
+                // de él salen el margen de cada tabla y sus celdas.
+                let cells = document
+                    .as_ref()
+                    .map(|document| compiled.cells(document))
+                    .unwrap_or_default();
                 events.finished(Finished {
                     revision: compilation.revision,
                     ms,
@@ -272,6 +284,7 @@ where
                     pages: state.page_svgs(&compiled),
                     boxes,
                     flows,
+                    cells,
                 });
             }
             Err(error) => events.failed(Failed {

@@ -55,7 +55,13 @@ import {
   useSelectedElement,
   useSelection as useSelectedElements,
 } from "../store/document";
-import { useEditTarget, useEditingElement, useEditingFlow, useEditingStore } from "../store/editing";
+import {
+  useEditTarget,
+  useEditingCell,
+  useEditingElement,
+  useEditingFlow,
+  useEditingStore,
+} from "../store/editing";
 import { useElementBox, useLayoutStore, useOverflowing } from "../store/layout";
 import { useTool, useToolStore } from "../store/tool";
 import { Cursor } from "../text/Cursor";
@@ -66,6 +72,10 @@ import { SelectionLayer } from "../text/SelectionLayer";
 import type { LayoutBox } from "../types/layout";
 import { linesOf, runsOf } from "../text/target";
 import { FlowChain } from "./FlowChain";
+import { TableCells } from "./TableCells";
+import { TableMenu } from "./TableMenu";
+import { useTableMenu } from "./useTableMenu";
+import { ColumnHandles } from "./ColumnHandles";
 import { applyFormat, applyLines, useTextFormat } from "../text/useTextFormat";
 import { useTextEditing } from "../text/useTextEditing";
 import { ControlLayer } from "./ControlLayer";
@@ -128,10 +138,24 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   // varias páginas, así que sus capas se anclan a la página entera y cada
   // una se queda con los glifos que cayeron aquí.
   const editingFlow = useEditingFlow();
+  // Escribir en una celda: sus capas se anclan a la caja de la tabla, que
+  // es lo que gira el lienzo, y el cursor sale de los glifos de la celda.
+  const editingCell = useEditingCell();
+  const editingTableBox = useElementBox(editingCell?.table ?? null);
+  const markedCells = useEditingStore((state) => state.marked);
   const target = useEditTarget();
   // Los tramos del texto que se escribe, para enseñar su formato.
   const editingRuns = target === null ? [] : (runsOf(document, target) ?? []);
   const editingLines = target === null ? [] : linesOf(document, target);
+  // La tabla seleccionada, si lo que hay seleccionado es una tabla: es la
+  // que enseña los bordes de sus columnas para arrastrarlos.
+  const selectedTable =
+    selected !== null &&
+    document?.pages.some((page) =>
+      page.elements.some((element) => element.id === selected && element.type === "table"),
+    ) === true
+      ? selected
+      : null;
   // Un elemento bloqueado se selecciona desde el panel de capas, pero en el
   // lienzo no se agarra ni se empuja con las flechas.
   const selectedLocked =
@@ -185,6 +209,8 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const measured = useElementBox(highlighted);
   const drag = useDrag(transform?.pxPerMm ?? null, currentPage);
   const text = useTextEditing(transform, currentPage);
+  // El botón derecho sobre una celda abre el menú de su tabla.
+  const tableMenu = useTableMenu(transform, currentPage);
   // ⌘B, ⌘I y ⌘U sobre lo que haya seleccionado del texto.
   useTextFormat();
   // Pulsar un elemento y arrastrar sin soltar lo selecciona y lo mueve.
@@ -354,7 +380,13 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
             enterGroup(event);
             text.onDoubleClick(event);
           }}
+          onContextMenu={tableMenu.onContextMenu}
           onPointerDown={(event) => {
+            // Con el menú de una tabla abierto, pulsar en cualquier sitio
+            // lo cierra antes que nada.
+            if (tableMenu.menu !== null) {
+              tableMenu.close();
+            }
             // Dentro del texto que se escribe, el puntero coloca el cursor
             // y selecciona; fuera, deja de escribir y sigue el camino
             // normal del lienzo.
@@ -525,6 +557,46 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
               />
             </>
           )}
+          {tableMenu.menu !== null && (
+            <TableMenu at={tableMenu.menu} onClose={tableMenu.close} />
+          )}
+          {selectedTable !== null &&
+            selectedBox !== null &&
+            selectedBox.page === currentPage &&
+            transform !== null && (
+              <ColumnHandles table={selectedTable} box={selectedBox} transform={transform} />
+            )}
+          {editingCell !== null &&
+            editingTableBox !== null &&
+            editingTableBox.page === currentPage &&
+            transform !== null && (
+              <>
+                <TableCells
+                  table={editingCell.table}
+                  box={editingTableBox}
+                  page={currentPage}
+                  transform={transform}
+                  marked={[
+                    { row: editingCell.row, column: editingCell.column },
+                    ...markedCells,
+                  ]}
+                />
+                <HiddenInput
+                  target={{ kind: "cell", ...editingCell }}
+                  box={editingTableBox}
+                  transform={transform}
+                />
+                <SelectionLayer box={editingTableBox} transform={transform} />
+                <Cursor box={editingTableBox} transform={transform} />
+                <FormatBar
+                  runs={editingRuns}
+                  lines={editingLines}
+                  transform={transform}
+                  onFormat={applyFormat}
+                  onLines={applyLines}
+                />
+              </>
+            )}
           {editing !== null && editingBox !== null && editingBox.page === currentPage && transform !== null && (
             <>
               <HiddenInput target={{ kind: "element", id: editing }} box={editingBox} transform={transform} />
