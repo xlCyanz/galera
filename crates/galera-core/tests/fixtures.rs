@@ -21,6 +21,7 @@ const FIXTURES: &[&str] = &[
     "denso",
     "elipse",
     "escape",
+    "flujo",
     "formato",
     "grupos",
     "guionado",

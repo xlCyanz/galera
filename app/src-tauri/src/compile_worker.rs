@@ -7,11 +7,12 @@
 //! | Evento | Cuándo | Datos |
 //! |---|---|---|
 //! | `compilation:start` | Empieza una compilación | `{ revision }` |
-//! | `compilation:finish` | Ha salido bien | `{ revision, ms, reused, diagnostics, pages, boxes }` |
+//! | `compilation:finish` | Ha salido bien | `{ revision, ms, reused, diagnostics, pages, boxes, flows }` |
 //! | `compilation:error` | Ha fallado | `{ revision, ms, reused, diagnostics, error }` |
 //!
 //! `pages` lleva el SVG de cada página; `boxes`, la caja real de cada
-//! elemento; y `error` tiene la forma de cualquier error de un comando
+//! elemento; `flows`, qué rango del texto de cada flujo quedó en cada zona;
+//! y `error` tiene la forma de cualquier error de un comando
 //! (`{ kind, message, … }`).
 //!
 //! # Coalescencia
@@ -34,7 +35,7 @@
 
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 
-use galera_core::{Compiled, Diagnostic, Document, GaleraError, LayoutBox, Project};
+use galera_core::{Compiled, Diagnostic, Document, FlowRange, GaleraError, LayoutBox, Project};
 use serde::{Serialize, Serializer};
 use tauri::{AppHandle, Emitter, Runtime};
 
@@ -142,6 +143,9 @@ pub struct Finished {
     /// La caja real de cada elemento, de todas las páginas, tal como la
     /// compuso Typst (ver `galera_core::layout`).
     pub boxes: Vec<LayoutBox>,
+    /// Qué rango del texto de su flujo quedó en cada zona (ver
+    /// `galera_core::layout::flows`).
+    pub flows: Vec<FlowRange>,
 }
 
 /// `compilation:error`.
@@ -236,6 +240,8 @@ where
         match compilation.result {
             Ok(compiled) => {
                 let boxes = compiled.layout();
+                let flows = compiled.flows();
+                let document = state.open_document().map(|(_, document)| document);
                 events.finished(Finished {
                     revision: compilation.revision,
                     ms,
@@ -247,15 +253,25 @@ where
                     diagnostics: [
                         compiled.warnings().to_vec(),
                         galera_core::overflowing(&boxes),
-                        state
-                            .open_document()
-                            .map(|(_, document)| galera_core::variables::missing(&document))
+                        document
+                            .as_ref()
+                            .map(|document| {
+                                [
+                                    galera_core::variables::missing(document),
+                                    // Lo que no cabe en la cadena de un flujo
+                                    // no se dibuja en ninguna parte: si no se
+                                    // dice, no hay nada que ver.
+                                    galera_core::layout::flows::overflowing(document, &flows),
+                                ]
+                                .concat()
+                            })
                             .unwrap_or_default(),
                     ]
                     .concat(),
                     // Solo se vuelven a dibujar las páginas que han cambiado.
                     pages: state.page_svgs(&compiled),
                     boxes,
+                    flows,
                 });
             }
             Err(error) => events.failed(Failed {

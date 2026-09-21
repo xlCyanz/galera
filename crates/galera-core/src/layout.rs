@@ -53,6 +53,7 @@
 //! texto, para dibujar el cursor y la selección donde de verdad está el
 //! texto.
 
+pub mod flows;
 pub mod glyphs;
 pub mod hit;
 
@@ -277,7 +278,7 @@ fn is_group_block(content: &typst::foundations::Content) -> bool {
 }
 
 /// El id del elemento si el contenido es un `place` con etiqueta `<el-ID>`.
-fn element_id(content: &typst::foundations::Content) -> Option<String> {
+pub(crate) fn element_id(content: &typst::foundations::Content) -> Option<String> {
     if content.func().name() != "place" {
         return None;
     }

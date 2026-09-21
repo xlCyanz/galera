@@ -173,6 +173,7 @@ describe("Canvas", () => {
         diagnostics: [],
         pages: ["<svg>a4</svg>", "<svg>carta</svg>"],
         boxes: [],
+        flows: [],
       }),
     );
     act(() => useDocumentStore.getState().setCurrentPage(1));
@@ -195,6 +196,7 @@ describe("Canvas", () => {
         diagnostics: [],
         pages: ["<svg>bueno</svg>", "<svg>2</svg>"],
         boxes: [],
+        flows: [],
       }),
     );
     act(() => root.render(<Canvas loader={loader} />));
@@ -232,6 +234,7 @@ describe("Canvas", () => {
         diagnostics: [],
         pages: ["<svg>glifos</svg>", "<svg>2</svg>"],
         boxes: [],
+        flows: [],
       }),
     );
     act(() => root.render(<Canvas loader={loader} />));

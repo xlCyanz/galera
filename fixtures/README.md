@@ -15,6 +15,7 @@ Documentos de ejemplo que sirven de banco de pruebas para todo el proyecto. Comp
 | `escape.json` | Todo lo que tiene que escaparse: caracteres de marcado, marcadores de línea, comentarios, enlaces y comillas en el título. Las comillas en nombres de fuente se prueban en las pruebas unitarias de `codegen`: una familia que no existe ya no pasa la validación. |
 | `capas.json` | Lo del panel de capas: un fondo con nombre y bloqueado, un rectángulo y una línea ocultos (que no se emiten), un texto con nombre y una elipse con `hidden: false`. |
 | `multipagina.json` | Cinco páginas: mismo tamaño seguido, apaisada, en pulgadas, vacía. |
+| `flujo.json` | Un texto que fluye por tres zonas en dos páginas: dos con alto fijo y una con alto automático, con un tramo en negrita a caballo entre zonas. |
 
 `assets/` tiene imágenes de 1×1 px en los tres formatos, y `fonts/`, las fuentes: ver más abajo.
 

@@ -71,7 +71,7 @@ beforeEach(async () => {
   useCompilationStore.setState(useCompilationStore.getInitialState(), true);
   useDocumentStore.getState().open(project);
   const boxes = [box("r1", 30, 40, 60, 20), box("t1", 100, 10, 50, 7.5, 30)];
-  useCompilationStore.getState().finish({ revision: 1, ms: 1, reused: false, diagnostics: [], pages: ["<svg/>"], boxes });
+  useCompilationStore.getState().finish({ revision: 1, ms: 1, reused: false, diagnostics: [], pages: ["<svg/>"], boxes, flows: [] });
   useLayoutStore.getState().update(1, boxes);
 
   container = document.createElement("div");

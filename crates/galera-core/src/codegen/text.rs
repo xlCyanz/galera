@@ -302,7 +302,7 @@ fn emit_list(rendered: &[String], lines: &[Line], kind: ListKind, level: u8, out
 /// Primero se sustituye y después se escapa: el valor de una variable es
 /// texto de la persona, igual que lo que hay escrito alrededor, y entra en
 /// el documento como texto y nunca como marcado (principio 6).
-fn emit_run(
+pub(super) fn emit_run(
     piece: &str,
     run: &Run,
     variables: &BTreeMap<String, Variable>,
@@ -344,7 +344,7 @@ fn emit_run(
 ///
 /// La justificada se alinea a la izquierda: la última línea de un párrafo
 /// justificado queda así, y el resto lo reparte `par(justify: true)`.
-fn horizontal_alignment(align: Align) -> &'static str {
+pub(super) fn horizontal_alignment(align: Align) -> &'static str {
     match align {
         Align::Left | Align::Justify => "left",
         Align::Center => "center",
@@ -353,7 +353,7 @@ fn horizontal_alignment(align: Align) -> &'static str {
 }
 
 /// Un tamaño tipográfico en puntos, tal como lo entiende Typst.
-fn points(value: f64) -> String {
+pub(super) fn points(value: f64) -> String {
     format!("{}pt", number(value))
 }
 
