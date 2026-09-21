@@ -4,9 +4,12 @@
 //!
 //! ```text
 //!                                                                      ┌──► PDF
-//! Document ──codegen──► código Typst ──World + typst::compile──► Compiled
-//!                                                                      └──► SVG por página
+//! Document ──codegen──► código Typst ──World + typst::compile──► Compiled ──► SVG por página
+//!                                                                      └──► PNG por página
 //! ```
+//!
+//! Qué formato sale de cada exportación y qué páginas lo hacen es de
+//! [`crate::export`]; aquí están las exportaciones sueltas.
 //!
 //! Es uno de los tres módulos donde se permite usar Typst (principio 5 del
 //! README), junto con `world` y `layout`. Hacia fuera no deja salir ningún
@@ -48,11 +51,12 @@ use std::ops::Range;
 use typst::diag::{Severity as TypstSeverity, SourceDiagnostic};
 use typst::foundations::Smart;
 use typst::syntax::{DiagSpan, DiagSpanKind, Source};
+use typst::utils::Scalar;
 use typst_layout::PagedDocument;
 use typst_pdf::PdfOptions;
 use typst_svg::SvgOptions;
 
-use crate::error::{Diagnostic, GaleraError, Result, Severity};
+use crate::error::{Diagnostic, GaleraError, MAX_PPI, MIN_PPI, Result, Severity};
 use crate::model::{Document, is_valid_id};
 use crate::project::Project;
 
@@ -122,6 +126,46 @@ impl Compiled {
         })?;
 
         Ok(typst_svg::svg(page, &SvgOptions::default()))
+    }
+
+    /// El código Typst que se compiló: lo que se exporta como `.typ`.
+    ///
+    /// Es el mismo que produjo este documento, no una traducción aparte,
+    /// así que lo exportado compila con Typst tal cual y da esto mismo.
+    pub fn to_typ(&self) -> &str {
+        self.source.text()
+    }
+
+    /// Exporta una página a PNG con la densidad que se diga, en puntos por
+    /// pulgada. Las páginas se cuentan desde 0.
+    ///
+    /// Sale de la misma compilación que el PDF y que el SVG del lienzo, así
+    /// que la imagen es lo que se ve (principio 2). Typst mide en puntos, a
+    /// 72 por pulgada: 300 ppp son 300/72 píxeles por punto.
+    ///
+    /// # Errores
+    ///
+    /// - [`GaleraError::PageOutOfRange`] si la página no existe.
+    /// - [`GaleraError::BadDensity`] si la densidad se sale de lo que se
+    ///   admite ([`MIN_PPI`], [`MAX_PPI`]).
+    /// - [`GaleraError::Png`] si el PNG no se puede escribir.
+    pub fn to_png(&self, page: usize, ppi: f32) -> Result<Vec<u8>> {
+        if !(MIN_PPI..=MAX_PPI).contains(&ppi) {
+            return Err(GaleraError::BadDensity { ppi });
+        }
+        let pages = self.document.pages();
+        let page = pages.get(page).ok_or(GaleraError::PageOutOfRange {
+            page,
+            count: pages.len(),
+        })?;
+
+        let options = typst_render::RenderOptions {
+            pixel_per_pt: Scalar::new(f64::from(ppi) / 72.0),
+            ..typst_render::RenderOptions::default()
+        };
+        typst_render::render(page, &options)
+            .encode_png()
+            .map_err(|error| GaleraError::Png(error.to_string()))
     }
 }
 

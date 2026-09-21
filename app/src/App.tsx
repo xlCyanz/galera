@@ -31,6 +31,7 @@ import {
   useProjectRoot,
 } from "./store/document";
 import { CloseDialog } from "./ui/CloseDialog";
+import { ExportDialog } from "./ui/ExportDialog";
 import { Inspector } from "./ui/Inspector";
 import { ShortcutsHelp } from "./ui/ShortcutsHelp";
 import { RecoveryNotice } from "./ui/RecoveryNotice";
@@ -61,6 +62,7 @@ export function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const dirty = useDirty();
   const archive = useArchive();
@@ -233,6 +235,14 @@ export function App() {
         </button>
         <button
           type="button"
+          onClick={() => setExportOpen((open) => !open)}
+          disabled={title === null}
+          aria-expanded={exportOpen}
+        >
+          Exportar a…
+        </button>
+        <button
+          type="button"
           onClick={() => void runHistory("undo")}
           disabled={history.undo === null}
           aria-keyshortcuts={mac ? "Meta+Z" : "Control+Z"}
@@ -275,6 +285,15 @@ export function App() {
           <dt>Abierto en el backend</dt>
           <dd>{status.title ?? "nada"}</dd>
         </dl>
+      )}
+      {exportOpen && (
+        <ExportDialog
+          onClose={() => setExportOpen(false)}
+          onDone={(done) => {
+            setError(null);
+            setNotice(done);
+          }}
+        />
       )}
       {notice !== null && (
         <p role="status" className="ok">
