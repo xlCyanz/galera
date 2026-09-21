@@ -27,6 +27,8 @@ En macOS el modificador es ⌘; en Windows y Linux, Ctrl.
 | Deshacer | `⌘Z` | `Ctrl+Z` |
 | Rehacer | `⌘⇧Z` | `Ctrl+Shift+Z` |
 | Quitar la selección | `Esc` | `Esc` |
+| Agrupar | `⌘G` | `Ctrl+G` |
+| Desagrupar | `⌘⇧G` | `Ctrl+Shift+G` |
 | Negrita | `⌘B` | `Ctrl+B` |
 | Cursiva | `⌘I` | `Ctrl+I` |
 | Subrayado | `⌘U` | `Ctrl+U` |
@@ -102,6 +104,11 @@ teclas van al texto y no a las herramientas:
   dibuja, `Esc` cancela **ese gesto** y `⇧` lo restringe (proporción, ángulos
   de 45°, movimiento recto). No son atajos: son parte del gesto, y solo
   valen mientras dura.
+- **Los grupos.** `⌘G` mete lo seleccionado en un grupo, que a partir de
+  ahí se mueve, se gira y se estira como un solo elemento; `⌘⇧G` lo
+  deshace. Agrupar no mueve nada de sitio: lo que cambia es desde dónde se
+  cuentan las posiciones de los hijos. **Doble clic** en un grupo entra en
+  él para trabajar con lo que lleva dentro, y `Esc` sale.
 - **La multiselección.** `⇧` + clic añade un elemento a la selección o lo
   quita, en el lienzo y en el panel de capas. Arrastrar desde una zona
   vacía dibuja el rectángulo de selección, que coge lo que toca (con `⇧`,

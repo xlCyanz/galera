@@ -77,6 +77,8 @@ export const SHORTCUTS = [
     alsoOnOthers: { key: "y", mod: true },
   },
   { id: "deselect", label: "Quitar la selección", group: "Edición", keys: { key: "escape", show: "Esc" } },
+  { id: "group", label: "Agrupar", group: "Edición", keys: { key: "g", mod: true } },
+  { id: "ungroup", label: "Desagrupar", group: "Edición", keys: { key: "g", mod: true, shift: true } },
 
   { id: "bold", label: "Negrita", group: "Edición", keys: { key: "b", mod: true } },
   { id: "italic", label: "Cursiva", group: "Edición", keys: { key: "i", mod: true } },

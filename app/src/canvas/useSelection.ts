@@ -13,6 +13,8 @@
  *   selección, para poder arrastrar el grupo entero.
  * - Alt o ⌘ + clic: atraviesa hacia el elemento que hay debajo del
  *   seleccionado, y del último vuelve al primero.
+ * - Dentro de un grupo (`enteredGroup`), el clic coge a sus hijos: se
+ *   atraviesa el grupo, que es lo que hay más arriba.
  *
  * Las respuestas llegan en orden de petición, pero por si no: una respuesta
  * que llega después de otro clic se descarta.
@@ -75,9 +77,12 @@ export function useSelection(
     const area = event.currentTarget.getBoundingClientRect();
     const point = toDocument(transform, event.clientX - area.left, event.clientY - area.top);
     const tolerance = HIT_TOLERANCE_PX / transform.pxPerMm;
-    const { selection, select, toggleSelected } = useDocumentStore.getState();
-    // Atravesar solo tiene sentido con un único elemento debajo.
-    const below = wantsToGoThrough(event) && selection.length === 1 ? (selection[0] ?? null) : null;
+    const { selection, select, toggleSelected, enteredGroup } = useDocumentStore.getState();
+    // Atravesar solo tiene sentido con un único elemento debajo. Dentro de
+    // un grupo, el clic coge a sus hijos y no al grupo entero.
+    const below = wantsToGoThrough(event) && selection.length === 1
+      ? (selection[0] ?? null)
+      : enteredGroup;
 
     const request = ++latest.current;
     const { clientX, clientY, shiftKey } = event;

@@ -1,0 +1,22 @@
+---
+source: crates/galera-core/tests/fixtures.rs
+expression: code
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set document(title: "Grupos")
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 20mm, dy: 30mm)[#block(width: 170mm, height: 80mm)[
+#place(top + left, dx: 0mm, dy: 0mm)[#rect(width: 170mm, height: 80mm, fill: rgb("#f1f5f9"), stroke: (paint: rgb("#1F2733"), thickness: 0.5mm), radius: 4mm)] <el-marco>
+#place(top + left, dx: 10mm, dy: 10mm)[#block(width: 150mm, { set text(font: "Inter", size: 18pt, fill: rgb("#1F2733")); set par(leading: 0.65em); align(left)[Informe anual] })] <el-titulo>
+#place(top + left, dx: 10mm, dy: 45mm)[#block(width: 90mm, height: 25mm)[
+#place(top + left, dx: 0mm, dy: 0mm)[#line(start: (0mm, 0mm), end: (90mm, 0mm), stroke: (paint: rgb("#1F2733"), thickness: 0.25mm))] <el-raya>
+#place(top + left, dx: 0mm, dy: 3mm)[#block(width: 90mm, { set text(font: "Inter", size: 10pt, fill: rgb("#1F2733")); set par(leading: 0.65em); align(left)[Johan Sierra] })] <el-nombre>
+] <grp-firma>] <el-firma>
+] <grp-tarjeta>] <el-tarjeta>
+#place(top + left, dx: 150mm, dy: 200mm)[#rotate(15deg, origin: center + horizon)[#block(width: 40mm, height: 40mm)[
+#place(top + left, dx: 0mm, dy: 0mm)[#ellipse(width: 40mm, height: 40mm, fill: none, stroke: (paint: rgb("#16a34a"), thickness: 1mm))] <el-circulo>
+#place(top + left, dx: 6mm, dy: 14mm)[#block(width: 28mm, { set text(font: "Inter", size: 12pt, fill: rgb("#16a34a")); set par(leading: 0.65em); align(center)[Visto] })] <el-visto>
+] <grp-sello>]] <el-sello>

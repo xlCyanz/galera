@@ -199,11 +199,32 @@ struct Open {
 
 fn page_boxes(page: usize, frame: &Frame) -> Vec<LayoutBox> {
     let mut found = Vec::new();
+    walk(page, frame, Point::zero(), &mut found);
+    found
+}
+
+/// Recorre un marco buscando las marcas de los elementos, y baja a los
+/// marcos de dentro para encontrar los hijos de los grupos.
+///
+/// `offset` es dónde está este marco en la página, así que todas las cajas
+/// salen en coordenadas de la página aunque estén dentro de un grupo.
+///
+/// **De un grupo girado no salen las cajas de sus hijos**: lo que dibujan va
+/// en las coordenadas sin girar del grupo, y devolverlas como si fueran de
+/// la página diría que están donde no están. El grupo sí tiene su caja.
+fn walk(page: usize, frame: &Frame, offset: Point, found: &mut Vec<LayoutBox>) {
     let mut open: Option<Open> = None;
+    // El siguiente grupo del marco es el bloque de un grupo del documento:
+    // lo dice la etiqueta `<grp-ID>` que acaba de aparecer.
+    let mut children_inside = false;
 
     for (position, item) in frame.items() {
+        let at = offset + *position;
         match item {
             FrameItem::Tag(Tag::Start(content, _)) => {
+                if is_group_block(content) {
+                    children_inside = true;
+                }
                 // Las marcas de dentro de un elemento (una imagen, una tabla
                 // de un bloque de código) no abren otro.
                 if open.is_none()
@@ -228,13 +249,31 @@ fn page_boxes(page: usize, frame: &Frame) -> Vec<LayoutBox> {
             }
             item => {
                 if let Some(element) = open.as_mut() {
-                    element.extent.add(*position, item);
+                    element.extent.add(at, item);
+                }
+                // Dentro del bloque de un grupo están las marcas de sus
+                // hijos: se baja a buscarlas. En cualquier otro grupo no hay
+                // nada que buscar, y una etiqueta escrita a mano en un
+                // bloque de código no tiene por qué quitarle la caja a nadie.
+                if let FrameItem::Group(group) = item
+                    && std::mem::take(&mut children_inside)
+                    && group.transform.is_identity()
+                {
+                    walk(page, &group.frame, at, found);
                 }
             }
         }
     }
+}
 
-    found
+/// Si el contenido es el bloque de un grupo, por su etiqueta `<grp-ID>`.
+fn is_group_block(content: &typst::foundations::Content) -> bool {
+    content.label().is_some_and(|label| {
+        label
+            .resolve()
+            .as_str()
+            .starts_with(crate::codegen::GROUP_PREFIX)
+    })
 }
 
 /// El id del elemento si el contenido es un `place` con etiqueta `<el-ID>`.
@@ -532,18 +571,26 @@ mod tests {
                 .and_then(|stem| stem.to_str())
                 .expect("nombre");
             let document = fixture(name);
-            let expected: Vec<(String, usize)> = document
-                .pages
-                .iter()
-                .enumerate()
-                .flat_map(|(page, content)| {
-                    content
-                        .elements
-                        .iter()
-                        .filter(|element| !element.layer().is_hidden())
-                        .map(move |element| (element.id().to_owned(), page))
-                })
-                .collect();
+            // Los hijos de un grupo salen antes que él; los de un grupo
+            // girado no salen (ver `walk`).
+            fn with_children(element: &Element, page: usize, into: &mut Vec<(String, usize)>) {
+                if element.layer().is_hidden() {
+                    return;
+                }
+                if element.rotation() == 0.0 {
+                    for child in element.children() {
+                        with_children(child, page, into);
+                    }
+                }
+                into.push((element.id().to_owned(), page));
+            }
+
+            let mut expected: Vec<(String, usize)> = Vec::new();
+            for (page, content) in document.pages.iter().enumerate() {
+                for element in &content.elements {
+                    with_children(element, page, &mut expected);
+                }
+            }
 
             let found: Vec<(String, usize)> = boxes_of(&document)
                 .into_iter()
@@ -924,5 +971,79 @@ mod tests {
                 "line": null, "overflow": 0.0
             })
         );
+    }
+
+    /// El criterio de la tarea: el layout devuelve la caja del grupo y las
+    /// de sus hijos, todas en coordenadas de la página.
+    #[test]
+    fn a_group_has_a_box_and_so_do_its_children() {
+        let document = page_with(
+            r##"{ "id": "g1", "type": "group", "x": 20, "y": 30, "w": 80, "h": 40, "children": [
+                  { "id": "r1", "type": "rect", "x": 0, "y": 0, "w": 20, "h": 10, "fill": "#ff0000" },
+                  { "id": "r2", "type": "rect", "x": 50, "y": 20, "w": 20, "h": 10, "fill": "#00ff00" }
+                ] }"##,
+        );
+        let boxes = boxes_of(&document);
+
+        assert_box(find(&boxes, "g1"), (20.0, 30.0, 80.0, 40.0));
+        // Los hijos van en coordenadas de la página: 20+0 y 20+50.
+        assert_box(find(&boxes, "r1"), (20.0, 30.0, 20.0, 10.0));
+        assert_box(find(&boxes, "r2"), (70.0, 50.0, 20.0, 10.0));
+        // Y el grupo se dibuja después de sus hijos, que es lo que hace que
+        // el clic acierte el grupo y no lo que lleva dentro.
+        let order: Vec<&str> = boxes.iter().map(|one| one.id.as_str()).collect();
+        assert_eq!(order, vec!["r1", "r2", "g1"]);
+    }
+
+    #[test]
+    fn a_group_inside_another_group_also_has_its_boxes() {
+        let document = page_with(
+            r##"{ "id": "g1", "type": "group", "x": 10, "y": 10, "w": 100, "h": 100, "children": [
+                  { "id": "g2", "type": "group", "x": 20, "y": 20, "w": 50, "h": 50, "children": [
+                    { "id": "r1", "type": "rect", "x": 5, "y": 5, "w": 10, "h": 10, "fill": "#ff0000" }
+                  ] }
+                ] }"##,
+        );
+        let boxes = boxes_of(&document);
+
+        assert_box(find(&boxes, "g1"), (10.0, 10.0, 100.0, 100.0));
+        assert_box(find(&boxes, "g2"), (30.0, 30.0, 50.0, 50.0));
+        assert_box(find(&boxes, "r1"), (35.0, 35.0, 10.0, 10.0));
+    }
+
+    /// De un grupo girado sale su caja, pero no las de sus hijos: lo que
+    /// dibujan va en las coordenadas sin girar del grupo.
+    #[test]
+    fn a_turned_group_keeps_its_children_to_itself() {
+        let document = page_with(
+            r##"{ "id": "g1", "type": "group", "x": 20, "y": 30, "w": 80, "h": 40, "rotation": 30,
+                  "children": [
+                  { "id": "r1", "type": "rect", "x": 0, "y": 0, "w": 20, "h": 10, "fill": "#ff0000" }
+                ] }"##,
+        );
+        let boxes = boxes_of(&document);
+
+        let group = find(&boxes, "g1");
+        assert_box(group, (20.0, 30.0, 80.0, 40.0));
+        assert_close(group.rotation, 30.0, "el giro del grupo");
+        assert!(
+            !boxes.iter().any(|one| one.id == "r1"),
+            "sin caja para el hijo: {boxes:#?}"
+        );
+    }
+
+    /// Un hijo oculto no se emite, igual que en la página.
+    #[test]
+    fn a_hidden_child_has_no_box() {
+        let document = page_with(
+            r##"{ "id": "g1", "type": "group", "x": 20, "y": 30, "w": 80, "h": 40, "children": [
+                  { "id": "r1", "type": "rect", "x": 0, "y": 0, "w": 20, "h": 10, "fill": "#ff0000",
+                    "hidden": true },
+                  { "id": "r2", "type": "rect", "x": 50, "y": 20, "w": 20, "h": 10, "fill": "#00ff00" }
+                ] }"##,
+        );
+        let boxes = boxes_of(&document);
+        assert!(!boxes.iter().any(|one| one.id == "r1"));
+        assert_box(find(&boxes, "r2"), (70.0, 50.0, 20.0, 10.0));
     }
 }

@@ -126,10 +126,16 @@ impl Document {
 
     /// Busca un elemento por su id, en cualquier página.
     pub fn element(&self, id: &str) -> Option<&Element> {
+        self.elements().find(|element| element.id() == id)
+    }
+
+    /// Todos los elementos del documento, **incluidos los de dentro de los
+    /// grupos**, de fuera adentro y en orden de capas.
+    pub fn elements(&self) -> impl Iterator<Item = &Element> {
         self.pages
             .iter()
             .flat_map(|page| &page.elements)
-            .find(|element| element.id() == id)
+            .flat_map(Element::tree)
     }
 
     /// Los ids de las imágenes que usan el recurso `key`, en orden del
@@ -388,7 +394,31 @@ pub enum Element {
         /// Código Typst, literal.
         source: String,
     },
+
+    /// Varios elementos tratados como uno.
+    ///
+    /// Su caja es la que los contiene a todos, y **sus hijos se colocan
+    /// respecto a ella**: agrupar y desagrupar no mueve nada de sitio, solo
+    /// cambia el origen desde el que se cuentan las posiciones. Mover o
+    /// girar el grupo mueve y gira todo lo que lleva dentro.
+    ///
+    /// Un grupo puede llevar otros grupos, hasta [`MAX_GROUP_DEPTH`].
+    Group {
+        /// Identidad, posición y tamaño.
+        #[serde(flatten)]
+        base: ElementBox,
+        /// Lo que lleva dentro, **en orden de capas** y en coordenadas
+        /// relativas a la esquina del grupo.
+        #[serde(default)]
+        children: Vec<Element>,
+    },
 }
+
+/// Cuánto se puede anidar un grupo dentro de otro.
+///
+/// Más que esto no es un documento, es un error: cada nivel es un bloque
+/// dentro de otro en el código generado.
+pub const MAX_GROUP_DEPTH: usize = 8;
 
 impl Element {
     /// Identificador del elemento, sea cual sea su tipo.
@@ -398,7 +428,8 @@ impl Element {
             | Element::Rect { base, .. }
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
-            | Element::Code { base, .. } => &base.id,
+            | Element::Code { base, .. }
+            | Element::Group { base, .. } => &base.id,
             Element::Line { id, .. } => id,
         }
     }
@@ -412,7 +443,8 @@ impl Element {
             | Element::Rect { base, .. }
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
-            | Element::Code { base, .. } => base.id = id,
+            | Element::Code { base, .. }
+            | Element::Group { base, .. } => base.id = id,
             Element::Line { id: current, .. } => *current = id,
         }
     }
@@ -426,6 +458,7 @@ impl Element {
             Element::Line { .. } => "line",
             Element::Image { .. } => "image",
             Element::Code { .. } => "code",
+            Element::Group { .. } => "group",
         }
     }
 
@@ -438,7 +471,8 @@ impl Element {
             | Element::Rect { base, .. }
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
-            | Element::Code { base, .. } => (base.x, base.y),
+            | Element::Code { base, .. }
+            | Element::Group { base, .. } => (base.x, base.y),
             Element::Line { x, y, .. } => (*x, *y),
         }
     }
@@ -450,7 +484,8 @@ impl Element {
             | Element::Rect { base, .. }
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
-            | Element::Code { base, .. } => &base.layer,
+            | Element::Code { base, .. }
+            | Element::Group { base, .. } => &base.layer,
             Element::Line { layer, .. } => layer,
         }
     }
@@ -462,7 +497,8 @@ impl Element {
             | Element::Rect { base, .. }
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
-            | Element::Code { base, .. } => &mut base.layer,
+            | Element::Code { base, .. }
+            | Element::Group { base, .. } => &mut base.layer,
             Element::Line { layer, .. } => layer,
         }
     }
@@ -474,7 +510,8 @@ impl Element {
             | Element::Rect { base, .. }
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
-            | Element::Code { base, .. } => base.rotation,
+            | Element::Code { base, .. }
+            | Element::Group { base, .. } => base.rotation,
             Element::Line { rotation, .. } => *rotation,
         }
     }
@@ -486,7 +523,8 @@ impl Element {
             | Element::Rect { base, .. }
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
-            | Element::Code { base, .. } => Some(base),
+            | Element::Code { base, .. }
+            | Element::Group { base, .. } => Some(base),
             Element::Line { .. } => None,
         }
     }
@@ -498,9 +536,27 @@ impl Element {
             | Element::Rect { base, .. }
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
-            | Element::Code { base, .. } => Some(base),
+            | Element::Code { base, .. }
+            | Element::Group { base, .. } => Some(base),
             Element::Line { .. } => None,
         }
+    }
+
+    /// Lo que lleva dentro, si es un grupo.
+    pub fn children(&self) -> &[Element] {
+        match self {
+            Element::Group { children, .. } => children,
+            _ => &[],
+        }
+    }
+
+    /// Este elemento y todo lo que lleva dentro, de fuera adentro.
+    pub fn tree(&self) -> Vec<&Element> {
+        let mut all = vec![self];
+        for child in self.children() {
+            all.extend(child.tree());
+        }
+        all
     }
 }
 

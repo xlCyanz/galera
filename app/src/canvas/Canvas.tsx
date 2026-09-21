@@ -26,6 +26,10 @@
  * campo invisible (`text/HiddenInput.tsx`) y cada cambio es un comando.
  * Escape o pulsar en el lienzo salen.
  *
+ * Doble clic en un **grupo** entra en él y coge al hijo que haya bajo el
+ * puntero; a partir de ahí el clic trabaja con sus hijos, y Escape sale.
+ * ⌘G agrupa lo seleccionado y ⇧⌘G lo desagrupa (`grouping.ts`).
+ *
  * Al mover o redimensionar salen las guías de alineación (`Guides.tsx`),
  * con las distancias entre elementos. Lo que se engancha y dónde van las
  * guías lo decide el núcleo; ⌘ desactiva el ajuste mientras dure el gesto.
@@ -36,7 +40,7 @@
  */
 import { type CSSProperties, useEffect, useEffectEvent, useRef, useState } from "react";
 
-import { applyOp } from "../commands";
+import { applyOp, elementAt } from "../commands";
 
 import { useShortcut } from "../hooks/useShortcuts";
 import { useRenderedPages } from "../store/compilation";
@@ -45,6 +49,7 @@ import {
   useDocumentStore,
   useFocusRequests,
   useHighlightedElement,
+  useEnteredGroup,
   useOpenDocument,
   useRulersVisible,
   useSelectedElement,
@@ -70,10 +75,11 @@ import { type ImageLoader, PageSvg } from "./PageSvg";
 import { Rulers } from "./Rulers";
 import { ZoomControls } from "./ZoomControls";
 import { PX_PER_MM, pageSizeInPx, toMillimeters } from "./geometry";
-import { canvasTransform, rectToCanvas, toCanvas } from "./transform";
+import { canvasTransform, rectToCanvas, toCanvas, toDocument } from "./transform";
 import { type NudgeBurst, arrowNudge, nudgeBurst, rotatedCorners } from "./dragGeometry";
 import { findElement } from "./elements";
 import { boxesOf, groupBox } from "./group";
+import { groupSelection, isGroup, ungroupSelection } from "./grouping";
 import { useCanvasNavigation } from "./useCanvasNavigation";
 import { useDrag } from "./useDrag";
 import { useMarquee } from "./useMarquee";
@@ -81,7 +87,7 @@ import { useCreate } from "./useCreate";
 import { useFileDrop } from "./useFileDrop";
 import { useResize } from "./useResize";
 import { useRotate } from "./useRotate";
-import { useSelection } from "./useSelection";
+import { HIT_TOLERANCE_PX, useSelection } from "./useSelection";
 import { centerOn } from "./zoom";
 
 export interface CanvasProps {
@@ -101,6 +107,10 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const selectedBox = useElementBox(selected);
   // Todo lo seleccionado: con más de uno, el lienzo enseña la caja conjunta.
   const selection = useSelectedElements();
+  // El grupo en el que se ha entrado con doble clic, si hay alguno: se
+  // marca con un recuadro para saber dentro de qué se está trabajando.
+  const entered = useEnteredGroup();
+  const enteredBox = useElementBox(entered);
   const focusRequests = useFocusRequests();
   const tool = useTool();
   const selecting = tool === "select";
@@ -212,6 +222,32 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const burst = useRef<NudgeBurst | null>(null);
 
   // Los atajos del lienzo llegan del registro (`shortcuts.ts`).
+  /** Doble clic en un grupo: entrar en él y coger al hijo que haya debajo. */
+  const enterGroup = useEffectEvent((event: { clientX: number; clientY: number; currentTarget: HTMLElement }) => {
+    if (transform === null) {
+      return;
+    }
+    const area = event.currentTarget.getBoundingClientRect();
+    const point = toDocument(transform, event.clientX - area.left, event.clientY - area.top);
+    const tolerance = HIT_TOLERANCE_PX / transform.pxPerMm;
+    const store = useDocumentStore.getState();
+    const outer = store.enteredGroup ?? store.selection[0] ?? null;
+    if (!isGroup(store.document, outer)) {
+      return;
+    }
+    void elementAt(currentPage, point.x, point.y, tolerance, outer)
+      .then((id) => {
+        if (id === null || id === outer) {
+          return;
+        }
+        useDocumentStore.getState().enterGroup(outer);
+        useDocumentStore.getState().select(id);
+      })
+      .catch(() => {
+        // Sin respuesta del núcleo no se entra en nada.
+      });
+  });
+
   const onNudge = useEffectEvent((event: KeyboardEvent) => {
     const nudge = arrowNudge(event);
     if (page === undefined || nudge === null || selected === null || selectedLocked) {
@@ -231,6 +267,12 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
     useShortcut(id, onNudge);
   }
 
+  // ⌘G agrupa lo seleccionado; ⇧⌘G deshace los grupos que haya dentro.
+  const onGroup = useEffectEvent(() => groupSelection(currentPage));
+  const onUngroup = useEffectEvent(() => ungroupSelection());
+  useShortcut("group", onGroup);
+  useShortcut("ungroup", onUngroup);
+
   const onEscape = useEffectEvent(() => {
     // Durante un gesto, Escape lo cancela: es cosa del gesto, no un atajo.
     const gesturing =
@@ -242,6 +284,11 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
       create.state.phase === "needsFont";
     if (gesturing) {
       return false;
+    }
+    // Dentro de un grupo, Escape sale de él antes que nada.
+    if (useDocumentStore.getState().enteredGroup !== null) {
+      useDocumentStore.getState().enterGroup(null);
+      return true;
     }
     if (useToolStore.getState().tool !== "select") {
       useToolStore.getState().setTool("select");
@@ -275,7 +322,13 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
           className={viewportClass}
           data-tool={tool}
           {...viewportHandlers}
-          onDoubleClick={text.onDoubleClick}
+          onDoubleClick={(event) => {
+            // Doble clic en un grupo: se entra en él y se coge lo que haya
+            // bajo el puntero. Si no es un grupo, sigue su camino: en un
+            // texto, entrar a escribirlo.
+            enterGroup(event);
+            text.onDoubleClick(event);
+          }}
           onPointerDown={(event) => {
             // Dentro del texto que se escribe, el puntero coloca el cursor
             // y selecciona; fuera, deja de escribir y sigue el camino
@@ -339,6 +392,11 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
                     })}
               />
             ))}
+          {enteredBox !== null && enteredBox.page === currentPage && transform !== null && (
+            <div className="entered-group">
+              <ElementHighlight box={enteredBox} transform={transform} />
+            </div>
+          )}
           {transform !== null && marquee.state.phase === "drawing" && (
             <Marquee rect={marquee.state.rect} transform={transform} />
           )}

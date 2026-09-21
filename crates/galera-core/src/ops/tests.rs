@@ -1374,3 +1374,218 @@ fn a_batch_of_several_elements_is_of_none_of_them() {
     };
     assert_eq!(several.element_id(), None);
 }
+
+/// El criterio de la tarea: agrupar no mueve nada de sitio.
+#[test]
+fn grouping_moves_nothing_and_counts_from_the_group() {
+    let document = apply_and_check_undo(&Op::Group {
+        ids: vec!["r1".into(), "t1".into()],
+        id: "g1".into(),
+        // r1 está en (10,20) 30×40 y t1 en (20,100) 80 de ancho.
+        rect: crate::layout::MmRect {
+            x: 10.0,
+            y: 20.0,
+            w: 90.0,
+            h: 120.0,
+        },
+    });
+
+    let Element::Group { base, children } = element(&document, "g1") else {
+        panic!("es un grupo");
+    };
+    assert_eq!(
+        (base.x, base.y, base.w, base.h),
+        (10.0, 20.0, 90.0, Some(120.0))
+    );
+    assert_eq!(
+        children.iter().map(Element::id).collect::<Vec<_>>(),
+        vec!["r1", "t1"]
+    );
+    // Las posiciones son relativas: r1 estaba en (10,20), que es la esquina.
+    assert_eq!(children[0].position(), (0.0, 0.0));
+    assert_eq!(children[1].position(), (10.0, 80.0));
+    // El grupo ocupa la capa del que estaba más arriba de los dos.
+    assert_eq!(ids(&document, 0), vec!["l1", "g1", "i1", "c1"]);
+}
+
+/// Y desagrupar los devuelve exactamente a donde estaban.
+#[test]
+fn ungrouping_puts_everything_back_where_it_was() {
+    let before = document();
+    // Dos que están seguidos en la pila: así desagrupar deja la página
+    // exactamente como estaba, capas incluidas.
+    let grouped = Op::Group {
+        ids: vec!["r1".into(), "l1".into()],
+        id: "g1".into(),
+        rect: crate::layout::MmRect {
+            x: 5.0,
+            y: 6.0,
+            w: 45.0,
+            h: 54.0,
+        },
+    }
+    .apply(&before)
+    .expect("se agrupa");
+
+    let ungrouped = Op::Ungroup { id: "g1".into() }
+        .apply(&grouped.document)
+        .expect("se desagrupa");
+    assert_eq!(ungrouped.document, before);
+
+    // Y deshacer el desagrupado vuelve a dejar el grupo.
+    let back = ungrouped
+        .undo
+        .apply(&ungrouped.document)
+        .expect("se deshace");
+    assert_eq!(back.document, grouped.document);
+}
+
+#[test]
+fn a_group_can_hold_another_group() {
+    let rect = crate::layout::MmRect {
+        x: 0.0,
+        y: 0.0,
+        w: 100.0,
+        h: 100.0,
+    };
+    let inner = Op::Group {
+        ids: vec!["r1".into(), "t1".into()],
+        id: "g1".into(),
+        rect,
+    }
+    .apply(&document())
+    .expect("se agrupa");
+    let outer = Op::Group {
+        ids: vec!["g1".into(), "i1".into()],
+        id: "g2".into(),
+        rect,
+    }
+    .apply(&inner.document)
+    .expect("se agrupa otra vez");
+
+    let Element::Group { children, .. } = outer.document.element("g2").expect("está") else {
+        panic!("es un grupo");
+    };
+    assert_eq!(children.len(), 2);
+    assert_eq!(children[0].id(), "g1");
+    assert_eq!(children[0].children().len(), 2, "el de dentro sigue entero");
+    // Un hijo de un grupo se encuentra por su id, esté donde esté.
+    assert!(outer.document.element("r1").is_some());
+}
+
+#[test]
+fn what_cannot_be_grouped_says_why() {
+    let one = Op::Group {
+        ids: vec!["r1".into()],
+        id: "g1".into(),
+        rect: crate::layout::MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 1.0,
+            h: 1.0,
+        },
+    }
+    .apply(&document())
+    .expect_err("hace falta más de uno");
+    assert!(matches!(one, OpError::NotApplicable { .. }));
+
+    let taken = Op::Group {
+        ids: vec!["r1".into(), "t1".into()],
+        id: "l1".into(),
+        rect: crate::layout::MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 1.0,
+            h: 1.0,
+        },
+    }
+    .apply(&document())
+    .expect_err("ese id ya es de otro");
+    assert!(matches!(taken, OpError::DuplicateId { .. }));
+
+    let ghost = Op::Group {
+        ids: vec!["r1".into(), "fantasma".into()],
+        id: "g1".into(),
+        rect: crate::layout::MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 1.0,
+            h: 1.0,
+        },
+    }
+    .apply(&document())
+    .expect_err("no existe");
+    assert!(matches!(ghost, OpError::ElementNotFound { .. }));
+
+    let not_a_group = Op::Ungroup { id: "r1".into() }
+        .apply(&document())
+        .expect_err("no es un grupo");
+    assert!(matches!(not_a_group, OpError::NotApplicable { .. }));
+}
+
+/// El criterio de la tarea: se puede editar un hijo sin sacarlo del grupo.
+#[test]
+fn a_child_of_a_group_is_edited_like_any_other_element() {
+    let grouped = Op::Group {
+        ids: vec!["r1".into(), "t1".into()],
+        id: "g1".into(),
+        rect: crate::layout::MmRect {
+            x: 10.0,
+            y: 20.0,
+            w: 90.0,
+            h: 120.0,
+        },
+    }
+    .apply(&document())
+    .expect("se agrupa");
+
+    let moved = Op::Move {
+        id: "r1".into(),
+        dx: 5.0,
+        dy: 0.0,
+    }
+    .apply(&grouped.document)
+    .expect("se mueve dentro del grupo");
+    assert_eq!(
+        moved.document.element("r1").expect("está").position(),
+        (5.0, 0.0)
+    );
+
+    // Y se deshace como cualquier otro cambio.
+    let back = moved.undo.apply(&moved.document).expect("se deshace");
+    assert_eq!(back.document, grouped.document);
+}
+
+/// Agrupar un elemento girado conserva su giro, y desagrupar un grupo
+/// girado se lo pasa a los hijos.
+#[test]
+fn ungrouping_a_turned_group_turns_its_children() {
+    let rect = crate::layout::MmRect {
+        x: 0.0,
+        y: 0.0,
+        w: 100.0,
+        h: 100.0,
+    };
+    let grouped = Op::Group {
+        ids: vec!["r1".into(), "t1".into()],
+        id: "g1".into(),
+        rect,
+    }
+    .apply(&document())
+    .expect("se agrupa");
+    let turned = Op::Rotate {
+        id: "g1".into(),
+        rotation: 90.0,
+    }
+    .apply(&grouped.document)
+    .expect("se gira");
+
+    let freed = Op::Ungroup { id: "g1".into() }
+        .apply(&turned.document)
+        .expect("se desagrupa");
+    let child = freed.document.element("r1").expect("está");
+    assert_eq!(child.rotation(), 90.0, "el hijo se queda con el giro");
+    // El centro de r1 estaba en (25,40) y el del grupo en (50,50): girando
+    // 90° en sentido horario, va a (60,25); su caja es 30×40.
+    assert_eq!(child.position(), (45.0, 5.0));
+}

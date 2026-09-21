@@ -168,7 +168,10 @@ export function useTextEditing(transform: CanvasTransform | null, page: number):
       // Dentro del texto que ya se escribe lo atendió `onPointerDown`.
       return;
     }
-    void elementAt(page, point.x, point.y, HIT_TOLERANCE_PX / transform.pxPerMm, null)
+    // Dentro de un grupo se atraviesa, que si no el doble clic acertaría
+    // el grupo y nunca el texto que lleva dentro.
+    const below = useDocumentStore.getState().enteredGroup;
+    void elementAt(page, point.x, point.y, HIT_TOLERANCE_PX / transform.pxPerMm, below)
       .then((id) => {
         if (id === null) {
           return;
