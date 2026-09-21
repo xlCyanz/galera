@@ -52,6 +52,7 @@
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::{Duration, Instant};
 
@@ -82,6 +83,12 @@ pub struct AppState {
     /// aplicación se pega el texto plano, que sí va al portapapeles del
     /// sistema (ver `commands::clipboard`).
     clipboard: Mutex<Option<Clip>>,
+    /// Si se ha pedido parar la generación en lote que esté en marcha.
+    ///
+    /// Es una bandera y no un cerrojo porque quien genera no puede quedarse
+    /// esperando a nadie: la mira entre fila y fila, y con eso el comando
+    /// de cancelar contesta al momento aunque el lote siga componiendo.
+    batch_cancel: AtomicBool,
 }
 
 /// Lo que hay abierto.
@@ -185,6 +192,21 @@ pub struct Compilation {
 
 impl AppState {
     /// Guarda lo copiado, que sustituye a lo que hubiera.
+    /// Empieza un lote: baja la bandera de cancelar.
+    pub fn start_batch(&self) {
+        self.batch_cancel.store(false, Ordering::Relaxed);
+    }
+
+    /// Pide que el lote en marcha pare.
+    pub fn cancel_batch(&self) {
+        self.batch_cancel.store(true, Ordering::Relaxed);
+    }
+
+    /// Si se ha pedido parar el lote.
+    pub fn batch_cancelled(&self) -> bool {
+        self.batch_cancel.load(Ordering::Relaxed)
+    }
+
     pub fn set_clipboard(&self, clip: Clip) {
         *self
             .clipboard
