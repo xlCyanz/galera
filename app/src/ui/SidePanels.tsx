@@ -1,9 +1,9 @@
 /**
  * La parte de arriba de la columna derecha: capas, páginas, recursos,
- * fuentes o variables, con una pestaña para cada uno. El inspector va
+ * fuentes, variables o el código generado, con una pestaña para cada uno. El inspector va
  * siempre debajo.
  */
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 
 import { AssetsPanel } from "./AssetsPanel";
 import { FontsPanel } from "./FontsPanel";
@@ -11,7 +11,13 @@ import { LayersPanel } from "./LayersPanel";
 import { PagesPanel } from "./PagesPanel";
 import { VariablesPanel } from "./VariablesPanel";
 
-type Tab = "layers" | "pages" | "assets" | "fonts" | "variables";
+// El panel de código trae CodeMirror, que pesa: se carga la primera vez
+// que se abre su pestaña y no al arrancar.
+const CodePanel = lazy(() =>
+  import("./CodePanel").then((module) => ({ default: module.CodePanel })),
+);
+
+type Tab = "layers" | "pages" | "assets" | "fonts" | "variables" | "code";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "layers", label: "Capas" },
@@ -19,6 +25,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "assets", label: "Recursos" },
   { id: "fonts", label: "Fuentes" },
   { id: "variables", label: "Variables" },
+  { id: "code", label: "Código" },
 ];
 
 export function SidePanels() {
@@ -44,6 +51,11 @@ export function SidePanels() {
       {tab === "assets" && <AssetsPanel />}
       {tab === "fonts" && <FontsPanel />}
       {tab === "variables" && <VariablesPanel />}
+      {tab === "code" && (
+        <Suspense fallback={<p className="code-notice">Cargando el código…</p>}>
+          <CodePanel />
+        </Suspense>
+      )}
     </div>
   );
 }

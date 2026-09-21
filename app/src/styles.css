@@ -1530,3 +1530,38 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* El código generado, en solo lectura (`ui/CodePanel.tsx`). */
+.code-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 0;
+}
+
+.code-notice {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border-left: 3px solid var(--ruler-pointer);
+  background: color-mix(in srgb, var(--ruler-pointer) 8%, transparent);
+  font-size: 0.75rem;
+}
+
+.code-editor {
+  min-height: 0;
+  max-height: 22rem;
+  overflow: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.code-editor .cm-editor {
+  height: 100%;
+}
+
+/* El trozo del elemento seleccionado. */
+.cm-selected-element {
+  background: color-mix(in srgb, var(--ruler-pointer) 22%, transparent);
+  border-radius: 2px;
+}

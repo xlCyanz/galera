@@ -24,6 +24,7 @@ import type { Glyph, LayoutBox, MmRect } from "./types/layout";
 import type { Document, TextStyle } from "./types/model";
 import type { Op } from "./types/ops";
 import type { Alignment, Spread } from "./types/align";
+import type { CodeSpan } from "./types/codegen";
 import type { Grips, Settings as SnapSettings, Snapped } from "./types/snap";
 
 /**
@@ -414,6 +415,27 @@ export function pasteElements(
 /** Duplica esos elementos en su misma página, sin tocar lo copiado. */
 export function duplicateElements(ids: readonly string[]): Promise<AppliedOp | null> {
   return invoke<AppliedOp | null>("duplicate_elements", { ids });
+}
+
+/**
+ * El código Typst del documento abierto, tal como lo devuelve
+ * `generated_code`, con dónde está cada elemento dentro de él.
+ */
+export interface GeneratedCode {
+  /** El código entero. */
+  code: string;
+  /** Dónde empieza y acaba el código de cada elemento, en bytes. */
+  spans: CodeSpan[];
+  /** La revisión del documento del que salió. */
+  revision: number;
+}
+
+/**
+ * El código Typst del documento abierto: **la salida** del editor, para
+ * verla. Se genera del documento de ahora, no de la última compilación.
+ */
+export function generatedCode(): Promise<GeneratedCode> {
+  return invoke<GeneratedCode>("generated_code");
 }
 
 /** Un comando de edición aplicado, tal como lo devuelve `apply_op`. */
