@@ -38,9 +38,14 @@ export const DEFAULT_SIZE: Record<ShapeKind, { w: number; h: number }> = {
 /**
  * El código con el que nace un bloque: un marco gris que se ve en la página
  * y no necesita ninguna fuente, para que compile aunque el proyecto todavía
- * no tenga ninguna.
+ * no tenga ninguna, con un par de líneas de ejemplo comentadas para saber
+ * por dónde empezar. Los comentarios tampoco necesitan fuente.
  */
-export const PLACEHOLDER_CODE = "#rect(width: 100%, height: 100%, stroke: (paint: gray, thickness: 0.2mm))";
+export const PLACEHOLDER_CODE = [
+  "// Aquí se escribe Typst a mano. Por ejemplo:",
+  "// #table(columns: 2, [Uno], [Dos], [Tres], [Cuatro])",
+  "#rect(width: 100%, height: 100%, stroke: (paint: gray, thickness: 0.2mm))",
+].join("\n");
 
 /** El alto con que se enseña un texto mientras se crea, en mm: una línea. */
 export const TEXT_PREVIEW_HEIGHT_MM = 6;

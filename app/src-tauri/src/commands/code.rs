@@ -9,6 +9,7 @@
 //! una cuenta de milisegundos y así el panel enseña lo que se está
 //! editando.
 
+use galera_core::code::{self, CodeError};
 use galera_core::codegen::{self, CodeSpan};
 use serde::Serialize;
 use tauri::State;
@@ -37,6 +38,16 @@ pub struct GeneratedCode {
 #[tauri::command]
 pub async fn generated_code(state: State<'_, AppState>) -> Result<GeneratedCode, CommandError> {
     generated_code_in(&state)
+}
+
+/// Dónde está roto el código de un bloque, por líneas.
+///
+/// Son errores **de sintaxis**, los que se ven sin compilar: es lo que hace
+/// falta mientras se escribe. Lo que falla al evaluar sale al compilar, como
+/// cualquier otro problema del documento.
+#[tauri::command]
+pub async fn check_code(source: String) -> Result<Vec<CodeError>, CommandError> {
+    Ok(code::check_code(&source))
 }
 
 /// La parte de [`generated_code`] que no depende de Tauri.
@@ -110,6 +121,14 @@ mod tests {
         let generated = generated_code_in(&state).expect("hay documento");
         assert_eq!(generated.revision, 2);
         assert!(generated.code.contains("dy: 10mm"), "{}", generated.code);
+    }
+
+    /// El criterio de la tarea: el error de sintaxis sale con su línea.
+    #[test]
+    fn a_syntax_error_comes_with_its_line() {
+        let found = code::check_code("bien\n#table(columns: 2)[A");
+        assert_eq!(found.len(), 1, "{found:#?}");
+        assert_eq!(found[0].line, 2);
     }
 
     #[test]
