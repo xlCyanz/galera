@@ -13,6 +13,7 @@
 //! se rompe es la cadena, que es lo que se quería; la zona sigue siendo una
 //! zona y el documento sigue valiendo.
 
+use crate::model::text::{self, Format};
 use crate::model::{Document, Element, Flow};
 
 use super::{Op, OpError};
@@ -140,6 +141,81 @@ pub fn apply_unlink(document: &mut Document, zone: &str, to: &str) -> Result<Op,
             },
         ],
     })
+}
+
+/// Mete texto en el texto de un flujo.
+///
+/// Deshacer es [`Op::RestoreFlow`], como en un bloque de texto: se guarda lo
+/// que había en vez de calcular el cambio contrario, que con los tramos
+/// normalizados no siempre sería el mismo.
+pub fn apply_insert_text(
+    document: &mut Document,
+    name: &str,
+    at: usize,
+    insertion: &str,
+) -> Result<Op, OpError> {
+    let before = restore(document, name)?;
+    let flow = flow_mut(document, name)?;
+    text::insert(&mut flow.content, at, insertion)?;
+    Ok(before)
+}
+
+/// Borra el tramo `[from, to)` del texto de un flujo.
+pub fn apply_delete_text(
+    document: &mut Document,
+    name: &str,
+    from: usize,
+    to: usize,
+) -> Result<Op, OpError> {
+    let before = restore(document, name)?;
+    let flow = flow_mut(document, name)?;
+    text::remove(&mut flow.content, from, to)?;
+    Ok(before)
+}
+
+/// Cambia el formato del tramo `[from, to)` del texto de un flujo.
+pub fn apply_format_text(
+    document: &mut Document,
+    name: &str,
+    from: usize,
+    to: usize,
+    format: &Format,
+) -> Result<Op, OpError> {
+    let before = restore(document, name)?;
+    let flow = flow_mut(document, name)?;
+    text::format(&mut flow.content, from, to, format)?;
+    Ok(before)
+}
+
+/// Deja un flujo tal como estaba.
+pub fn apply_restore(document: &mut Document, name: &str, flow: &Flow) -> Result<Op, OpError> {
+    let before = restore(document, name)?;
+    document.flows.insert(name.to_owned(), flow.clone());
+    Ok(before)
+}
+
+/// El comando que devuelve el flujo a como está ahora.
+fn restore(document: &Document, name: &str) -> Result<Op, OpError> {
+    let flow = document
+        .flows
+        .get(name)
+        .ok_or_else(|| OpError::FlowNotFound {
+            name: name.to_owned(),
+        })?;
+
+    Ok(Op::RestoreFlow {
+        name: name.to_owned(),
+        flow: flow.clone(),
+    })
+}
+
+fn flow_mut<'a>(document: &'a mut Document, name: &str) -> Result<&'a mut Flow, OpError> {
+    document
+        .flows
+        .get_mut(name)
+        .ok_or_else(|| OpError::FlowNotFound {
+            name: name.to_owned(),
+        })
 }
 
 /// Saca una zona de la cadena en la que esté, sin tocar nada más.
@@ -398,6 +474,71 @@ mod tests {
             matches!(error, OpError::NotApplicable { kind: "rect", .. }),
             "{error:?}"
         );
+    }
+
+    /// El criterio de la tarea: el texto del flujo se edita como uno solo,
+    /// sin importar por qué zona vaya cada parte.
+    #[test]
+    fn the_text_of_a_flow_is_written_as_one() {
+        let start = document();
+        let applied = Op::InsertFlowText {
+            flow: "cuerpo".to_owned(),
+            at: 2,
+            text: " mismo".to_owned(),
+        }
+        .apply(&start)
+        .expect("se escribe");
+
+        assert_eq!(
+            applied.document.flows["cuerpo"].content[0].text,
+            "Un mismo texto que sigue"
+        );
+        let back = applied.undo.apply(&applied.document).expect("se deshace");
+        assert_eq!(back.document, start);
+    }
+
+    #[test]
+    fn deleting_and_formatting_go_the_same_way() {
+        let start = document();
+        let applied = Op::DeleteFlowText {
+            flow: "cuerpo".to_owned(),
+            from: 0,
+            to: 3,
+        }
+        .apply(&start)
+        .expect("se borra");
+        assert_eq!(
+            applied.document.flows["cuerpo"].content[0].text,
+            "texto que sigue"
+        );
+
+        let bold = Op::FormatFlowText {
+            flow: "cuerpo".to_owned(),
+            from: 0,
+            to: 5,
+            format: crate::model::text::Format {
+                bold: Some(true),
+                ..Default::default()
+            },
+        }
+        .apply(&applied.document)
+        .expect("se da formato");
+        assert!(bold.document.flows["cuerpo"].content[0].bold);
+
+        let back = bold.undo.apply(&bold.document).expect("se deshace");
+        assert_eq!(back.document, applied.document);
+    }
+
+    #[test]
+    fn writing_in_a_flow_that_is_not_there_says_so() {
+        let error = Op::InsertFlowText {
+            flow: "nada".to_owned(),
+            at: 0,
+            text: "x".to_owned(),
+        }
+        .apply(&document())
+        .expect_err("no hay flujo");
+        assert!(matches!(error, OpError::FlowNotFound { .. }), "{error:?}");
     }
 
     /// Borrar una zona la saca de su cadena, y deshacerlo la devuelve a su

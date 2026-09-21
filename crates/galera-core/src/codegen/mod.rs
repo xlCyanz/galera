@@ -59,6 +59,7 @@ mod code;
 pub mod escape;
 mod flow;
 pub use flow::length as flow_length;
+pub(crate) use flow::{PieceSpan as FlowPieceSpan, piece_spans as flow_piece_spans};
 mod group;
 mod image;
 mod shapes;

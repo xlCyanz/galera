@@ -153,7 +153,7 @@ beforeEach(() => {
   container = window.document.createElement("div");
   window.document.body.append(container);
   root = createRoot(container);
-  act(() => root.render(<HiddenInput id="t1" box={box} transform={transform} />));
+  act(() => root.render(<HiddenInput target={{ kind: "element", id: "t1" }} box={box} transform={transform} />));
 });
 
 afterEach(() => {
@@ -411,6 +411,7 @@ describe("subir y bajar de línea", () => {
     const line = text_index < 5 ? 0 : 1;
     const column = line === 0 ? at : at - 4;
     return {
+      page: 0,
       text_index,
       line,
       x: 20 + column * 5,

@@ -37,6 +37,28 @@ fn glyphs_in(state: &AppState, id: &str) -> Vec<Glyph> {
     }
 }
 
+/// Dónde quedó cada glifo del texto de un flujo, **de toda su cadena** y en
+/// el orden en que se lee: el índice de cada uno es del texto del flujo, y
+/// `page` dice en qué página quedó.
+///
+/// La lista sale vacía si no hay nada compilado todavía o si el flujo no
+/// existe.
+#[tauri::command]
+pub async fn flow_glyphs(
+    flow: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<Glyph>, CommandError> {
+    Ok(flow_glyphs_in(&state, &flow))
+}
+
+/// La parte de [`flow_glyphs`] que no depende de Tauri.
+fn flow_glyphs_in(state: &AppState, flow: &str) -> Vec<Glyph> {
+    match state.last_good_render() {
+        Some((compiled, document)) => compiled.flow_glyphs(&document, flow),
+        None => Vec::new(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;

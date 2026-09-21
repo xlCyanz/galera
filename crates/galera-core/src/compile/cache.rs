@@ -350,6 +350,80 @@ mod tests {
         );
     }
 
+    /// Un flujo de cinco zonas, una por página, con texto de sobra.
+    fn five_zones(text: &str) -> Document {
+        let page = |number: usize| {
+            format!(
+                r##"{{ "id": "p{number}", "size": {{ "width": 210, "height": 297, "unit": "mm" }},
+                       "elements": [
+                         {{ "id": "z{number}", "type": "flow", "x": 20, "y": 20, "w": 170, "h": 200,
+                            "flow": "cuerpo" }}
+                       ] }}"##,
+            )
+        };
+        let pages: Vec<String> = (1..=5).map(page).collect();
+        Document::from_json_str(&format!(
+            r##"{{
+              "version": 1,
+              "meta": {{ "title": "Un flujo de cinco zonas" }},
+              "fonts": ["fonts/LibertinusSerif-Regular.otf"],
+              "flows": {{
+                "cuerpo": {{
+                  "content": [{{ "text": "{} " }}],
+                  "style": {{ "font": "Libertinus Serif", "size": 11, "color": "#1F2733",
+                             "align": "justify", "leading": 0.65 }},
+                  "zones": ["z1", "z2", "z3", "z4", "z5"]
+                }}
+              }},
+              "pages": [{}]
+            }}"##,
+            format!("{} ", text.repeat(3)).repeat(40),
+            pages.join(",")
+        ))
+        .expect("es un documento")
+    }
+
+    /// El criterio de F7-03: escribir en un texto que fluye por cinco
+    /// páginas cabe en el mismo presupuesto que escribir en un bloque.
+    ///
+    /// Es lo que hay que vigilar de este diseño: cada zona busca su corte
+    /// midiendo con Typst, y son medidas de más que un texto normal no
+    /// hace.
+    #[test]
+    fn typing_in_a_flow_of_five_zones_stays_within_budget() {
+        let dir = project_dir();
+        let project = open(&dir);
+        let mut document = five_zones("Cooperativa agrícola del este");
+
+        let mut compiler = Compiler::new(project);
+        let first = compiler.compile(&document).expect("la primera compila");
+        compiler.page_svgs(&first);
+
+        let times: Vec<Duration> = ('a'..)
+            .take(7)
+            .map(|letter| {
+                // Escribir al principio, que es lo que obliga a repartir
+                // otra vez todas las zonas.
+                let flow = document.flows.get_mut("cuerpo").expect("está");
+                flow.content[0].text.insert(0, letter);
+
+                let started = Instant::now();
+                let compiled = compiler.compile(&document).expect("compila");
+                compiler.page_svgs(&compiled);
+                compiled.layout();
+                compiled.flow_glyphs(&document, "cuerpo");
+                started.elapsed()
+            })
+            .collect();
+
+        let typing = median(times);
+        println!("una tecla en un flujo de cinco zonas: {typing:?}");
+        assert!(
+            typing < BUDGET,
+            "una tecla tarda {typing:?}, más que el presupuesto de {BUDGET:?}"
+        );
+    }
+
     /// El criterio de la tarea: al escribir solo se vuelve a dibujar la
     /// página que ha cambiado.
     #[test]

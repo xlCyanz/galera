@@ -303,6 +303,15 @@ export function glyphs(id: string): Promise<Glyph[]> {
 }
 
 /**
+ * Dónde quedó cada glifo del texto de un flujo, de **toda su cadena** y en
+ * el orden en que se lee. El índice de cada uno es del texto del flujo, y
+ * `page` dice en qué página quedó.
+ */
+export function flowGlyphs(flow: string): Promise<Glyph[]> {
+  return invoke<Glyph[]>("flow_glyphs", { flow });
+}
+
+/**
  * El id del elemento bajo un punto de la página, en mm, o `null` si no hay
  * ninguno. Lo decide el núcleo con la última compilación buena, la que se ve.
  *

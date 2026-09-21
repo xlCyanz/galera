@@ -19,10 +19,18 @@
 import { create } from "zustand";
 
 import type { Glyph } from "../types/layout";
+import type { EditTarget } from "../text/target";
 
 export interface EditingState {
-  /** El id del texto que se está escribiendo, o `null`. */
+  /** El id del bloque de texto que se está escribiendo, o `null`. */
   element: string | null;
+  /**
+   * El nombre del flujo que se está escribiendo, o `null`.
+   *
+   * Un flujo se escribe entero aunque su texto pase por varias zonas y
+   * varias páginas: la selección es del texto del flujo, no de una zona.
+   */
+  flow: string | null;
   /** Dónde empieza la selección dentro del texto, en bytes. */
   start: number;
   /** Dónde acaba, en bytes. Si es igual a `start`, es el cursor. */
@@ -48,8 +56,10 @@ export interface EditingState {
   /** Sube con cada petición de insertar, para que el campo la atienda. */
   insertRequests: number;
 
-  /** Entra a escribir en un texto, con el cursor al final. */
+  /** Entra a escribir en un bloque de texto, con el cursor donde se diga. */
   edit: (element: string, at?: number) => void;
+  /** Entra a escribir en un flujo, con el cursor donde se diga. */
+  editFlow: (flow: string, at?: number) => void;
   /** Sale del modo de escritura. */
   stop: () => void;
   /** Guarda dónde está la selección dentro del texto. La manda el campo
@@ -70,6 +80,7 @@ export interface EditingState {
 
 export const useEditingStore = create<EditingState>()((set) => ({
   element: null,
+  flow: null,
   start: 0,
   end: 0,
   composing: false,
@@ -80,8 +91,19 @@ export const useEditingStore = create<EditingState>()((set) => ({
   insertRequests: 0,
 
   edit: (element, at = 0) =>
-    set({ element, start: at, end: at, composing: false, glyphs: [], typedAt: 0 }),
-  stop: () => set({ element: null, start: 0, end: 0, composing: false, glyphs: [], typedAt: 0 }),
+    set({ element, flow: null, start: at, end: at, composing: false, glyphs: [], typedAt: 0 }),
+  editFlow: (flow, at = 0) =>
+    set({ element: null, flow, start: at, end: at, composing: false, glyphs: [], typedAt: 0 }),
+  stop: () =>
+    set({
+      element: null,
+      flow: null,
+      start: 0,
+      end: 0,
+      composing: false,
+      glyphs: [],
+      typedAt: 0,
+    }),
   setSelection: (start, end) => set({ start, end }),
   select: (start, end) =>
     set((state) => ({ start, end, selectionRequests: state.selectionRequests + 1 })),
@@ -96,5 +118,26 @@ export const useEditingStore = create<EditingState>()((set) => ({
     })),
 }));
 
-/** El texto que se está escribiendo, o `null`. */
+/** El bloque de texto que se está escribiendo, o `null`. */
 export const useEditingElement = () => useEditingStore((state) => state.element);
+
+/** El flujo que se está escribiendo, o `null`. */
+export const useEditingFlow = () => useEditingStore((state) => state.flow);
+
+/** Qué texto se está escribiendo, sea de un bloque o de un flujo. */
+export function targetOf(state: EditingState): EditTarget | null {
+  if (state.flow !== null) {
+    return { kind: "flow", name: state.flow };
+  }
+  return state.element === null ? null : { kind: "element", id: state.element };
+}
+
+/** Como [`targetOf`], como hook. */
+export const useEditTarget = (): EditTarget | null => {
+  const element = useEditingStore((state) => state.element);
+  const flow = useEditingStore((state) => state.flow);
+  if (flow !== null) {
+    return { kind: "flow", name: flow };
+  }
+  return element === null ? null : { kind: "element", id: element };
+};

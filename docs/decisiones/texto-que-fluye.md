@@ -41,8 +41,8 @@ cortes, y por flujo sus piezas —palabra y espacio—, sus zonas y su estilo.
 Cada zona compone el trozo que le toca:
 
 ```typst
-#let galera-flow-ranges(pieces, zones, style) = {
-  // por cada zona, búsqueda binaria del mayor número de piezas que cabe
+#let galera-flow-ranges(pieces, zones, style, upto) = {
+  // por cada zona, el mayor número de piezas que cabe
   let fits = (k) => measure(block(
     width: zone.w,
     style(pieces.slice(at, k).map(p => p.body).join()),
@@ -50,6 +50,22 @@ Cada zona compone el trozo que le toca:
   …
 }
 ```
+
+**Cómo se busca importa tanto como qué se mide.** Cada `fits(k)` compone las
+`k` piezas, así que una búsqueda binaria sobre todo el texto mide, una y otra
+vez, trozos tan grandes como el texto entero: en un flujo de cinco páginas
+eso era más de un segundo por tecla. La búsqueda va por otro camino:
+
+- **se tantea desde lo que se llevó la zona anterior**, que en zonas
+  parecidas es casi la respuesta;
+- **se avanza doblando** hasta pasarse, así lo que se mide crece con lo que
+  cabe en la zona y no con lo que queda de texto;
+- y solo entonces **se afina con una binaria** entre lo último que cabe y lo
+  primero que no.
+
+Con eso, escribir en un flujo de cinco zonas llenas cuesta unos 80 ms por
+tecla, dentro del presupuesto de F4-11, y hay una prueba que lo vigila
+(`typing_in_a_flow_of_five_zones_stays_within_budget`).
 
 Tres detalles que hacen que esto funcione:
 
@@ -70,14 +86,17 @@ zona por la marca y no por el orden en que aparecen.
 
 - **El corte es el de Typst.** Si cambia la fuente, el tamaño, el ancho de la
   zona o la versión de Typst, el corte cambia con ellos, sin tocar Galera.
-- **Coste.** Cada zona hace del orden de `log2(piezas)` medidas; Typst memoiza
-  cada una, y el documento de prueba de tres zonas y un párrafo largo compone
-  sin diferencia apreciable. Si un flujo de muchas páginas llegara a notarse,
-  el sitio donde arreglarlo es la función de búsqueda, no el modelo.
+- **Coste.** Unas pocas medidas por zona, del tamaño de lo que cabe en ella.
+  Lo que sí se nota es un flujo con **mucho más texto del que su cadena puede
+  llevar**: lo que sobra se mide aunque no se dibuje. El sitio donde
+  arreglarlo, si llega a hacer falta, es la función de búsqueda, no el
+  modelo.
 - **Lo que sobra al final de la cadena no se dibuja en ninguna parte**, a
   diferencia de un texto que se sale de su caja. Por eso se avisa
   explícitamente (`layout::flows::overflowing`), y el aviso señala la última
   zona.
 - **Una zona sola no es nada**: su texto está en el flujo. De ahí que copiar
-  una zona al portapapeles no la copie (F7-01) y que el editor tenga que
-  tratar la cadena entera como un solo texto (F7-03).
+  una zona al portapapeles no la copie (F7-01) y que el editor trate la
+  cadena entera como un solo texto (F7-03): el cursor cruza de una zona a la
+  siguiente porque los índices son del texto del flujo, y cada glifo dice en
+  qué página cayó.

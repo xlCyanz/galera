@@ -1258,6 +1258,28 @@ body {
   margin: 0;
 }
 
+/* Las zonas enlazadas de un flujo (ver `canvas/FlowChain.tsx`). */
+.flow-zone {
+  position: absolute;
+  border: 1px dashed #6366f1;
+  border-radius: 2px;
+  pointer-events: none;
+  transform-origin: center;
+}
+
+.flow-zone-order {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  padding: 0 0.25rem;
+  background: #6366f1;
+  border-radius: 2px 0 2px 0;
+  color: #fff;
+  font-size: 0.6rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
 /* El diálogo de exportar (ver `ui/ExportDialog.tsx`). */
 .export-dialog {
   display: flex;

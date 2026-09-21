@@ -49,10 +49,18 @@ use super::{CodegenError, color, millimeters, number, text::emit_run, text::poin
 ///
 /// La búsqueda es binaria sobre el número de piezas: como mucho una zona
 /// mide `log2(piezas)` veces, y Typst memoiza cada medida.
-const RANGES_FUNCTION: &str = r#"#let galera-flow-ranges(pieces, zones, style) = {
+const RANGES_FUNCTION: &str = r#"#let galera-flow-ranges(pieces, zones, style, upto) = {
   let ranges = ()
   let at = 0
+  // Cuántas piezas se llevó la zona anterior: dos zonas parecidas se
+  // llevan parecido, y empezar por ahí ahorra casi todas las medidas.
+  let guess = 1
+  let index = 0
+
   for zone in zones {
+    if index > upto { break }
+    index = index + 1
+
     if at >= pieces.len() {
       ranges.push((at, at))
     } else if zone.h == none {
@@ -64,19 +72,45 @@ const RANGES_FUNCTION: &str = r#"#let galera-flow-ranges(pieces, zones, style) =
         width: zone.w,
         style(pieces.slice(at, k).map(p => p.body).join()),
       )).height <= zone.h
-      let lo = at + 1
-      let hi = pieces.len()
-      if not fits(hi) {
-        while lo < hi {
-          let mid = calc.ceil((lo + hi) / 2)
-          if fits(mid) { lo = mid } else { hi = mid - 1 }
+
+      let low = at
+      let high = none
+      let first = calc.min(at + calc.max(guess, 1), pieces.len())
+
+      if fits(first) {
+        low = first
+        if first == pieces.len() {
+          high = first
+        } else {
+          // Cabe más: se prueba de más en más, doblando.
+          let step = calc.max(1, calc.floor(guess / 4))
+          while high == none {
+            let next = calc.min(low + step, pieces.len())
+            if fits(next) {
+              low = next
+              if next == pieces.len() { high = next } else { step = step * 2 }
+            } else {
+              high = next
+            }
+          }
         }
-        hi = lo
+      } else {
+        // No cabe tanto: el corte está entre lo que hay y el tanteo.
+        high = first
       }
-      ranges.push((at, hi))
-      at = hi
+
+      // Y entre lo último que cabe y lo primero que no, binaria.
+      while low + 1 < high {
+        let mid = calc.floor((low + high) / 2)
+        if fits(mid) { low = mid } else { high = mid }
+      }
+
+      ranges.push((at, low))
+      guess = calc.max(low - at, 1)
+      at = low
     }
   }
+
   ranges
 }
 "#;
@@ -147,7 +181,7 @@ fn emit_pieces(
 
     for run in &flow.content {
         for piece in split(&run.text) {
-            let _ = write!(out, "(len: {}, body: [", piece.text.chars().count());
+            let _ = write!(out, "(len: {}, body: [", piece.text.len());
             emit_piece(&piece, run, document, out)?;
             out.push_str("]), ");
         }
@@ -218,7 +252,7 @@ pub(super) fn emit_zone(base: &ElementBox, flow: &str, document: &Document, out:
         out,
         ", context {{ \
          let pieces = galera-flow-{index}-pieces; \
-         let range = galera-flow-ranges(pieces, galera-flow-{index}-zones, galera-flow-{index}-style).at({zone}); \
+         let range = galera-flow-ranges(pieces, galera-flow-{index}-zones, galera-flow-{index}-style, {zone}).at({zone}); \
          let before = pieces.slice(0, range.at(0)).fold(0, (sum, piece) => sum + piece.len); \
          let here = pieces.slice(range.at(0), range.at(1)).fold(0, (sum, piece) => sum + piece.len); \
          metadata((from: before, to: before + here)); \
@@ -227,13 +261,48 @@ pub(super) fn emit_zone(base: &ElementBox, flow: &str, document: &Document, out:
     );
 }
 
-/// Cuántos caracteres tiene el texto de un flujo, para saber si sobra algo
+/// Cuántos bytes tiene el texto de un flujo, para saber si sobra algo
 /// después de la última zona.
+///
+/// En bytes y no en caracteres porque así se cuenta el texto en todo el
+/// núcleo: es lo que usan la selección y los comandos de edición.
 pub fn length(flow: &Flow) -> usize {
-    flow.content
-        .iter()
-        .map(|run| run.text.chars().count())
-        .sum()
+    flow.content.iter().map(|run| run.text.len()).sum()
+}
+
+/// Una pieza del texto del flujo, con su sitio en el texto del modelo.
+///
+/// La usa [`crate::layout::glyphs`] para traducir un glifo a su posición en
+/// el texto: el código de una pieza está en el arreglo del preámbulo, no en
+/// el sitio donde se dibuja.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PieceSpan {
+    /// Dónde empieza en el texto del flujo, en bytes.
+    pub start: usize,
+    /// Lo que ocupa: la palabra y el espacio que la sigue.
+    pub text: String,
+    /// Dónde acaba la palabra dentro de `text`: lo que va detrás es el
+    /// espacio, que el código escribe como espacio o como salto.
+    pub word: usize,
+}
+
+/// Las piezas del texto de un flujo, en el mismo orden en que se emiten.
+pub(crate) fn piece_spans(flow: &Flow) -> Vec<PieceSpan> {
+    let mut spans = Vec::new();
+    let mut at = 0;
+
+    for run in &flow.content {
+        for piece in split(&run.text) {
+            spans.push(PieceSpan {
+                start: at,
+                text: piece.text.to_owned(),
+                word: piece.word.len(),
+            });
+            at += piece.text.len();
+        }
+    }
+
+    spans
 }
 
 /// Una pieza del texto: una palabra con el espacio que la sigue.

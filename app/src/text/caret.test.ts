@@ -5,6 +5,7 @@ import { byteIndex, caretAt, lineMove, textIndex } from "./caret";
 
 /** Un glifo de 5 mm de ancho en la línea `line`, empezando en `x`. */
 const glyph = (text_index: number, line: number, x: number): Glyph => ({
+  page: 0,
   text_index,
   line,
   x,
@@ -54,19 +55,19 @@ describe("contar el texto de las dos formas", () => {
 
 describe("dónde va el cursor", () => {
   it("delante de un glifo, en su borde izquierdo", () => {
-    expect(caretAt(wrapped, 0)).toEqual({ x: 20, y: 20, height: 5, line: 0 });
-    expect(caretAt(wrapped, 2)).toEqual({ x: 30, y: 20, height: 5, line: 0 });
+    expect(caretAt(wrapped, 0)).toEqual({ x: 20, y: 20, height: 5, line: 0, page: 0 });
+    expect(caretAt(wrapped, 2)).toEqual({ x: 30, y: 20, height: 5, line: 0, page: 0 });
   });
 
   it("al final del texto, detrás del último glifo", () => {
-    expect(caretAt(wrapped, 7)).toEqual({ x: 35, y: 26, height: 5, line: 1 });
+    expect(caretAt(wrapped, 7)).toEqual({ x: 35, y: 26, height: 5, line: 1, page: 0 });
   });
 
   it("en el espacio donde Typst partió la línea, al final de la anterior", () => {
     // El byte 3 es el espacio, que no se dibuja.
-    expect(caretAt(wrapped, 3)).toEqual({ x: 35, y: 20, height: 5, line: 0 });
+    expect(caretAt(wrapped, 3)).toEqual({ x: 35, y: 20, height: 5, line: 0, page: 0 });
     // Y el 4, ya en la línea siguiente.
-    expect(caretAt(wrapped, 4)).toEqual({ x: 20, y: 26, height: 5, line: 1 });
+    expect(caretAt(wrapped, 4)).toEqual({ x: 20, y: 26, height: 5, line: 1, page: 0 });
   });
 
   it("sin glifos no hay dónde ponerlo", () => {

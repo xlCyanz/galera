@@ -12,16 +12,23 @@ import { rectToCanvas } from "../canvas/transform";
 import { useEditingStore } from "../store/editing";
 import type { LayoutBox } from "../types/layout";
 import { selectionRects } from "./selection";
+import { onPage } from "./target";
 
 export interface SelectionLayerProps {
   /** La caja del texto que se está escribiendo, la que midió Typst. */
   box: LayoutBox;
   /** Dónde está la página y a qué escala. */
   transform: CanvasTransform;
+  /**
+   * Qué página se está viendo, si el texto pasa por varias: de un flujo
+   * solo se dibuja aquí lo que quedó en esta.
+   */
+  page?: number;
 }
 
-export function SelectionLayer({ box, transform }: SelectionLayerProps) {
-  const glyphs = useEditingStore((state) => state.glyphs);
+export function SelectionLayer({ box, transform, page }: SelectionLayerProps) {
+  const all = useEditingStore((state) => state.glyphs);
+  const glyphs = page === undefined ? all : onPage(all, page);
   const start = useEditingStore((state) => state.start);
   const end = useEditingStore((state) => state.end);
 

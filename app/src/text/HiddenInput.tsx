@@ -60,7 +60,7 @@
  */
 import { useEffect, useEffectEvent, useRef } from "react";
 
-import { applyOp, glyphs as glyphsOf } from "../commands";
+import { applyOp } from "../commands";
 import type { CanvasTransform } from "../canvas/transform";
 import { rectToCanvas } from "../canvas/transform";
 import { runHistory } from "../hooks/useUndoRedo";
@@ -68,11 +68,19 @@ import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
 import { useLayoutStore } from "../store/layout";
 import type { LayoutBox } from "../types/layout";
-import type { Line, Run } from "../types/model";
 import { byteIndex, lineMove, textIndex } from "./caret";
 import { change, textOf } from "./change";
 import { arrow, deletion } from "./chips";
 import { indent } from "./lines";
+import {
+  type EditTarget,
+  deleteOp,
+  glyphsOfTarget,
+  insertOp,
+  keyOf,
+  linesOf,
+  runsOf,
+} from "./target";
 import { applyLines } from "./useTextFormat";
 
 /** Teclear seguido es un solo paso del historial; tras esta pausa, en
@@ -99,15 +107,18 @@ function burstGroup(id: string): string {
 }
 
 export interface HiddenInputProps {
-  /** El texto que se está escribiendo. */
-  id: string;
+  /** Qué texto se está escribiendo: el de un bloque o el de un flujo. */
+  target: EditTarget;
   /** Su caja, la que midió Typst. */
   box: LayoutBox;
   /** Para pasar la caja a píxeles del lienzo. */
   transform: CanvasTransform;
 }
 
-export function HiddenInput({ id, box, transform }: HiddenInputProps) {
+export function HiddenInput({ target, box, transform }: HiddenInputProps) {
+  // Con qué nombre se agrupan los cambios en el historial y se etiqueta el
+  // campo: el id del bloque, o el del flujo.
+  const id = keyOf(target);
   const field = useRef<HTMLTextAreaElement>(null);
   /** Los cambios que están de camino al backend, uno detrás de otro. */
   const queue = useRef<Promise<void>>(Promise.resolve());
@@ -122,6 +133,12 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
   // Lo que pide insertar la lista de variables: una ficha en el cursor.
   const insertRequests = useEditingStore((state) => state.insertRequests);
 
+  /** Los tramos del texto que se escribe, sean de un bloque o de un flujo. */
+  const current = () => runsOf(useDocumentStore.getState().document, target);
+
+  /** Cómo se compone cada línea, si el texto es de un bloque. */
+  const lines = () => linesOf(useDocumentStore.getState().document, target);
+
   const commit = useEffectEvent(() => {
     // Un cambio detrás de otro: el siguiente se calcula cuando el anterior
     // ya está en el documento.
@@ -134,7 +151,7 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
   /** Manda al backend lo que el campo tiene y el documento todavía no. */
   const push = useEffectEvent(async () => {
     const element = field.current;
-    const runs = runsOf(id);
+    const runs = current();
     if (element === null || runs === null) {
       return;
     }
@@ -147,17 +164,17 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
     const apply = (applied: Awaited<ReturnType<typeof applyOp>>) =>
       useDocumentStore.getState().applyEdit(applied);
     if (edit.to > edit.from) {
-      apply(await applyOp({ op: "delete_text", id, from: edit.from, to: edit.to }, group));
+      apply(await applyOp(deleteOp(target, edit.from, edit.to), group));
     }
     if (edit.text !== "") {
-      apply(await applyOp({ op: "insert_text", id, at: edit.from, text: edit.text }, group));
+      apply(await applyOp(insertOp(target, edit.from, edit.text), group));
     }
   });
 
   /** Pone la copia al día con el documento, si han dejado de coincidir. */
   const sync = useEffectEvent(() => {
     const element = field.current;
-    const runs = runsOf(id);
+    const runs = current();
     if (runs === null) {
       // El texto ya no está: lo ha borrado otro, o se ha cerrado el
       // documento.
@@ -224,7 +241,7 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
     if (element === null) {
       return;
     }
-    const runs = runsOf(id);
+    const runs = current();
     const text = runs === null ? "" : textOf(runs);
     element.value = text;
     element.setSelectionRange(text.length, text.length);
@@ -287,7 +304,7 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
   // Dónde quedó cada glifo, de la compilación que se está viendo.
   useEffect(() => {
     let current = true;
-    void glyphsOf(id)
+    void glyphsOfTarget(target)
       .then((found) => {
         // Sin compilación todavía, la lista viene vacía.
         if (current) {
@@ -345,10 +362,10 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
         if (event.key === "Tab") {
           event.preventDefault();
           event.stopPropagation();
-          const runs = runsOf(id);
+          const runs = current();
           const { start, end, element } = useEditingStore.getState();
           if (runs !== null && element !== null) {
-            const style = indent(textOf(runs), linesOf(id), start, end, event.shiftKey ? -1 : 1);
+            const style = indent(textOf(runs), lines(), start, end, event.shiftKey ? -1 : 1);
             if (style !== null) {
               void applyLines(style);
             }
@@ -419,24 +436,7 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
   );
 }
 
-/** Los tramos del texto `id` en el documento abierto, o `null` si ya no
- * está o no es un texto. */
-function runsOf(id: string): Run[] | null {
-  const document = useDocumentStore.getState().document;
-  const element = document?.pages
-    .flatMap((page) => page.elements)
-    .find((candidate) => candidate.id === id);
-  return element !== undefined && element.type === "text" ? element.content : null;
-}
 
-/** Cómo se compone cada línea del texto `id`. */
-function linesOf(id: string): Line[] {
-  const document = useDocumentStore.getState().document;
-  const element = document?.pages
-    .flatMap((page) => page.elements)
-    .find((candidate) => candidate.id === id);
-  return element !== undefined && element.type === "text" ? (element.lines ?? []) : [];
-}
 
 /** Lo que se pega, siempre como texto plano: si solo viene HTML, se queda
  * con lo que dice, sin las etiquetas. */

@@ -9,6 +9,7 @@ const glyphs: Glyph[] = [0, 1, 2, 3, 5, 6, 7, 8, 9].map((text_index) => {
   const line = text_index < 5 ? 0 : 1;
   const column = line === 0 ? text_index : text_index - 5;
   return {
+    page: 0,
     text_index,
     line,
     x: 20 + column * 5,

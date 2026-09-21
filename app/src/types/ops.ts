@@ -296,7 +296,55 @@ zone: string,
 /**
  * En qué posición de la cadena, o al final si no se dice.
  */
-index: number | null, } | { "op": "unlink_zone", 
+index: number | null, } | { "op": "insert_flow_text", 
+/**
+ * El flujo.
+ */
+flow: string, 
+/**
+ * Dónde, en bytes del texto del flujo.
+ */
+at: number, 
+/**
+ * Lo que se mete.
+ */
+text: string, } | { "op": "delete_flow_text", 
+/**
+ * El flujo.
+ */
+flow: string, 
+/**
+ * Desde dónde, en bytes.
+ */
+from: number, 
+/**
+ * Hasta dónde, en bytes, sin incluirlo.
+ */
+to: number, } | { "op": "format_flow_text", 
+/**
+ * El flujo.
+ */
+flow: string, 
+/**
+ * Desde dónde, en bytes.
+ */
+from: number, 
+/**
+ * Hasta dónde, en bytes, sin incluirlo.
+ */
+to: number, 
+/**
+ * Qué se cambia.
+ */
+format: Format, } | { "op": "restore_flow", 
+/**
+ * Cuál.
+ */
+name: string, 
+/**
+ * Cómo estaba.
+ */
+flow: Flow, } | { "op": "unlink_zone", 
 /**
  * La zona.
  */
