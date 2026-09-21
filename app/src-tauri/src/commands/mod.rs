@@ -10,6 +10,7 @@
 
 pub mod assets;
 pub mod clipboard;
+pub mod code;
 mod error;
 pub mod export;
 pub mod fonts;

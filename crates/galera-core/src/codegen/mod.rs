@@ -65,6 +65,8 @@ mod text;
 pub use escape::{escape, escape_into};
 pub(crate) use group::GROUP_PREFIX;
 
+use serde::Serialize;
+
 use crate::model::{Document, Element, Page, PageSize, is_valid_color, is_valid_id};
 
 /// Algo del documento impide generar código Typst.
@@ -266,6 +268,60 @@ pub(super) fn emit_element(
 
     out.push('\n');
     Ok(())
+}
+
+/// Dónde está el código de un elemento dentro del código generado.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "codegen.ts"))]
+pub struct CodeSpan {
+    /// El elemento, por su id.
+    pub id: String,
+    /// Dónde empieza su código, en bytes desde el principio.
+    pub start: usize,
+    /// Dónde acaba, sin incluirlo.
+    pub end: usize,
+}
+
+/// Dónde está el código de cada elemento dentro del código generado.
+///
+/// No es leer Typst, que el editor no hace nunca (principio 1): es volver a
+/// leer **lo que acaba de escribir este módulo**, que emite cada elemento
+/// como un `#place(…)` que empieza una línea y acaba con su etiqueta
+/// `<el-ID>`. Los hijos de un grupo van en sus propias líneas dentro, y por
+/// eso el recorrido lleva una pila.
+///
+/// Sirve para enseñar el código y señalar en él el elemento seleccionado.
+pub fn spans(code: &str) -> Vec<CodeSpan> {
+    let mut found = Vec::new();
+    let mut open: Vec<usize> = Vec::new();
+    let mut at = 0;
+
+    for line in code.split_inclusive('\n') {
+        let trimmed = line.trim_end_matches(['\n', '\r']);
+        if trimmed.trim_start().starts_with("#place(") {
+            open.push(at);
+        }
+        if let Some(id) = label(trimmed)
+            && let Some(start) = open.pop()
+        {
+            found.push(CodeSpan {
+                id,
+                start,
+                end: at + trimmed.len(),
+            });
+        }
+        at += line.len();
+    }
+
+    found
+}
+
+/// El id de la etiqueta `<el-ID>` con la que acaba la línea, si acaba así.
+fn label(line: &str) -> Option<String> {
+    let rest = line.trim_end().strip_suffix('>')?;
+    let at = rest.rfind("<el-")?;
+    let id = &rest[at + 4..];
+    (!id.is_empty() && is_valid_id(id)).then(|| id.to_owned())
 }
 
 /// Escribe el cuerpo del elemento, según su tipo.
@@ -656,5 +712,69 @@ mod tests {
         let typst = generate_str(r#"{ "version": 1, "meta": { "title": "Vacío" }, "pages": [] }"#);
         assert!(!typst.contains("#set page("));
         assert!(!typst.contains("#place("));
+    }
+
+    /// El criterio de la tarea: cada elemento sabe dónde está su código.
+    #[test]
+    fn every_element_has_its_place_in_the_code() {
+        let document = Document::from_json_str(
+            r##"{
+              "version": 1,
+              "meta": { "title": "Spans" },
+              "pages": [ { "id": "p1", "size": { "width": 210, "height": 297 }, "elements": [
+                { "id": "r1", "type": "rect", "x": 10, "y": 10, "w": 20, "h": 10,
+                  "fill": "#ff0000" },
+                { "id": "g1", "type": "group", "x": 0, "y": 0, "w": 100, "h": 100,
+                  "children": [
+                    { "id": "r2", "type": "rect", "x": 0, "y": 0, "w": 10, "h": 10,
+                      "fill": "#00ff00" }
+                  ] }
+              ] } ]
+            }"##,
+        )
+        .expect("es un documento");
+        let code = generate(&document).expect("genera");
+        let found = spans(&code);
+
+        let ids: Vec<&str> = found.iter().map(|one| one.id.as_str()).collect();
+        // El hijo se cierra antes que su grupo.
+        assert_eq!(ids, vec!["r1", "r2", "g1"]);
+
+        for span in &found {
+            let fragment = &code[span.start..span.end];
+            assert!(
+                fragment.starts_with("#place(") || fragment.trim_start().starts_with("#place("),
+                "{}: {fragment:?}",
+                span.id
+            );
+            assert!(
+                fragment.ends_with(&format!("<el-{}>", span.id)),
+                "{}: {fragment:?}",
+                span.id
+            );
+        }
+
+        // El del grupo contiene al de su hijo.
+        let group = found.iter().find(|one| one.id == "g1").expect("está");
+        let child = found.iter().find(|one| one.id == "r2").expect("está");
+        assert!(group.start < child.start && child.end < group.end);
+    }
+
+    #[test]
+    fn code_without_elements_has_no_spans() {
+        let document = Document::from_json_str(
+            r##"{ "version": 1, "meta": { "title": "x" },
+                  "pages": [ { "id": "p1", "size": { "width": 210, "height": 297 } } ] }"##,
+        )
+        .expect("es un documento");
+        assert!(spans(&generate(&document).expect("genera")).is_empty());
+    }
+
+    /// Una etiqueta escrita a mano en un bloque de código no abre nada: sin
+    /// un `#place(` al principio de su línea, no hay elemento que señalar.
+    #[test]
+    fn a_label_without_its_place_is_not_an_element() {
+        assert!(spans("algo <el-r1>\n").is_empty());
+        assert_eq!(spans("#place(top + left)[x] <el-r1>\n").len(), 1);
     }
 }

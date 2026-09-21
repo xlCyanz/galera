@@ -373,6 +373,13 @@ impl AppState {
         })))
     }
 
+    /// El documento abierto con su revisión, o `None` si no hay nada.
+    pub fn document_with_revision(&self) -> Option<(u64, Document)> {
+        let session = self.read();
+        let open = session.open.as_ref()?;
+        Some((session.revision, open.document.clone()))
+    }
+
     /// El proyecto y el documento abiertos, copiados, o `None` si no hay nada.
     pub fn open_document(&self) -> Option<(Project, Document)> {
         let session = self.read();

@@ -119,6 +119,7 @@ pub fn run() -> tauri::Result<()> {
             commands::render::request_compilation,
             commands::selection::element_at,
             commands::selection::elements_in,
+            commands::code::generated_code,
             commands::clipboard::copy_elements,
             commands::clipboard::paste_elements,
             commands::clipboard::duplicate_elements,
