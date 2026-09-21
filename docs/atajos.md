@@ -63,6 +63,13 @@ teclas van al texto y no a las herramientas:
   una lista con viñetas o numerada, y vuelven a pulsarse para quitarla.
   Dentro de una lista, `Tab` y `⇧Tab` cambian el nivel de anidado; fuera de
   una lista no hacen nada, y nunca se llevan el foco del texto.
+- En una tabla, el doble clic entra en la celda que haya debajo y `Tab` y
+  `⇧Tab` pasan a la siguiente y a la anterior, dando la vuelta al llegar al
+  final. `⇧` o `⌘` + clic en otra celda la suma a las marcadas, y entonces
+  `⌘B`, `⌘I` y `⌘U` van al texto entero de todas ellas de una vez. El botón
+  derecho sobre una celda abre el menú de la tabla: meter y quitar filas y
+  columnas. Con la tabla seleccionada, el borde de cada columna se arrastra
+  para cambiar lo que mide.
 - `Esc` sale de escribir. `⌘Z` deshace el documento, no el campo: cada
   cambio del texto ya es un paso del historial.
 

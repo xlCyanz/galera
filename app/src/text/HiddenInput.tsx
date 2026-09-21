@@ -72,6 +72,7 @@ import { byteIndex, lineMove, textIndex } from "./caret";
 import { change, textOf } from "./change";
 import { arrow, deletion } from "./chips";
 import { indent } from "./lines";
+import { nextCell } from "./table";
 import {
   type EditTarget,
   deleteOp,
@@ -357,13 +358,33 @@ export function HiddenInput({ target, box, transform }: HiddenInputProps) {
         remember();
       }}
       onKeyDown={(event) => {
-        // Dentro de una lista, el tabulador cambia el nivel. Fuera, no
-        // hace nada: sacar el foco del texto sería peor.
+        // En una tabla, el tabulador pasa a la celda siguiente. Dentro de
+        // una lista, cambia el nivel. Fuera de las dos no hace nada: sacar
+        // el foco del texto sería peor.
         if (event.key === "Tab") {
           event.preventDefault();
           event.stopPropagation();
           const runs = current();
-          const { start, end, element } = useEditingStore.getState();
+          const { start, end, element, cell } = useEditingStore.getState();
+          // En una tabla el tabulador pasa a la celda siguiente, con el
+          // cursor al final de su texto; ⇧ va a la anterior.
+          if (cell !== null) {
+            const document = useDocumentStore.getState().document;
+            const next = nextCell(document, cell.table, cell.row, cell.column, event.shiftKey);
+            if (next !== null) {
+              const content = runsOf(document, {
+                kind: "cell",
+                table: cell.table,
+                row: next.row,
+                column: next.column,
+              });
+              const text = content === null ? "" : textOf(content);
+              useEditingStore
+                .getState()
+                .editCell(cell.table, next.row, next.column, byteIndex(text, text.length));
+            }
+            return;
+          }
           if (runs !== null && element !== null) {
             const style = indent(textOf(runs), lines(), start, end, event.shiftKey ? -1 : 1);
             if (style !== null) {

@@ -3,7 +3,9 @@
  *
  * - **Doble clic** sobre un bloque de texto entra a escribirlo. Quién hay
  *   bajo el puntero lo dice el núcleo, igual que al seleccionar
- *   (principio 5). Sobre cualquier otro elemento no hace nada.
+ *   (principio 5). Sobre una zona se escribe su flujo entero, y sobre una
+ *   tabla, la celda que haya debajo. Sobre cualquier otro elemento no hace
+ *   nada.
  * - **Ya dentro**, el puntero coloca el cursor y selecciona: pulsar y
  *   arrastrar elige un tramo, doble clic una palabra, triple clic un
  *   párrafo, y ⇧ + clic estira lo que ya hubiera. Todo eso se resuelve con
@@ -29,6 +31,7 @@ import type { Glyph, LayoutBox } from "../types/layout";
 import { byteIndex } from "./caret";
 import { textOf } from "./change";
 import { indexAt, paragraphAt, unrotate, wordAt } from "./selection";
+import { boxOf, cellAt } from "./table";
 import { inBox, runsOf } from "./target";
 
 /** Cuánto se ensancha la caja del texto para seguir señalando dentro, en
@@ -88,7 +91,7 @@ export function useTextEditing(transform: CanvasTransform | null, page: number):
     x: number,
     y: number,
   ): { box: LayoutBox; text: string; glyphs: Glyph[] } | null => {
-    const { element, flow, glyphs } = useEditingStore.getState();
+    const { element, flow, cell, glyphs } = useEditingStore.getState();
     const document = useDocumentStore.getState().document;
     if (document === undefined || document === null) {
       return null;
@@ -109,6 +112,30 @@ export function useTextEditing(transform: CanvasTransform | null, page: number):
         : { box: zone, text: textOf(runs), glyphs: inBox(glyphs, zone) };
     }
 
+    if (cell !== null) {
+      // La celda se señala dentro de su tabla: el punto se desgira con la
+      // caja de la tabla, que es lo que gira el lienzo, y se compara con la
+      // caja de la celda, que la midió Typst.
+      const table = boxes[cell.table];
+      const rect = boxOf(useLayoutStore.getState().cells, cell.table, cell.row, cell.column);
+      if (table === undefined || rect === null || rect.page !== page) {
+        return null;
+      }
+      const local = unrotate(table, x, y);
+      const inside =
+        local.x >= rect.x - EDGE_MM &&
+        local.x <= rect.x + rect.w + EDGE_MM &&
+        local.y >= rect.y - EDGE_MM &&
+        local.y <= rect.y + rect.h + EDGE_MM;
+      if (!inside) {
+        return null;
+      }
+      const runs = runsOf(document, { kind: "cell", ...cell });
+      return runs === null
+        ? null
+        : { box: table, text: textOf(runs), glyphs: inBox(glyphs, rect) };
+    }
+
     if (element === null) {
       return null;
     }
@@ -124,6 +151,56 @@ export function useTextEditing(transform: CanvasTransform | null, page: number):
       : null;
   };
 
+  /**
+   * Si se está escribiendo una celda y el punto cae en **otra** de la misma
+   * tabla, pasa a escribir esa, con el cursor al final de su texto: sus
+   * glifos todavía no están aquí, y el cursor no puede ir a un sitio que no
+   * se ha medido. Con `extend`, la suma a las marcadas en vez de cambiar de
+   * celda.
+   */
+  const changedCell = (x: number, y: number, extend: boolean): boolean => {
+    const { cell } = useEditingStore.getState();
+    const document = useDocumentStore.getState().document;
+    if (cell === null || document === null || document === undefined) {
+      return false;
+    }
+    const table = useLayoutStore.getState().boxes[cell.table];
+    if (table === undefined) {
+      return false;
+    }
+    const local = unrotate(table, x, y);
+    const found = cellAt(useLayoutStore.getState().cells, page, local.x, local.y, cell.table);
+    if (found === null || (found.row === cell.row && found.column === cell.column)) {
+      return false;
+    }
+    // Con ⇧ o ⌘ se suma a las marcadas en vez de cambiar de celda, y la
+    // que se escribe queda entera seleccionada: el formato va a todas.
+    if (extend) {
+      useEditingStore.getState().markCell(found.row, found.column);
+      const mine = runsOf(document, { kind: "cell", ...cell });
+      if (mine !== null) {
+        const text = textOf(mine);
+        useEditingStore.getState().select(0, byteIndex(text, text.length));
+      }
+      return true;
+    }
+
+    const runs = runsOf(document, {
+      kind: "cell",
+      table: cell.table,
+      row: found.row,
+      column: found.column,
+    });
+    if (runs === null) {
+      return false;
+    }
+    const text = textOf(runs);
+    useEditingStore
+      .getState()
+      .editCell(cell.table, found.row, found.column, byteIndex(text, text.length));
+    return true;
+  };
+
   const onPointerDown = (event: PointerEvent<HTMLElement>) => {
     const view = transform;
     if (event.button !== 0 || view === null) {
@@ -133,6 +210,14 @@ export function useTextEditing(transform: CanvasTransform | null, page: number):
     if (point === null) {
       return false;
     }
+    // Dentro de la misma tabla, pulsar en otra celda pasa a escribirla: es
+    // la celda la que se escribe, no la tabla.
+    if (changedCell(point.x, point.y, event.shiftKey || event.metaKey)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
+    }
+
     const edited = editedAt(point.x, point.y);
     if (edited === null) {
       // Fuera del texto: se deja de escribir y el clic sigue su camino.
@@ -233,6 +318,34 @@ export function useTextEditing(transform: CanvasTransform | null, page: number):
           useDocumentStore.getState().select(id);
           const text = textOf(runs);
           useEditingStore.getState().editFlow(element.flow, byteIndex(text, text.length));
+          return;
+        }
+        // Una tabla no lleva texto: lo llevan sus celdas, y se entra en la
+        // que esté bajo el puntero.
+        if (element.type === "table") {
+          const box = useLayoutStore.getState().boxes[id];
+          if (box === undefined) {
+            return;
+          }
+          const local = unrotate(box, point.x, point.y);
+          const cell = cellAt(useLayoutStore.getState().cells, page, local.x, local.y, id);
+          if (cell === null) {
+            return;
+          }
+          const runs = runsOf(useDocumentStore.getState().document, {
+            kind: "cell",
+            table: id,
+            row: cell.row,
+            column: cell.column,
+          });
+          if (runs === null) {
+            return;
+          }
+          useDocumentStore.getState().select(id);
+          const text = textOf(runs);
+          useEditingStore
+            .getState()
+            .editCell(id, cell.row, cell.column, byteIndex(text, text.length));
           return;
         }
         if (element.type !== "text") {

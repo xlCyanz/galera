@@ -27,11 +27,13 @@ pub mod flow;
 pub mod group;
 pub mod history;
 pub mod pages;
+mod table;
 mod text;
 
 use serde::{Deserialize, Serialize};
 
 use crate::layout::MmRect;
+use crate::model::table::{ColumnWidth, TableRow};
 use crate::model::text::{Format, TextError};
 use crate::model::{
     Document, Element, Flow, Line, Page, Run, Stroke, TextStyle, Variable, is_valid_id,
@@ -386,6 +388,103 @@ pub enum Op {
         to: String,
     },
 
+    /// Mete una fila en una tabla, en `index` o al final.
+    InsertTableRow {
+        /// La tabla.
+        id: String,
+        /// Dónde va, contando desde 0; sin él, al final.
+        index: Option<usize>,
+        /// La fila entera, con sus celdas.
+        row: TableRow,
+    },
+
+    /// Quita una fila de una tabla. Lo que la cruzaba desde más arriba pasa
+    /// a ocupar una fila menos.
+    RemoveTableRow {
+        /// La tabla.
+        id: String,
+        /// Qué fila, contando desde 0.
+        index: usize,
+    },
+
+    /// Mete una columna en una tabla, con una celda vacía en cada fila.
+    InsertTableColumn {
+        /// La tabla.
+        id: String,
+        /// Dónde va, contando desde 0; sin él, al final.
+        index: Option<usize>,
+        /// Cuánto mide la columna nueva.
+        width: ColumnWidth,
+    },
+
+    /// Quita una columna de una tabla y lo que hay en ella. Lo que la
+    /// cruzaba pasa a ocupar una columna menos.
+    RemoveTableColumn {
+        /// La tabla.
+        id: String,
+        /// Qué columna, contando desde 0.
+        index: usize,
+    },
+
+    /// Cambia lo que mide una columna de una tabla.
+    SetColumnWidth {
+        /// La tabla.
+        id: String,
+        /// Qué columna, contando desde 0.
+        column: usize,
+        /// Lo que pasa a medir.
+        width: ColumnWidth,
+    },
+
+    /// Mete texto en una celda de una tabla.
+    ///
+    /// La celda se dice por su sitio en la rejilla, que es el que cuentan
+    /// el codegen y el layout: la columna incluye las que tapan las celdas
+    /// combinadas de más arriba.
+    InsertCellText {
+        /// La tabla.
+        id: String,
+        /// La fila, contando desde 0.
+        row: usize,
+        /// La columna de la rejilla, contando desde 0.
+        column: usize,
+        /// Dónde se mete, en caracteres desde el principio del texto de la
+        /// celda.
+        at: usize,
+        /// Lo que se escribe.
+        text: String,
+    },
+
+    /// Borra un trozo del texto de una celda: el tramo `[from, to)`.
+    DeleteCellText {
+        /// La tabla.
+        id: String,
+        /// La fila, contando desde 0.
+        row: usize,
+        /// La columna de la rejilla, contando desde 0.
+        column: usize,
+        /// Dónde empieza, en caracteres.
+        from: usize,
+        /// Dónde acaba, sin incluirlo.
+        to: usize,
+    },
+
+    /// Cambia el formato de un trozo del texto de una celda.
+    FormatCellText {
+        /// La tabla.
+        id: String,
+        /// La fila, contando desde 0.
+        row: usize,
+        /// La columna de la rejilla, contando desde 0.
+        column: usize,
+        /// Dónde empieza, en caracteres.
+        from: usize,
+        /// Dónde acaba, sin incluirlo.
+        to: usize,
+        /// Qué se cambia. Lo que no se diga se queda como estaba.
+        format: Format,
+    },
+
     Batch {
         /// Los comandos, en el orden en que se aplican.
         ops: Vec<Op>,
@@ -584,6 +683,15 @@ pub enum OpError {
         zones: Vec<String>,
     },
 
+    /// La tabla no tiene esa fila, esa columna o esa celda.
+    #[error("la tabla {id:?} no tiene {what}")]
+    TablePartNotFound {
+        /// La tabla.
+        id: String,
+        /// Lo que se pidió: «la fila 3», «la columna 2».
+        what: String,
+    },
+
     /// El elemento no admite ese cambio.
     #[error("{what} no se puede aplicar a {id:?}, que es un elemento de tipo {kind}")]
     NotApplicable {
@@ -646,6 +754,14 @@ impl Op {
             Op::DeleteFlowText { flow, .. } => format!("Borrar texto de {flow}"),
             Op::FormatFlowText { flow, .. } => format!("Dar formato a {flow}"),
             Op::RestoreFlow { name, .. } => format!("Restaurar {name}"),
+            Op::InsertTableRow { id, .. } => format!("Añadir una fila a {id}"),
+            Op::RemoveTableRow { id, .. } => format!("Quitar una fila de {id}"),
+            Op::InsertTableColumn { id, .. } => format!("Añadir una columna a {id}"),
+            Op::RemoveTableColumn { id, .. } => format!("Quitar una columna de {id}"),
+            Op::SetColumnWidth { id, .. } => format!("Cambiar una columna de {id}"),
+            Op::InsertCellText { id, .. } => format!("Escribir en {id}"),
+            Op::DeleteCellText { id, .. } => format!("Borrar texto de {id}"),
+            Op::FormatCellText { id, .. } => format!("Dar formato a {id}"),
             Op::Batch { ops } => describe_batch(ops),
         }
     }
@@ -664,7 +780,15 @@ impl Op {
             | Op::SetLines { id, .. }
             | Op::Delete { id }
             | Op::Rename { id, .. }
-            | Op::Reorder { id, .. } => Some(id),
+            | Op::Reorder { id, .. }
+            | Op::InsertTableRow { id, .. }
+            | Op::RemoveTableRow { id, .. }
+            | Op::InsertTableColumn { id, .. }
+            | Op::RemoveTableColumn { id, .. }
+            | Op::SetColumnWidth { id, .. }
+            | Op::InsertCellText { id, .. }
+            | Op::DeleteCellText { id, .. }
+            | Op::FormatCellText { id, .. } => Some(id),
             Op::Create { element, .. } | Op::Restore { element } => Some(element.id()),
             Op::Group { id, .. } | Op::Ungroup { id } => Some(id),
             Op::InsertPage { .. }
@@ -687,6 +811,7 @@ impl Op {
             | Op::FormatFlowText { .. }
             | Op::RestoreFlow { .. } => None,
             Op::LinkZone { zone, .. } | Op::UnlinkZone { zone, .. } => Some(zone),
+            // Solo si todos son del mismo elemento.
             // Solo si todos son del mismo elemento.
             Op::Batch { ops } => {
                 let first = ops.first()?.element_id()?;
@@ -747,6 +872,57 @@ impl Op {
             } => flow::apply_format_text(document, flow, *from, *to, format),
 
             Op::RestoreFlow { name, flow } => flow::apply_restore(document, name, flow),
+
+            Op::InsertTableRow { id, index, row } => edit(document, id, |element| {
+                table::insert_row(element, id, *index, row)
+            }),
+
+            Op::RemoveTableRow { id, index } => edit(document, id, |element| {
+                table::remove_row(element, id, *index)
+            }),
+
+            Op::InsertTableColumn { id, index, width } => edit(document, id, |element| {
+                table::insert_column(element, id, *index, *width)
+            }),
+
+            Op::RemoveTableColumn { id, index } => edit(document, id, |element| {
+                table::remove_column(element, id, *index)
+            }),
+
+            Op::SetColumnWidth { id, column, width } => edit(document, id, |element| {
+                table::set_column_width(element, id, *column, *width)
+            }),
+
+            Op::InsertCellText {
+                id,
+                row,
+                column,
+                at,
+                text,
+            } => edit(document, id, |element| {
+                table::insert_text(element, id, *row, *column, *at, text)
+            }),
+
+            Op::DeleteCellText {
+                id,
+                row,
+                column,
+                from,
+                to,
+            } => edit(document, id, |element| {
+                table::delete_text(element, id, *row, *column, *from, *to)
+            }),
+
+            Op::FormatCellText {
+                id,
+                row,
+                column,
+                from,
+                to,
+                format,
+            } => edit(document, id, |element| {
+                table::format_text(element, id, *row, *column, *from, *to, format)
+            }),
 
             Op::Batch { ops } => {
                 let mut undos = Vec::with_capacity(ops.len());

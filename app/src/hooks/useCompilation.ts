@@ -30,8 +30,11 @@ export function useCompilation(): void {
       listen<CompilationStarted>(CompilationEvents.start, (event) => store().start(event.payload)),
       listen<CompilationFinished>(CompilationEvents.finish, (event) => {
         store().finish(event.payload);
-        // Las cajas van con sus páginas: se guardan con la misma revisión.
-        useLayoutStore.getState().update(event.payload.revision, event.payload.boxes);
+        // Las cajas y las celdas van con sus páginas: se guardan con la
+        // misma revisión.
+        useLayoutStore
+          .getState()
+          .update(event.payload.revision, event.payload.boxes, event.payload.cells);
       }),
       listen<CompilationFailed>(CompilationEvents.error, (event) => store().fail(event.payload)),
     ];

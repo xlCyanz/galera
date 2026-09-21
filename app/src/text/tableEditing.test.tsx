@@ -1,0 +1,373 @@
+import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
+import { act } from "react";
+import { type Root, createRoot } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+
+import { Canvas } from "../canvas/Canvas";
+import type { ImageLoader } from "../canvas/PageSvg";
+import { PX_PER_MM } from "../canvas/geometry";
+import type { OpenedProject } from "../commands";
+import { useDocumentStore } from "../store/document";
+import { useEditingStore } from "../store/editing";
+import { useLayoutStore } from "../store/layout";
+import { useToolStore } from "../store/tool";
+import type { CellBox, Glyph, LayoutBox } from "../types/layout";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const loader: ImageLoader = {
+  createUrl: (svg) => `blob:${svg}`,
+  revokeUrl: () => undefined,
+  decode: () => new Promise(() => undefined),
+};
+
+const cell = (text: string) => ({
+  content: [{ text, bold: false, italic: false, underline: false }],
+  colspan: 1,
+  rowspan: 1,
+});
+
+/** Una tabla de dos columnas y dos filas, en (10, 10) y de 80 × 20 mm. */
+const project: OpenedProject = {
+  root: "/p",
+  archive: null,
+  revision: 1,
+  document: {
+    version: 1,
+    meta: { title: "x" },
+    fonts: ["fonts/Inter-Regular.ttf"],
+    assets: {},
+    variables: {},
+    flows: {},
+    pages: [
+      {
+        id: "p1",
+        size: { width: 200, height: 100, unit: "mm" },
+        elements: [
+          {
+            type: "table",
+            id: "tb1",
+            x: 10,
+            y: 10,
+            w: 80,
+            h: null,
+            rotation: 0,
+            columns: [{ width: "auto" }, { width: "auto" }],
+            rows: [
+              { cells: [cell("Enero"), cell("Norte")] },
+              { cells: [cell("Marzo"), cell("Sur")] },
+            ],
+            style: { font: "Inter", size: 10, color: "#000000", align: "left", leading: 0.65 },
+            inset: 2,
+          },
+        ],
+      },
+    ],
+  },
+};
+
+const tableBox: LayoutBox = {
+  id: "tb1",
+  page: 0,
+  x: 10,
+  y: 10,
+  w: 80,
+  h: 20,
+  rotation: 0,
+  bounds: { x: 10, y: 10, w: 80, h: 20 },
+  line: null,
+  overflow: 0,
+};
+
+/** Las cuatro celdas, de 40 × 10 mm cada una. */
+const cells: CellBox[] = [
+  { table: "tb1", page: 0, row: 0, column: 0, colspan: 1, rowspan: 1, x: 10, y: 10, w: 40, h: 10 },
+  { table: "tb1", page: 0, row: 0, column: 1, colspan: 1, rowspan: 1, x: 50, y: 10, w: 40, h: 10 },
+  { table: "tb1", page: 0, row: 1, column: 0, colspan: 1, rowspan: 1, x: 10, y: 20, w: 40, h: 10 },
+  { table: "tb1", page: 0, row: 1, column: 1, colspan: 1, rowspan: 1, x: 50, y: 20, w: 40, h: 10 },
+];
+
+/** Los glifos de «Enero», uno por letra, dentro de la primera celda. */
+const scene: Glyph[] = [..."Enero"].map((_, text_index) => ({
+  page: 0,
+  text_index,
+  line: 0,
+  x: 12 + text_index * 3,
+  y: 12,
+  width: 3,
+  line_height: 5,
+  baseline: 16,
+}));
+
+// jsdom no maqueta: el área mide 1000 × 600 px y empieza en (40, 30).
+const AREA = { left: 40, top: 30, width: 1000, height: 600 };
+
+let container: HTMLDivElement;
+let root: Root;
+/** Qué contesta el núcleo a `element_at`. */
+let found: string | null;
+/** Lo que se le ha pedido al backend. */
+let asked: Array<{ command: string; args: Record<string, unknown> }>;
+const restore: Array<() => void> = [];
+
+beforeEach(() => {
+  const proto = HTMLElement.prototype;
+  const original = proto.getBoundingClientRect;
+  proto.getBoundingClientRect = function (this: HTMLElement) {
+    return this.classList.contains("canvas-viewport")
+      ? new DOMRect(AREA.left, AREA.top, AREA.width, AREA.height)
+      : original.call(this);
+  };
+  Object.defineProperty(proto, "clientWidth", { configurable: true, get: () => AREA.width });
+  Object.defineProperty(proto, "clientHeight", { configurable: true, get: () => AREA.height });
+  restore.push(() => {
+    proto.getBoundingClientRect = original;
+    delete (proto as { clientWidth?: number }).clientWidth;
+    delete (proto as { clientHeight?: number }).clientHeight;
+  });
+
+  found = null;
+  asked = [];
+  mockIPC((command, args) => {
+    asked.push({ command, args: args as Record<string, unknown> });
+    if (command === "element_at") {
+      return found;
+    }
+    if (command === "cell_glyphs") {
+      return scene;
+    }
+    if (command === "column_edges") {
+      return [10, 50, 90];
+    }
+    if (command === "apply_op") {
+      return {
+        revision: 2,
+        document: project.document,
+        description: "Escribir",
+        undo: null,
+        redo: null,
+      };
+    }
+    return command === "glyphs" ? [] : null;
+  });
+
+  useDocumentStore.setState(useDocumentStore.getInitialState(), true);
+  useLayoutStore.setState(useLayoutStore.getInitialState(), true);
+  useEditingStore.setState(useEditingStore.getInitialState(), true);
+  useToolStore.setState(useToolStore.getInitialState(), true);
+  useDocumentStore.getState().open(project);
+  useLayoutStore.getState().update(1, [tableBox], cells);
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  act(() => root.render(<Canvas loader={loader} />));
+});
+
+afterEach(() => {
+  act(() => root.unmount());
+  container.remove();
+  clearMocks();
+  while (restore.length > 0) restore.pop()?.();
+});
+
+const viewport = () => container.querySelector<HTMLElement>(".canvas-viewport")!;
+const input = () => container.querySelector("textarea");
+const marked = () => [...container.querySelectorAll<HTMLElement>(".table-cell.is-marked")];
+
+/** El punto de la pantalla donde cae un punto de la página, en mm. */
+function screenPoint(x: number, y: number) {
+  const left = AREA.left + (AREA.width - 200 * PX_PER_MM) / 2;
+  const top = AREA.top + (AREA.height - 100 * PX_PER_MM) / 2;
+  return { clientX: left + x * PX_PER_MM, clientY: top + y * PX_PER_MM };
+}
+
+async function doubleClick(x: number, y: number) {
+  const { clientX, clientY } = screenPoint(x, y);
+  await act(async () => {
+    viewport().dispatchEvent(
+      new MouseEvent("dblclick", { bubbles: true, cancelable: true, button: 0, clientX, clientY }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+async function press(x: number, y: number, modifiers: { shiftKey?: boolean } = {}) {
+  const { clientX, clientY } = screenPoint(x, y);
+  await act(async () => {
+    viewport().dispatchEvent(
+      new MouseEvent("pointerdown", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        clientX,
+        clientY,
+        ...modifiers,
+      }),
+    );
+    window.dispatchEvent(new MouseEvent("pointerup", { clientX, clientY }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+/** Entra a escribir la primera celda. */
+async function enter() {
+  found = "tb1";
+  await doubleClick(12, 12);
+}
+
+const opsAsked = () =>
+  asked
+    .filter((one) => one.command === "apply_op")
+    .map((one) => one.args.op as Record<string, unknown>);
+
+describe("escribir en una tabla", () => {
+  /** El criterio de la tarea: doble clic en una celda entra a editarla. */
+  it("doble clic entra en la celda que hay debajo, no en la tabla", async () => {
+    await enter();
+
+    const state = useEditingStore.getState();
+    expect(state.cell).toEqual({ table: "tb1", row: 0, column: 0 });
+    expect(state.element).toBeNull();
+    expect(input()).not.toBeNull();
+    // El cursor entra al final del texto de esa celda.
+    expect(state.start).toBe("Enero".length);
+  });
+
+  it("pulsar en otra celda pasa a escribir esa", async () => {
+    await enter();
+    await press(60, 12);
+
+    expect(useEditingStore.getState().cell).toEqual({ table: "tb1", row: 0, column: 1 });
+  });
+
+  /** El criterio de la tarea: el tabulador pasa a la siguiente. */
+  it("el tabulador pasa a la celda siguiente y ⇧ a la anterior", async () => {
+    await enter();
+    const field = input()!;
+
+    await act(async () => {
+      field.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(useEditingStore.getState().cell).toEqual({ table: "tb1", row: 0, column: 1 });
+
+    await act(async () => {
+      input()!.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(useEditingStore.getState().cell).toEqual({ table: "tb1", row: 0, column: 0 });
+  });
+
+  it("escribir manda un comando de la celda", async () => {
+    await enter();
+    const field = input()!;
+
+    await act(async () => {
+      field.value = "Enero!";
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const op = opsAsked().find((one) => one.op === "insert_cell_text");
+    expect(op).toMatchObject({ id: "tb1", row: 0, column: 0, text: "!" });
+  });
+
+  it("pide los glifos de la celda", async () => {
+    await enter();
+    expect(asked.some((one) => one.command === "cell_glyphs")).toBe(true);
+  });
+
+  /** El criterio de la tarea: se marcan varias celdas para el formato. */
+  it("⇧ + clic suma otra celda a las marcadas", async () => {
+    await enter();
+    await press(60, 12, { shiftKey: true });
+
+    const state = useEditingStore.getState();
+    expect(state.cell).toEqual({ table: "tb1", row: 0, column: 0 });
+    expect(state.marked).toEqual([{ row: 0, column: 1 }]);
+    // La que se escribe y la marcada se ven señaladas en el lienzo.
+    expect(marked()).toHaveLength(2);
+  });
+
+  it("el formato con varias marcadas va a todas en un solo comando", async () => {
+    await enter();
+    await press(60, 12, { shiftKey: true });
+
+    const { applyFormat } = await import("./useTextFormat");
+    await act(async () => {
+      await applyFormat({ bold: true });
+    });
+
+    const op = opsAsked().at(-1);
+    expect(op?.op).toBe("batch");
+    const ops = op?.ops as Array<Record<string, unknown>>;
+    expect(ops).toHaveLength(2);
+    expect(ops[0]).toMatchObject({ op: "format_cell_text", row: 0, column: 0 });
+    expect(ops[1]).toMatchObject({ op: "format_cell_text", row: 0, column: 1 });
+  });
+});
+
+describe("la rejilla desde el lienzo", () => {
+  /** El criterio de la tarea: filas y columnas desde el menú contextual. */
+  it("el botón derecho sobre una celda ofrece meter y quitar", async () => {
+    const { clientX, clientY } = screenPoint(12, 12);
+    await act(async () => {
+      viewport().dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX, clientY }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const menu = container.querySelector(".table-menu");
+    expect(menu).not.toBeNull();
+
+    const button = [...menu!.querySelectorAll("button")].find(
+      (one) => one.textContent === "Insertar fila debajo",
+    );
+    await act(async () => {
+      button!.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(opsAsked().at(-1)).toMatchObject({ op: "insert_table_row", id: "tb1", index: 1 });
+  });
+
+  /** El criterio de la tarea: arrastrar el borde de una columna. */
+  it("arrastrar un borde cambia el ancho de las dos columnas que toca", async () => {
+    // La tabla se selecciona: entonces salen sus bordes.
+    found = "tb1";
+    await press(12, 12);
+    await act(async () => {
+      useDocumentStore.getState().select("tb1");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const handle = container.querySelector<HTMLElement>("[data-column-edge='1']");
+    expect(handle).not.toBeNull();
+
+    const from = screenPoint(50, 15);
+    const to = screenPoint(60, 15);
+    await act(async () => {
+      handle!.dispatchEvent(
+        new MouseEvent("pointerdown", {
+          bubbles: true,
+          cancelable: true,
+          button: 0,
+          clientX: from.clientX,
+          clientY: from.clientY,
+        }),
+      );
+      window.dispatchEvent(new MouseEvent("pointermove", { clientX: to.clientX, clientY: to.clientY }));
+      window.dispatchEvent(new MouseEvent("pointerup", { clientX: to.clientX, clientY: to.clientY }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const op = opsAsked().at(-1);
+    expect(op?.op).toBe("batch");
+    const ops = op?.ops as Array<Record<string, unknown>>;
+    expect(ops[0]).toMatchObject({ op: "set_column_width", column: 0, width: { width: "fixed", mm: 50 } });
+    expect(ops[1]).toMatchObject({ op: "set_column_width", column: 1, width: { width: "fixed", mm: 30 } });
+  });
+});

@@ -75,7 +75,7 @@ beforeEach(() => {
     diagnostics: [],
     pages: ["<svg>una</svg>", "<svg>dos</svg>"],
     boxes: [],
-    flows: [],
+    flows: [], cells: [],
   });
 
   container = document.createElement("div");

@@ -22,11 +22,42 @@
 
 use std::fmt::Write as _;
 
-use crate::model::table::{ColumnWidth, TableCell, TableRow};
-use crate::model::{Document, ElementBox, Stroke, TextStyle};
+use crate::model::table::{ColumnWidth, TableCell, TableRow, grid};
+use crate::model::{Document, Element, ElementBox, Stroke, TextStyle};
 
 use super::text::{emit_run, horizontal_alignment, points};
 use super::{CodegenError, color, millimeters, number, typst_string};
+
+/// La marca que deja cada celda para que el layout sepa dónde quedó.
+///
+/// Typst no cuenta en el marco dónde empieza ni cuánto mide una celda: solo
+/// dibuja lo que lleva dentro. La marca es un bloque **fuera de flujo**
+/// —`place` no ocupa sitio, así que no cambia lo que mide la tabla— del
+/// tamaño de la celda, y dentro un `metadata` con su fila y su columna. El
+/// layout lee ese `metadata` y se queda con el marco que lo lleva: la caja
+/// de la celda, medida por Typst (principio 3).
+const CELL_MARK: &str = r#"#let galera-cell(row, column) = place(top + left, block(width: 100%, height: 100%, metadata((row: row, column: column))))
+"#;
+
+/// Escribe lo que necesitan las tablas, si hay alguna.
+pub(super) fn emit_prelude(document: &Document, out: &mut String) {
+    if !has_table(document) {
+        return;
+    }
+    out.push_str(CELL_MARK);
+}
+
+/// Si el documento lleva alguna tabla, aunque sea dentro de un grupo.
+fn has_table(document: &Document) -> bool {
+    fn any(elements: &[Element]) -> bool {
+        elements.iter().any(|element| match element {
+            Element::Table { .. } => true,
+            Element::Group { children, .. } => any(children),
+            _ => false,
+        })
+    }
+    document.pages.iter().any(|page| any(&page.elements))
+}
 
 /// Escribe la tabla entera.
 ///
@@ -84,9 +115,16 @@ pub(super) fn emit_table(
     }
     let _ = write!(out, ", align: {}", horizontal_alignment(style.align));
 
-    for row in rows {
+    let places = grid(columns.len(), rows);
+    for (number, row) in rows.iter().enumerate() {
         out.push_str(", ");
-        emit_row(row, document, out)?;
+        emit_row(
+            number,
+            row,
+            places.get(number).map_or(&[][..], Vec::as_slice),
+            document,
+            out,
+        )?;
     }
 
     out.push_str(") })");
@@ -103,12 +141,24 @@ fn column(width: ColumnWidth) -> String {
 }
 
 /// Escribe las celdas de una fila.
-fn emit_row(row: &TableRow, document: &Document, out: &mut String) -> Result<(), CodegenError> {
+///
+/// `places` dice en qué columna de la rejilla cae cada celda, contando las
+/// que tapan las combinadas de más arriba ([`grid`]). Esa columna es la que
+/// va en la marca, así que la que lee el layout y la que dice el modelo son
+/// la misma.
+fn emit_row(
+    number: usize,
+    row: &TableRow,
+    places: &[usize],
+    document: &Document,
+    out: &mut String,
+) -> Result<(), CodegenError> {
     for (index, cell) in row.cells.iter().enumerate() {
         if index > 0 {
             out.push_str(", ");
         }
-        emit_cell(cell, row.fill.as_deref(), document, out)?;
+        let column = places.get(index).copied().unwrap_or(index);
+        emit_cell(cell, number, column, row.fill.as_deref(), document, out)?;
     }
     Ok(())
 }
@@ -119,6 +169,8 @@ fn emit_row(row: &TableRow, document: &Document, out: &mut String) -> Result<(),
 /// `[…]`, que es como se lee una tabla normal en Typst.
 fn emit_cell(
     cell: &TableCell,
+    row: usize,
+    column: usize,
     row_fill: Option<&str>,
     document: &Document,
     out: &mut String,
@@ -157,6 +209,7 @@ fn emit_cell(
     }
 
     out.push('[');
+    let _ = write!(out, "#galera-cell({row}, {column})");
     emit_content(&cell.content, document, out)?;
     out.push(']');
     Ok(())
@@ -235,7 +288,7 @@ mod tests {
         );
         // El fondo de la fila llega a cada una de sus celdas.
         assert!(
-            code.contains(r##"table.cell(fill: rgb("#F1F5F9"))[Enero]"##),
+            code.contains(r##"table.cell(fill: rgb("#F1F5F9"))[#galera-cell(0, 0)Enero]"##),
             "{code}"
         );
     }
@@ -244,8 +297,14 @@ mod tests {
     #[test]
     fn a_cell_can_take_several_columns() {
         let code = generate(&simple()).expect("se genera");
-        assert!(code.contains("table.cell(colspan: 2)[Febrero]"), "{code}");
-        assert!(code.contains("table.cell(align: right)[34]"), "{code}");
+        assert!(
+            code.contains("table.cell(colspan: 2)[#galera-cell(1, 0)Febrero]"),
+            "{code}"
+        );
+        assert!(
+            code.contains("table.cell(align: right)[#galera-cell(1, 2)34]"),
+            "{code}"
+        );
     }
 
     /// Una celda que no cambia nada se escribe a secas.
@@ -259,7 +318,7 @@ mod tests {
         ))
         .expect("se genera");
 
-        assert!(code.contains(", [Sola])"), "{code}");
+        assert!(code.contains(", [#galera-cell(0, 0)Sola])"), "{code}");
         // Sin borde declarado, la tabla no dibuja líneas.
         assert!(code.contains("stroke: none"), "{code}");
     }
@@ -285,7 +344,7 @@ mod tests {
     #[test]
     fn a_chip_in_a_cell_is_replaced_by_its_value() {
         let code = generate(&simple()).expect("se genera");
-        assert!(code.contains("[Enero]"), "{code}");
+        assert!(code.contains("[#galera-cell(0, 0)Enero]"), "{code}");
         assert!(!code.contains("{{mes}}"), "{code}");
     }
 
@@ -300,6 +359,9 @@ mod tests {
         ))
         .expect("se genera");
 
-        assert!(code.contains("[#strong[Total]]"), "{code}");
+        assert!(
+            code.contains("[#galera-cell(0, 0)#strong[Total]]"),
+            "{code}"
+        );
     }
 }

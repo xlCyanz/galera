@@ -53,6 +53,7 @@
 //! texto, para dibujar el cursor y la selección donde de verdad está el
 //! texto.
 
+pub mod cells;
 pub mod flows;
 pub mod glyphs;
 pub mod hit;

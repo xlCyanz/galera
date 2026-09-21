@@ -12,7 +12,7 @@
 import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 
-import type { LayoutBox } from "../types/layout";
+import type { CellBox, LayoutBox } from "../types/layout";
 
 export interface LayoutState {
   /** La revisión del documento de la que salen las cajas. */
@@ -21,9 +21,16 @@ export interface LayoutState {
   minRevision: number;
   /** Las cajas, por id de elemento. */
   boxes: Record<string, LayoutBox>;
+  /**
+   * Dónde quedó cada celda de cada tabla, en el orden en que se componen.
+   *
+   * No van por id porque una celda no lo tiene: se dice por su tabla, su
+   * fila y su columna de la rejilla.
+   */
+  cells: CellBox[];
 
   /** Guarda las cajas de una compilación. Ignora las de revisiones viejas. */
-  update: (revision: number, boxes: readonly LayoutBox[]) => void;
+  update: (revision: number, boxes: readonly LayoutBox[], cells?: readonly CellBox[]) => void;
   /**
    * Se ha abierto un documento con esta revisión: las cajas de antes dejan
    * de valer, salvo que ya hayan llegado las suyas.
@@ -37,13 +44,18 @@ export const useLayoutStore = create<LayoutState>()((set, get) => ({
   revision: null,
   minRevision: 0,
   boxes: {},
+  cells: [],
 
-  update: (revision, boxes) => {
+  update: (revision, boxes, cells = []) => {
     const state = get();
     if (revision < Math.max(state.minRevision, state.revision ?? 0)) {
       return;
     }
-    set({ revision, boxes: Object.fromEntries(boxes.map((box) => [box.id, box])) });
+    set({
+      revision,
+      boxes: Object.fromEntries(boxes.map((box) => [box.id, box])),
+      cells: [...cells],
+    });
   },
 
   expect: (revision) => {
@@ -52,10 +64,10 @@ export const useLayoutStore = create<LayoutState>()((set, get) => ({
       set({ minRevision: revision });
       return;
     }
-    set({ revision: null, minRevision: revision, boxes: {} });
+    set({ revision: null, minRevision: revision, boxes: {}, cells: [] });
   },
 
-  reset: () => set({ revision: null, minRevision: 0, boxes: {} }),
+  reset: () => set({ revision: null, minRevision: 0, boxes: {}, cells: [] }),
 }));
 
 /** La caja de un elemento, o `null` si no la hay. */

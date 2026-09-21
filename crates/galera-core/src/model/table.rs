@@ -146,6 +146,62 @@ pub enum GridProblem {
 /// su derecha, y esas no se escriben. Así, una fila «se pasa» solo si lo que
 /// escribe, más lo que le llega tapado de arriba, no cabe en las columnas.
 pub fn check_grid(columns: usize, rows: &[TableRow]) -> Vec<GridProblem> {
+    walk_grid(columns, rows).1
+}
+
+/// En qué columna de la rejilla cae cada celda: por cada fila, la columna de
+/// cada una de sus celdas, en el orden en que están escritas.
+///
+/// Es lo que hace que la columna que dice el modelo, la que escribe el
+/// codegen y la que lee el layout sean la misma, sin que cada uno cuente las
+/// celdas tapadas por su cuenta.
+pub fn grid(columns: usize, rows: &[TableRow]) -> Vec<Vec<usize>> {
+    walk_grid(columns, rows).0
+}
+
+/// La celda de una fila que cae en esa columna de la rejilla, si hay alguna:
+/// su posición en [`TableRow::cells`].
+pub fn cell_at(columns: usize, rows: &[TableRow], row: usize, column: usize) -> Option<usize> {
+    grid(columns, rows)
+        .get(row)?
+        .iter()
+        .position(|at| *at == column)
+}
+
+/// Qué celda ocupa cada sitio de la rejilla: por cada fila y cada columna,
+/// de qué fila y qué celda de esa fila es lo que hay ahí, o `None` si no
+/// llega ninguna.
+///
+/// Una celda combinada ocupa varios sitios, y todos dicen que son de ella:
+/// es lo que hace falta para meter y quitar columnas sin partirla.
+pub fn occupancy(columns: usize, rows: &[TableRow]) -> Vec<Vec<Option<(usize, usize)>>> {
+    let mut map = vec![vec![None; columns]; rows.len()];
+
+    for (number, places) in grid(columns, rows).iter().enumerate() {
+        for (index, column) in places.iter().enumerate() {
+            let Some(cell) = rows[number].cells.get(index) else {
+                continue;
+            };
+            if *column >= columns {
+                continue;
+            }
+            let rows_taken = (number + cell.rowspan.max(1)).min(rows.len());
+            let columns_taken = (*column + cell.colspan.max(1)).min(columns);
+            for row in &mut map[number..rows_taken] {
+                for at in &mut row[*column..columns_taken] {
+                    at.get_or_insert((number, index));
+                }
+            }
+        }
+    }
+
+    map
+}
+
+/// El recorrido de la rejilla, que es de donde salen [`grid`] y
+/// [`check_grid`]: las dos cuentan lo mismo, así que lo cuentan una vez.
+fn walk_grid(columns: usize, rows: &[TableRow]) -> (Vec<Vec<usize>>, Vec<GridProblem>) {
+    let mut places = Vec::with_capacity(rows.len());
     let mut problems = Vec::new();
     // Cuántas filas más tapa cada columna, de las celdas de más arriba.
     let mut covered = vec![0usize; columns];
@@ -153,8 +209,15 @@ pub fn check_grid(columns: usize, rows: &[TableRow]) -> Vec<GridProblem> {
     for (number, row) in rows.iter().enumerate() {
         let mut at = 0;
         let mut needed = 0;
+        let mut places_of_row = Vec::with_capacity(row.cells.len());
 
         for (index, cell) in row.cells.iter().enumerate() {
+            // Se salta lo que ya tapa una celda de más arriba.
+            while at < columns && covered[at] > 0 {
+                at += 1;
+            }
+            places_of_row.push(at);
+
             if cell.colspan == 0 || cell.rowspan == 0 {
                 problems.push(GridProblem::EmptySpan {
                     row: number,
@@ -163,10 +226,6 @@ pub fn check_grid(columns: usize, rows: &[TableRow]) -> Vec<GridProblem> {
                 continue;
             }
 
-            // Se salta lo que ya tapa una celda de más arriba.
-            while at < columns && covered[at] > 0 {
-                at += 1;
-            }
             needed = at + cell.colspan;
             let last = (at + cell.colspan).min(columns);
             for column in &mut covered[at.min(columns)..last] {
@@ -183,12 +242,13 @@ pub fn check_grid(columns: usize, rows: &[TableRow]) -> Vec<GridProblem> {
             });
         }
 
+        places.push(places_of_row);
         for column in &mut covered {
             *column = column.saturating_sub(1);
         }
     }
 
-    problems
+    (places, problems)
 }
 
 #[cfg(test)]
@@ -263,6 +323,53 @@ mod tests {
                 needed: 3,
                 columns: 2
             }]
+        );
+    }
+
+    /// El criterio de la tarea: la celda se nombra por su sitio en la
+    /// rejilla, y ese sitio cuenta lo que tapan las combinadas.
+    #[test]
+    fn the_grid_says_in_which_column_each_cell_falls() {
+        let tall = TableCell {
+            rowspan: 2,
+            ..TableCell::plain("Trimestre")
+        };
+        let rows = vec![
+            row(&[tall, TableCell::plain("Enero"), TableCell::plain("12")]),
+            row(&[TableCell::plain("Febrero"), TableCell::plain("34")]),
+        ];
+
+        // En la segunda fila, la primera columna la tapa «Trimestre».
+        assert_eq!(grid(3, &rows), vec![vec![0, 1, 2], vec![1, 2]]);
+        assert_eq!(cell_at(3, &rows, 1, 1), Some(0));
+        assert_eq!(cell_at(3, &rows, 1, 0), None, "esa columna está tapada");
+        assert_eq!(cell_at(3, &rows, 9, 0), None);
+    }
+
+    /// Y lo que ocupa cada una se sabe entero: es lo que hace falta para
+    /// meter y quitar columnas sin partir una celda combinada.
+    #[test]
+    fn every_place_of_the_grid_says_whose_it_is() {
+        let wide = TableCell {
+            colspan: 2,
+            ..TableCell::plain("Febrero")
+        };
+        let rows = vec![
+            row(&[
+                TableCell::plain("Enero"),
+                TableCell::plain("Norte"),
+                TableCell::plain("12"),
+            ]),
+            row(&[wide, TableCell::plain("34")]),
+        ];
+
+        assert_eq!(
+            occupancy(3, &rows),
+            vec![
+                vec![Some((0, 0)), Some((0, 1)), Some((0, 2))],
+                // «Febrero» ocupa las dos primeras columnas de su fila.
+                vec![Some((1, 0)), Some((1, 0)), Some((1, 1))],
+            ]
         );
     }
 

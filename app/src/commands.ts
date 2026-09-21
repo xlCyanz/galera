@@ -20,7 +20,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 import type { Diagnostic } from "./types/diagnostic";
-import type { FlowRange, Glyph, LayoutBox, MmRect } from "./types/layout";
+import type { CellBox, FlowRange, Glyph, LayoutBox, MmRect } from "./types/layout";
 import type { Document, TextStyle } from "./types/model";
 import type { Op } from "./types/ops";
 import type { Alignment, Spread } from "./types/align";
@@ -278,6 +278,8 @@ export interface CompilationFinished {
   boxes: LayoutBox[];
   /** Qué rango del texto de su flujo quedó en cada zona. */
   flows: FlowRange[];
+  /** Dónde quedó cada celda de cada tabla. */
+  cells: CellBox[];
 }
 
 /** `compilation:error`: una compilación ha fallado. */
@@ -309,6 +311,23 @@ export function glyphs(id: string): Promise<Glyph[]> {
  */
 export function flowGlyphs(flow: string): Promise<Glyph[]> {
   return invoke<Glyph[]>("flow_glyphs", { flow });
+}
+
+/**
+ * Dónde quedó cada glifo del texto de una celda de una tabla, para poner el
+ * cursor dentro de ella. La celda se dice por su sitio en la rejilla, el
+ * mismo que trae `CellBox`.
+ */
+export function cellGlyphs(table: string, row: number, column: number): Promise<Glyph[]> {
+  return invoke<Glyph[]>("cell_glyphs", { table, row, column });
+}
+
+/**
+ * Por dónde pasan los bordes de las columnas de una tabla, de izquierda a
+ * derecha: uno más que columnas. Un borde que no se sabe sale como `null`.
+ */
+export function columnEdges(table: string): Promise<(number | null)[]> {
+  return invoke<(number | null)[]>("column_edges", { table });
 }
 
 /**

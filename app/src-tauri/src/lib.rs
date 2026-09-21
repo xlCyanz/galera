@@ -139,6 +139,8 @@ pub fn run() -> tauri::Result<()> {
             commands::snap::snap,
             commands::text::glyphs,
             commands::text::flow_glyphs,
+            commands::table::cell_glyphs,
+            commands::table::column_edges,
             commands::ops::apply_op,
             commands::ops::undo,
             commands::ops::redo,

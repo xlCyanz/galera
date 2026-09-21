@@ -5,7 +5,7 @@ import type { Diagnostic } from "../types/diagnostic";
 import { useCompilationStore } from "./compilation";
 
 function finished(overrides: Partial<CompilationFinished> = {}): CompilationFinished {
-  return { revision: 1, ms: 12, reused: false, diagnostics: [], pages: ["<svg>1</svg>"], boxes: [], flows: [], ...overrides };
+  return { revision: 1, ms: 12, reused: false, diagnostics: [], pages: ["<svg>1</svg>"], boxes: [], flows: [], cells: [], ...overrides };
 }
 
 const typstError: Diagnostic = {
