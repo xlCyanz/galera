@@ -9,6 +9,7 @@
 //! [`CommandError`], que llega a la interfaz como `{ kind, message }`.
 
 pub mod assets;
+pub mod clipboard;
 mod error;
 pub mod export;
 pub mod fonts;

@@ -27,6 +27,10 @@ En macOS el modificador es ⌘; en Windows y Linux, Ctrl.
 | Deshacer | `⌘Z` | `Ctrl+Z` |
 | Rehacer | `⌘⇧Z` | `Ctrl+Shift+Z` |
 | Quitar la selección | `Esc` | `Esc` |
+| Copiar | `⌘C` | `Ctrl+C` |
+| Cortar | `⌘X` | `Ctrl+X` |
+| Pegar | `⌘V` | `Ctrl+V` |
+| Duplicar | `⌘D` | `Ctrl+D` |
 | Agrupar | `⌘G` | `Ctrl+G` |
 | Desagrupar | `⌘⇧G` | `Ctrl+Shift+G` |
 | Negrita | `⌘B` | `Ctrl+B` |
@@ -104,6 +108,13 @@ teclas van al texto y no a las herramientas:
   dibuja, `Esc` cancela **ese gesto** y `⇧` lo restringe (proporción, ángulos
   de 45°, movimiento recto). No son atajos: son parte del gesto, y solo
   valen mientras dura.
+- **Copiar y pegar.** Lo copiado se queda en la aplicación con los
+  recursos y las fuentes que necesita, así que se puede pegar **en otro
+  documento** sin que quede una imagen rota ni un texto con otra
+  tipografía. Lo pegado estrena ids y aparece desplazado unos milímetros,
+  ya seleccionado. Al portapapeles del sistema va el **texto plano** de lo
+  copiado, para pegarlo fuera. Dentro de un texto, `⌘C`, `⌘X` y `⌘V` son
+  del texto.
 - **Los grupos.** `⌘G` mete lo seleccionado en un grupo, que a partir de
   ahí se mueve, se gira y se estira como un solo elemento; `⌘⇧G` lo
   deshace. Agrupar no mueve nada de sitio: lo que cambia es desde dónde se

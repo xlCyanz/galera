@@ -55,7 +55,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::{Duration, Instant};
 
-use galera_core::{Compiled, Compiler, Document, GaleraError, History, Op, Project};
+use galera_core::{Clip, Compiled, Compiler, Document, GaleraError, History, Op, Project};
 
 /// El estado de la app, compartido entre todos los comandos.
 #[derive(Default)]
@@ -74,6 +74,14 @@ pub struct AppState {
     /// su ruta real: los únicos que la interfaz puede pedir que se copien
     /// al proyecto.
     offered_files: Mutex<HashSet<PathBuf>>,
+    /// Lo último que se copió, con los archivos que necesita.
+    ///
+    /// Vive en la aplicación y no en el portapapeles del sistema: así los
+    /// elementos viajan enteros —con sus recursos y sus fuentes— de un
+    /// documento a otro sin pasar por un formato de texto. Fuera de la
+    /// aplicación se pega el texto plano, que sí va al portapapeles del
+    /// sistema (ver `commands::clipboard`).
+    clipboard: Mutex<Option<Clip>>,
 }
 
 /// Lo que hay abierto.
@@ -176,6 +184,22 @@ pub struct Compilation {
 }
 
 impl AppState {
+    /// Guarda lo copiado, que sustituye a lo que hubiera.
+    pub fn set_clipboard(&self, clip: Clip) {
+        *self
+            .clipboard
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = Some(clip);
+    }
+
+    /// Lo último que se copió, si hay algo.
+    pub fn clipboard(&self) -> Option<Clip> {
+        self.clipboard
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
     /// Abre un proyecto con su documento, sustituyendo lo que hubiera.
     /// Devuelve la revisión nueva.
     pub fn open(&self, project: Project, document: Document) -> u64 {

@@ -385,6 +385,37 @@ export function spreadElements(
   return invoke<AppliedOp | null>("spread_elements", { ids, axis, toPage });
 }
 
+/**
+ * Copia esos elementos y devuelve su texto plano, para dejarlo en el
+ * portapapeles del sistema.
+ *
+ * Lo copiado se queda en la aplicación, con los recursos y las fuentes que
+ * necesita, para poder pegarlo en otro documento.
+ */
+export function copyElements(ids: readonly string[]): Promise<string> {
+  return invoke<string>("copy_elements", { ids });
+}
+
+/**
+ * Pega lo último que se copió en esa página, en el punto `(x, y)` en mm o
+ * desplazado si no se dice dónde. `null` si no hay nada copiado.
+ */
+export function pasteElements(
+  page: string,
+  at?: { x: number; y: number },
+): Promise<AppliedOp | null> {
+  return invoke<AppliedOp | null>("paste_elements", {
+    page,
+    x: at?.x ?? null,
+    y: at?.y ?? null,
+  });
+}
+
+/** Duplica esos elementos en su misma página, sin tocar lo copiado. */
+export function duplicateElements(ids: readonly string[]): Promise<AppliedOp | null> {
+  return invoke<AppliedOp | null>("duplicate_elements", { ids });
+}
+
 /** Un comando de edición aplicado, tal como lo devuelve `apply_op`. */
 export interface AppliedOp {
   /** La revisión con la que queda el documento; su compilación ya incluye el cambio. */
