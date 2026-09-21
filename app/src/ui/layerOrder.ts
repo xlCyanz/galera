@@ -16,6 +16,7 @@ export const ELEMENT_KIND: Record<Element["type"], string> = {
   line: "Línea",
   image: "Imagen",
   code: "Código",
+  flow: "Zona de texto",
   group: "Grupo",
 };
 

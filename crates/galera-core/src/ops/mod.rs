@@ -23,6 +23,7 @@
 //! aplicar: un id que no existe, una propiedad que el elemento no tiene.
 
 pub mod align;
+pub mod flow;
 pub mod group;
 pub mod history;
 pub mod pages;
@@ -32,7 +33,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::layout::MmRect;
 use crate::model::text::{Format, TextError};
-use crate::model::{Document, Element, Line, Page, Run, Stroke, TextStyle, Variable, is_valid_id};
+use crate::model::{
+    Document, Element, Flow, Line, Page, Run, Stroke, TextStyle, Variable, is_valid_id,
+};
 use crate::variables;
 
 /// Un cambio del documento.
@@ -311,6 +314,38 @@ pub enum Op {
     /// Es lo que hace falta para mover o redimensionar varios elementos a
     /// la vez: un único cambio del documento, una única compilación y un
     /// único paso del historial. Si uno falla no se aplica ninguno.
+    /// Crea un flujo vacío.
+    CreateFlow {
+        /// Cómo se llama.
+        name: String,
+        /// El flujo: su texto, su estilo y su cadena.
+        flow: Flow,
+    },
+
+    /// Quita un flujo que ya no pasa por ninguna zona.
+    RemoveFlow {
+        /// Cuál.
+        name: String,
+    },
+
+    /// Pone una zona en la cadena de un flujo.
+    LinkZone {
+        /// El flujo.
+        flow: String,
+        /// La zona.
+        zone: String,
+        /// En qué posición de la cadena, o al final si no se dice.
+        index: Option<usize>,
+    },
+
+    /// Saca una zona de su cadena y la pasa a un flujo suyo.
+    UnlinkZone {
+        /// La zona.
+        zone: String,
+        /// Cómo se llama el flujo nuevo, que se crea aquí.
+        to: String,
+    },
+
     Batch {
         /// Los comandos, en el orden en que se aplican.
         ops: Vec<Op>,
@@ -488,6 +523,27 @@ pub enum OpError {
     #[error("{0}")]
     Text(#[from] TextError),
 
+    /// No hay ningún flujo con ese nombre.
+    #[error("el documento no tiene ningún flujo que se llame {name:?}")]
+    FlowNotFound {
+        /// El nombre que se pidió.
+        name: String,
+    },
+    /// Ya hay un flujo con ese nombre.
+    #[error("el documento ya tiene un flujo que se llama {name:?}")]
+    FlowNameTaken {
+        /// El nombre repetido.
+        name: String,
+    },
+    /// Un flujo que se quiere quitar todavía pasa por zonas.
+    #[error("el flujo {name:?} todavía pasa por {}; desenlázalas antes", zones.join(", "))]
+    FlowInUse {
+        /// El nombre.
+        name: String,
+        /// Las zonas de su cadena, en orden.
+        zones: Vec<String>,
+    },
+
     /// El elemento no admite ese cambio.
     #[error("{what} no se puede aplicar a {id:?}, que es un elemento de tipo {kind}")]
     NotApplicable {
@@ -542,6 +598,10 @@ impl Op {
             Op::ReorderPage { id, .. } => format!("Mover la página {id}"),
             Op::Group { ids, .. } => format!("Agrupar {} elementos", ids.len()),
             Op::Ungroup { id } => format!("Desagrupar {id}"),
+            Op::CreateFlow { name, .. } => format!("Crear el flujo {name}"),
+            Op::RemoveFlow { name } => format!("Quitar el flujo {name}"),
+            Op::LinkZone { flow, zone, .. } => format!("Enlazar {zone} con {flow}"),
+            Op::UnlinkZone { zone, .. } => format!("Desenlazar {zone}"),
             Op::Batch { ops } => describe_batch(ops),
         }
     }
@@ -575,7 +635,10 @@ impl Op {
             | Op::RemoveAsset { .. }
             | Op::RenameAsset { .. }
             | Op::AddFont { .. }
-            | Op::RemoveFont { .. } => None,
+            | Op::RemoveFont { .. }
+            | Op::CreateFlow { .. }
+            | Op::RemoveFlow { .. } => None,
+            Op::LinkZone { zone, .. } | Op::UnlinkZone { zone, .. } => Some(zone),
             // Solo si todos son del mismo elemento.
             Op::Batch { ops } => {
                 let first = ops.first()?.element_id()?;
@@ -611,6 +674,14 @@ impl Op {
             Op::Group { ids, id, rect } => group::apply_group(document, ids, id, *rect),
 
             Op::Ungroup { id } => group::apply_ungroup(document, id),
+
+            Op::CreateFlow { name, flow } => flow::apply_create(document, name, flow),
+
+            Op::RemoveFlow { name } => flow::apply_remove(document, name),
+
+            Op::LinkZone { flow, zone, index } => flow::apply_link(document, flow, zone, *index),
+
+            Op::UnlinkZone { zone, to } => flow::apply_unlink(document, zone, to),
 
             Op::Batch { ops } => {
                 let mut undos = Vec::with_capacity(ops.len());
@@ -716,11 +787,30 @@ impl Op {
 
             Op::Delete { id } => {
                 let (page, index) = locate(document, id)?;
+                // Si es una zona, su cadena no puede quedarse nombrándola:
+                // sale de ahí, y deshacer la vuelve a poner donde estaba.
+                let place = flow::place_of(document, id);
+                flow::unlink_everywhere(document, id);
+
                 let element = document.pages[page].elements.remove(index);
-                Ok(Op::Create {
+                let create = Op::Create {
                     page: document.pages[page].id.clone(),
                     index: Some(index),
                     element,
+                };
+
+                Ok(match place {
+                    Some((name, at)) => Op::Batch {
+                        ops: vec![
+                            create,
+                            Op::LinkZone {
+                                flow: name,
+                                zone: id.clone(),
+                                index: Some(at),
+                            },
+                        ],
+                    },
+                    None => create,
                 })
             }
 

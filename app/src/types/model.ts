@@ -50,6 +50,17 @@ assets: { [key in string]: string },
  */
 variables: { [key in string]: Variable }, 
 /**
+ * Los textos que fluyen, de nombre a flujo.
+ *
+ * Cada uno lleva su contenido y la cadena de zonas por las que pasa
+ * (ver [`flow`]). Las zonas son elementos [`Element::Flow`] de las
+ * páginas, y pueden estar en páginas distintas.
+ *
+ * Un documento sin flujos no escribe el campo: los que ya existen
+ * siguen guardándose igual que antes.
+ */
+flows?: { [key in string]: Flow }, 
+/**
  * Páginas, en el orden en que se imprimen.
  */
 pages: Array<Page>, };
@@ -372,6 +383,55 @@ hidden?: boolean,
  * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
  * el panel de capas.
  */
+locked?: boolean, } | { "type": "flow", 
+/**
+ * A qué flujo pertenece: una clave de [`Document::flows`].
+ */
+flow: string, 
+/**
+ * Identificador único dentro del documento.
+ *
+ * Es también la etiqueta `<el-ID>` que el codegen deja en el código
+ * Typst para poder encontrar el elemento en el layout compilado.
+ */
+id: string, 
+/**
+ * Distancia desde el borde izquierdo de la página, en milímetros.
+ */
+x: number, 
+/**
+ * Distancia desde el borde superior de la página, en milímetros.
+ */
+y: number, 
+/**
+ * Ancho, en milímetros.
+ */
+w: number, 
+/**
+ * Alto en milímetros, o `None` para que lo mida Typst.
+ *
+ * La altura automática es lo normal en textos e imágenes: lo que ocupan
+ * depende de la composición, y solo Typst la conoce (principio 3).
+ */
+h: number | null, 
+/**
+ * Rotación en grados, en sentido horario, alrededor del centro.
+ */
+rotation: number, 
+/**
+ * Nombre que se enseña en el panel en vez del que se deduce del
+ * elemento.
+ */
+name?: string, 
+/**
+ * Si está oculto: no se emite en el código Typst, así que ni se dibuja
+ * ni se exporta.
+ */
+hidden?: boolean, 
+/**
+ * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
+ * el panel de capas.
+ */
 locked?: boolean, } | { "type": "group", 
 /**
  * Lo que lleva dentro, **en orden de capas** y en coordenadas
@@ -476,6 +536,29 @@ hidden?: boolean,
  * el panel de capas.
  */
 locked?: boolean, };
+
+/**
+ * Un texto que fluye por una cadena de zonas.
+ */
+export type Flow = { 
+/**
+ * El texto entero, partido en tramos con el mismo formato.
+ *
+ * Es de todo el flujo, no de una zona: dónde se corta lo decide la
+ * composición.
+ */
+content: Array<Run>, 
+/**
+ * Estilo que se aplica a todo el flujo.
+ *
+ * Va aquí y no en cada zona por lo mismo que el contenido: es un texto
+ * solo, y no cambiaría de fuente al pasar de página.
+ */
+style: TextStyle, 
+/**
+ * Las zonas por las que pasa, **en orden**.
+ */
+zones: Array<string>, };
 
 /**
  * Lo que el panel de capas guarda de cada elemento: un nombre propio, si

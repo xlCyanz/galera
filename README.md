@@ -169,7 +169,8 @@ El documento es un JSON versionado. Ejemplo mínimo:
 }
 ```
 
-- Tipos de elemento: `text`, `rect`, `ellipse`, `line`, `image`, `code`. Después: `group`, `table`, `flow`.
+- Tipos de elemento: `text`, `rect`, `ellipse`, `line`, `image`, `code`, `group`, `flow`. Después: `table`.
+- Un `flow` es una **zona** de un texto que fluye: el texto y la cadena de zonas por las que pasa viven en `flows`, y las zonas pueden estar en páginas distintas.
 - `"h": null` en texto significa altura automática, medida por Typst.
 - El orden del arreglo `elements` es el orden de capas (el último queda encima).
 - Cada elemento se emite con `place(top + left, dx, dy)` y una etiqueta `<el-ID>` para localizarlo en el layout compilado.

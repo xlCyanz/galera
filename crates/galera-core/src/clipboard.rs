@@ -72,6 +72,18 @@ impl Clip {
     }
 }
 
+/// El elemento sin las zonas que lleve dentro, o `None` si él mismo es una.
+fn without_zones(element: &Element) -> Option<Element> {
+    match element {
+        Element::Flow { .. } => None,
+        Element::Group { base, children } => Some(Element::Group {
+            base: base.clone(),
+            children: children.iter().filter_map(without_zones).collect(),
+        }),
+        other => Some(other.clone()),
+    }
+}
+
 /// Lo que hay que copiar de `document`: esos elementos, con las claves de
 /// los recursos que usan y las fuentes declaradas.
 ///
@@ -80,12 +92,16 @@ impl Clip {
 pub fn copy(document: &Document, ids: &[String]) -> Clip {
     // En el orden de la página, no en el que se seleccionaron: pegar
     // conserva las capas.
+    //
+    // Las zonas de un texto que fluye no se copian: una zona suelta no es
+    // nada sin su flujo, y pegarla dejaría una cadena rota o un flujo
+    // duplicado a medias. Copiar el flujo entero es tarea de F7-03.
     let elements: Vec<Element> = document
         .pages
         .iter()
         .flat_map(|page| &page.elements)
         .filter(|element| ids.iter().any(|id| id == element.id()))
-        .cloned()
+        .filter_map(without_zones)
         .collect();
 
     let mut assets = BTreeMap::new();
