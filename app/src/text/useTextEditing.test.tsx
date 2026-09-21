@@ -173,7 +173,7 @@ describe("entrar a escribir en un texto", () => {
     await doubleClick(20, 12);
 
     expect(useEditingStore.getState().element).toBe("t1");
-    expect(useDocumentStore.getState().selectedElement).toBe("t1");
+    expect(useDocumentStore.getState().selection).toEqual(["t1"]);
     expect(input()).not.toBeNull();
     expect(document.activeElement).toBe(input());
     // El cursor entra al final del texto.

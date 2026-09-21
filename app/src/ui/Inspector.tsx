@@ -10,13 +10,24 @@
  * bloque de código, su código (`CodeInspector.tsx`). El id se cambia con
  * doble clic (`IdField.tsx`).
  *
+ * Con **varios** seleccionados enseña lo que tienen en común y marca como
+ * «Mixto» lo que no coincide; escribir un valor lo fija en todos, como un
+ * solo paso del historial.
+ *
  * Sin selección, enseña el título del documento (editable) y la página que
  * se ve: su id, su tamaño y cuántos elementos tiene.
  */
 import { applyOp } from "../commands";
 import { toMillimeters } from "../canvas/geometry";
-import { useCurrentPage, useDocumentStore, useOpenDocument, useSelectedElement } from "../store/document";
-import { useElementBox } from "../store/layout";
+import {
+  useCurrentPage,
+  useDocumentStore,
+  useOpenDocument,
+  useSelectedElement,
+  useSelection,
+} from "../store/document";
+import { useElementBox, useLayoutStore } from "../store/layout";
+import type { LayoutBox } from "../types/layout";
 import type { Element, Page } from "../types/model";
 import { CodeInspector } from "./CodeInspector";
 import { IdField } from "./IdField";
@@ -25,8 +36,9 @@ import { ShapeInspector } from "./ShapeInspector";
 import { TitleField } from "./TitleField";
 import { TextInspector } from "./TextInspector";
 import { formatNumber } from "./fieldValue";
-import { type FieldName, fieldOp, inspectorFields } from "./inspectorFields";
+import { type FieldName, fieldOp, groupFields, inspectorFields } from "./inspectorFields";
 import { ELEMENT_KIND } from "./layerOrder";
+import { isShape } from "./shapeFields";
 
 const FIELDS: Array<{ name: FieldName; label: string; title: string; unit: string }> = [
   { name: "x", label: "X", title: "Posición horizontal", unit: "mm" },
@@ -40,20 +52,26 @@ export function Inspector() {
   const document = useOpenDocument();
   const currentPage = useCurrentPage();
   const selected = useSelectedElement();
+  const selection = useSelection();
   const measured = useElementBox(selected);
+  const boxes = useLayoutStore((layout) => layout.boxes);
 
   if (document === null) {
     return null;
   }
+  const all = document.pages.flatMap((page) => page.elements);
   const element =
-    selected === null
-      ? undefined
-      : document.pages.flatMap((page) => page.elements).find((candidate) => candidate.id === selected);
+    selected === null ? undefined : all.find((candidate) => candidate.id === selected);
+  const several = selection
+    .map((id) => all.find((candidate) => candidate.id === id))
+    .filter((candidate) => candidate !== undefined);
   const page = document.pages[currentPage];
 
   return (
     <aside className="inspector" aria-label="Inspector">
-      {element !== undefined ? (
+      {selection.length > 1 ? (
+        <GroupInspector elements={several} measured={boxes} />
+      ) : element !== undefined ? (
         <ElementInspector element={element} measured={measured} />
       ) : (
         page !== undefined && (
@@ -109,6 +127,61 @@ function ElementInspector({ element, measured }: { element: Element; measured: R
       {element.type === "code" && <CodeInspector id={element.id} source={element.source} />}
       {(element.type === "rect" || element.type === "ellipse" || element.type === "line") && (
         <ShapeInspector elements={[element]} />
+      )}
+    </section>
+  );
+}
+
+/** Varios elementos a la vez: lo común, y lo que no, como «Mixto». */
+function GroupInspector({
+  elements,
+  measured,
+}: {
+  elements: readonly Element[];
+  measured: Readonly<Record<string, LayoutBox>>;
+}) {
+  const fields = groupFields(elements, measured);
+  const ids = elements.map((element) => element.id);
+  const shapes = elements.filter(isShape);
+
+  /** Fija el campo en todos: un solo comando y un solo paso del historial. */
+  const commit = (name: FieldName, value: number) => {
+    const all = useDocumentStore.getState().document?.pages.flatMap((page) => page.elements) ?? [];
+    const ops = ids
+      .map((id) => all.find((candidate) => candidate.id === id))
+      .filter((element) => element !== undefined)
+      .map((element) => fieldOp(element, name, value))
+      .filter((op) => op !== null);
+    if (ops.length === 0) {
+      return;
+    }
+    void applyOp(ops.length === 1 && ops[0] !== undefined ? ops[0] : { op: "batch", ops })
+      .then((applied) => useDocumentStore.getState().applyEdit(applied))
+      .catch(() => undefined);
+  };
+
+  return (
+    <section>
+      <h2>{elements.length} elementos</h2>
+      <div className="inspector-grid">
+        {FIELDS.map(({ name, label, title, unit }) => {
+          const field = fields[name];
+          return (
+            <MeasureField
+              key={name}
+              label={label}
+              title={title}
+              value={field.value}
+              unit={unit}
+              mixed={field.mixed}
+              readOnly={!field.editable}
+              onCommit={(value) => commit(name, value)}
+            />
+          );
+        })}
+      </div>
+      {shapes.length === elements.length && shapes.length > 0 && (
+        <ShapeInspector elements={shapes} />
       )}
     </section>
   );

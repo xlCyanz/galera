@@ -131,7 +131,7 @@ describe("el id de un elemento", () => {
     expect(ops).toEqual([{ op: "rename", id: "rect-1", to: "r1" }]);
     expect(shown()!.textContent).toBe("r1");
     // La selección sigue al elemento, que ahora se llama de otra forma.
-    expect(useDocumentStore.getState().selectedElement).toBe("r1");
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
     expect(useDocumentStore.getState().history.undo).toBe("Renombrar rect-1 a r1");
   });
 
@@ -155,6 +155,6 @@ describe("el id de un elemento", () => {
     await key("Enter");
     expect(container.textContent).toContain("ya hay un elemento o una página");
     expect(useDocumentStore.getState().document?.pages[0]?.elements[0]?.id).toBe("rect-1");
-    expect(useDocumentStore.getState().selectedElement).toBe("rect-1");
+    expect(useDocumentStore.getState().selection).toEqual(["rect-1"]);
   });
 });

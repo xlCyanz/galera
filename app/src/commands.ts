@@ -314,7 +314,8 @@ export function elementAt(
 
 /**
  * A dónde se engancha la caja que se está moviendo o redimensionando, y qué
- * guías dibujar mientras tanto. Lo decide el núcleo (`galera_core::snap`)
+ * guías dibujar mientras tanto. `ids` son los elementos que se mueven: no
+ * se engancha a ellos. Lo decide el núcleo (`galera_core::snap`)
  * con la última compilación buena, la que se ve.
  *
  * `rect` es dónde la tiene el ratón ahora mismo, en mm de la página;
@@ -326,12 +327,34 @@ export function elementAt(
  */
 export function snapTo(
   page: number,
-  id: string,
+  ids: readonly string[],
   rect: MmRect,
   grips: Grips,
   settings: SnapSettings,
 ): Promise<Snapped> {
-  return invoke<Snapped>("snap", { page, id, rect, grips, settings });
+  return invoke<Snapped>("snap", { page, ids, rect, grips, settings });
+}
+
+/**
+ * Los elementos de la página que toca el rectángulo de selección, en mm, de
+ * abajo arriba. Lo decide el núcleo con la última compilación buena, la que
+ * se ve; los bloqueados no entran.
+ *
+ * Se puede arrastrar en cualquier dirección: un ancho o un alto negativos
+ * valen.
+ */
+export function elementsIn(page: number, rect: MmRect): Promise<string[]> {
+  return invoke<string[]>("elements_in", { page, rect });
+}
+
+/**
+ * Lleva varios elementos de la caja conjunta `from` a la caja `to`, en mm.
+ *
+ * Qué le toca a cada uno lo reparte el núcleo, y entra como **un solo**
+ * cambio del documento: una compilación y un paso del historial.
+ */
+export function scaleGroup(ids: readonly string[], from: MmRect, to: MmRect): Promise<AppliedOp> {
+  return invoke<AppliedOp>("scale_group", { ids, from, to });
 }
 
 /** Un comando de edición aplicado, tal como lo devuelve `apply_op`. */

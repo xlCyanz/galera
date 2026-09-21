@@ -146,7 +146,7 @@ describe("soltar imágenes desde el sistema", () => {
     expect(calls.find((c) => c.command === "import_images")?.args).toEqual({ paths: ["/fotos/logo.png"] });
     expect(useDocumentStore.getState().document?.assets).toMatchObject({ logo: "assets/logo.png" });
     expect(created).toEqual([{ type: "image", id: "image-1", x: 40, y: 25, w: 60, h: null, rotation: 0, asset: "logo" }]);
-    expect(useDocumentStore.getState().selectedElement).toBe("image-1");
+    expect(useDocumentStore.getState().selection).toEqual(["image-1"]);
   });
 
   it("varias a la vez se insertan todas, en un único paso del historial", async () => {
@@ -154,7 +154,7 @@ describe("soltar imágenes desde el sistema", () => {
     expect(created.map((e) => e.type === "image" && e.asset)).toEqual(["a", "b", "c"]);
     expect(new Set(groups).size).toBe(1);
     expect(groups[0]).toMatch(/^insert-images-/);
-    expect(useDocumentStore.getState().selectedElement).toBe("image-3");
+    expect(useDocumentStore.getState().selection).toEqual(["image-3"]);
   });
 
   it("lo que no es una imagen se rechaza con un mensaje claro, y el resto se inserta", async () => {

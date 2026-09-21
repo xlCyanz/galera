@@ -4,7 +4,8 @@
  *
  * - La selección es la misma que la del lienzo: pulsar una fila selecciona
  *   el elemento, y seleccionarlo en el lienzo marca su fila (y la trae a la
- *   vista si hace falta).
+ *   vista si hace falta). ⇧ + clic suma y resta de la selección, y con
+ *   varios marcados se ven todas sus filas.
  * - Arrastrar una fila en vertical la cambia de capa: una línea marca dónde
  *   caerá, y al soltar se manda un único `Op::Reorder`, que recompila y se
  *   deshace con ⌘Z. Esc cancela el arrastre.
@@ -23,7 +24,13 @@
 import { type PointerEvent, type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { applyOp } from "../commands";
-import { useCurrentPage, useDocumentStore, useOpenDocument, useSelectedElement } from "../store/document";
+import {
+  useCurrentPage,
+  useDocumentStore,
+  useOpenDocument,
+  useSelectedElement,
+  useSelection,
+} from "../store/document";
 import type { Property } from "../types/ops";
 import { ELEMENT_ICONS, LAYER_ICONS } from "./icons";
 import { gapAt, layerRows, reorderIndex } from "./layerOrder";
@@ -57,6 +64,7 @@ export function LayersPanel() {
   const document = useOpenDocument();
   const currentPage = useCurrentPage();
   const selected = useSelectedElement();
+  const selection = useSelection();
   const list = useRef<HTMLOListElement>(null);
   const [drag, setDrag] = useState<RowDrag | null>(null);
   // La fila que se está renombrando, y lo escrito.
@@ -106,7 +114,15 @@ export function LayersPanel() {
     }
     event.preventDefault();
     event.currentTarget.setPointerCapture?.(event.pointerId);
-    useDocumentStore.getState().select(id);
+    if (event.shiftKey) {
+      // ⇧ suma o quita de la selección, igual que en el lienzo; con varios
+      // no se reordena arrastrando.
+      useDocumentStore.getState().toggleSelected(id);
+      return;
+    }
+    if (!useDocumentStore.getState().selection.includes(id)) {
+      useDocumentStore.getState().select(id);
+    }
     setDrag({ id, from, startY: event.clientY, moved: false, gap: count - 1 - from });
   };
 
@@ -179,7 +195,7 @@ export function LayersPanel() {
           {rows.map((row, shown) => {
             const classes = [
               "layer",
-              row.id === selected ? "is-selected" : "",
+              selection.includes(row.id) ? "is-selected" : "",
               drag?.moved === true && row.id === drag.id ? "is-dragged" : "",
               row.hidden ? "is-hidden" : "",
               row.locked ? "is-locked" : "",
@@ -191,7 +207,7 @@ export function LayersPanel() {
                 key={row.id}
                 data-layer={row.id}
                 role="option"
-                aria-selected={row.id === selected}
+                aria-selected={selection.includes(row.id)}
                 className={classes.filter(Boolean).join(" ")}
                 title={`${row.label} (${row.id})`}
                 onPointerDown={(event) => onPointerDown(row.id, row.index, event)}

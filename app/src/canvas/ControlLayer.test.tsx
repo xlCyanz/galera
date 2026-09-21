@@ -188,7 +188,7 @@ describe("capa de controles", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(hitTests).toBe(0);
-    expect(useDocumentStore.getState().selectedElement).toBe("r1");
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
   });
 
   it("solo en la página del elemento", () => {

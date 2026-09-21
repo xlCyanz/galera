@@ -89,9 +89,11 @@ const order = () => rows().map((row) => row.dataset.layer);
 const row = (id: string) => rows().find((r) => r.dataset.layer === id)!;
 const list = () => container.querySelector<HTMLElement>(".layers")!;
 
-function pointer(target: HTMLElement, type: string, clientY: number) {
+function pointer(target: HTMLElement, type: string, clientY: number, init: MouseEventInit = {}) {
   act(() => {
-    target.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientY }));
+    target.dispatchEvent(
+      new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientY, ...init }),
+    );
   });
 }
 
@@ -111,13 +113,31 @@ describe("panel de capas", () => {
   it("pulsar una fila selecciona el elemento, y seleccionar en el lienzo marca su fila", () => {
     pointer(row("b"), "pointerdown", 30);
     pointer(list(), "pointerup", 30);
-    expect(useDocumentStore.getState().selectedElement).toBe("b");
+    expect(useDocumentStore.getState().selection).toEqual(["b"]);
     expect(row("b").getAttribute("aria-selected")).toBe("true");
     expect(ops).toHaveLength(0);
 
     act(() => useDocumentStore.getState().select("a"));
     expect(row("a").className).toContain("is-selected");
     expect(row("b").className).not.toContain("is-selected");
+  });
+
+  /** El criterio de la tarea: ⇧ + clic también suma y resta aquí. */
+  it("⇧ + clic marca varias filas, y otro ⇧ + clic la quita", () => {
+    pointer(row("b"), "pointerdown", 30);
+    pointer(list(), "pointerup", 30);
+    pointer(row("a"), "pointerdown", 2 * ROW + 10, { shiftKey: true });
+    pointer(list(), "pointerup", 2 * ROW + 10);
+
+    expect(useDocumentStore.getState().selection).toEqual(["b", "a"]);
+    expect(row("a").className).toContain("is-selected");
+    expect(row("b").className).toContain("is-selected");
+    // Con ⇧ no se reordena nada.
+    expect(ops).toHaveLength(0);
+
+    pointer(row("a"), "pointerdown", 2 * ROW + 10, { shiftKey: true });
+    pointer(list(), "pointerup", 2 * ROW + 10);
+    expect(useDocumentStore.getState().selection).toEqual(["b"]);
   });
 
   it("arrastrar una fila la cambia de capa con un único Reorder", async () => {
@@ -173,7 +193,7 @@ describe("ocultar, bloquear y renombrar", () => {
     expect(ops).toEqual([{ op: "set_property", id: "b", property: { name: "hidden", value: true } }]);
     expect(row("b").className).toContain("is-hidden");
     expect(toggle("b", "hidden").getAttribute("aria-pressed")).toBe("true");
-    expect(useDocumentStore.getState().selectedElement).toBeNull();
+    expect(useDocumentStore.getState().selection).toEqual([]);
 
     await click(toggle("b", "hidden"));
     expect(ops[1]).toEqual({ op: "set_property", id: "b", property: { name: "hidden", value: false } });
@@ -186,7 +206,7 @@ describe("ocultar, bloquear y renombrar", () => {
     expect(row("c").className).toContain("is-locked");
     pointer(row("c"), "pointerdown", 10);
     pointer(list(), "pointerup", 10);
-    expect(useDocumentStore.getState().selectedElement).toBe("c");
+    expect(useDocumentStore.getState().selection).toEqual(["c"]);
   });
 
   it("doble clic en el nombre lo renombra; vacío vuelve al deducido; Esc cancela", async () => {

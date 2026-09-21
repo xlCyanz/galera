@@ -223,7 +223,7 @@ describe("girar con el manejador de rotación", () => {
     await release();
     expect(ops).toHaveLength(0);
     expect(drawn()).toBe(0);
-    expect(useDocumentStore.getState().selectedElement).toBe("r1");
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
   });
 
   it("pulsar el manejador y soltar sin girar no es un cambio, ni deselecciona", async () => {
@@ -231,6 +231,6 @@ describe("girar con el manejador de rotación", () => {
     grab(0);
     await release();
     expect(ops).toHaveLength(0);
-    expect(useDocumentStore.getState().selectedElement).toBe("r1");
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
   });
 });

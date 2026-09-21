@@ -48,9 +48,10 @@ import {
   useOpenDocument,
   useRulersVisible,
   useSelectedElement,
+  useSelection as useSelectedElements,
 } from "../store/document";
 import { useEditingElement, useEditingStore } from "../store/editing";
-import { useElementBox, useOverflowing } from "../store/layout";
+import { useElementBox, useLayoutStore, useOverflowing } from "../store/layout";
 import { useTool, useToolStore } from "../store/tool";
 import { Cursor } from "../text/Cursor";
 import { FormatBar } from "../text/FormatBar";
@@ -63,6 +64,7 @@ import { CreatePreview } from "./CreatePreview";
 import { DragGhost } from "./DragGhost";
 import { ElementHighlight } from "./ElementHighlight";
 import { Guides } from "./Guides";
+import { Marquee } from "./Marquee";
 import { OverflowNotice } from "./OverflowNotice";
 import { type ImageLoader, PageSvg } from "./PageSvg";
 import { Rulers } from "./Rulers";
@@ -71,8 +73,10 @@ import { PX_PER_MM, pageSizeInPx, toMillimeters } from "./geometry";
 import { canvasTransform, rectToCanvas, toCanvas } from "./transform";
 import { type NudgeBurst, arrowNudge, nudgeBurst, rotatedCorners } from "./dragGeometry";
 import { findElement } from "./elements";
+import { boxesOf, groupBox } from "./group";
 import { useCanvasNavigation } from "./useCanvasNavigation";
 import { useDrag } from "./useDrag";
+import { useMarquee } from "./useMarquee";
 import { useCreate } from "./useCreate";
 import { useFileDrop } from "./useFileDrop";
 import { useResize } from "./useResize";
@@ -95,6 +99,8 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const highlighted = useHighlightedElement();
   const selected = useSelectedElement();
   const selectedBox = useElementBox(selected);
+  // Todo lo seleccionado: con más de uno, el lienzo enseña la caja conjunta.
+  const selection = useSelectedElements();
   const focusRequests = useFocusRequests();
   const tool = useTool();
   const selecting = tool === "select";
@@ -147,7 +153,8 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   // ⌘B, ⌘I y ⌘U sobre lo que haya seleccionado del texto.
   useTextFormat();
   // Pulsar un elemento y arrastrar sin soltar lo selecciona y lo mueve.
-  const onSelect = useSelection(transform, currentPage, drag.start);
+  const marquee = useMarquee(viewport, transform, currentPage);
+  const onSelect = useSelection(transform, currentPage, drag.start, marquee.start);
   // La imagen que enseña la hoja, para la copia que se arrastra.
   const [shownUrl, setShownUrl] = useState<string | null>(null);
   const resize = useResize(transform?.pxPerMm ?? null, currentPage);
@@ -162,13 +169,14 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
     rotate.state.phase !== "idle" && selectedBox !== null && rotate.state.id === selectedBox.id
       ? rotate.state
       : null;
+  const allBoxes = useLayoutStore((layout) => layout.boxes);
+  const selectedBoxes = boxesOf(allBoxes, selection, currentPage);
+  const many = selection.length > 1;
+  const joint = many ? groupBox(selectedBoxes) : null;
   const dragged = drag.state.phase === "idle" ? null : drag.state;
   // Las guías del gesto que haya en marcha, mover o redimensionar.
   const guides = drag.guides.length > 0 ? drag.guides : resize.guides;
-  const dragOffset =
-    dragged !== null && selectedBox !== null && dragged.id === selectedBox.id
-      ? dragged.delta
-      : { dx: 0, dy: 0 };
+  const dragOffset = dragged === null ? { dx: 0, dy: 0 } : dragged.delta;
   const highlight =
     measured !== null
       ? { pageIndex: measured.page, box: { ...measured } }
@@ -227,6 +235,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
     // Durante un gesto, Escape lo cancela: es cosa del gesto, no un atajo.
     const gesturing =
       drag.state.phase === "dragging" ||
+      marquee.state.phase === "drawing" ||
       resize.state.phase === "resizing" ||
       rotate.state.phase === "rotating" ||
       create.state.phase === "drawing" ||
@@ -305,37 +314,67 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
             />
           )}
           {(dragged !== null || rotated !== null) &&
-            selectedBox !== null &&
-            selectedBox.page === currentPage &&
             transform !== null &&
             sheet !== null &&
-            shownUrl !== null && (
+            shownUrl !== null &&
+            selectedBoxes.map((box) => (
               <DragGhost
+                key={box.id}
                 url={shownUrl}
                 sheet={sheet}
-                corners={rotatedCorners(selectedBox, selectedBox.rotation).map(({ x, y }) =>
+                corners={rotatedCorners(box, box.rotation).map(({ x, y }) =>
                   toCanvas(transform, x, y),
                 )}
                 offset={{
                   x: dragOffset.dx * transform.pxPerMm,
                   y: dragOffset.dy * transform.pxPerMm,
                 }}
-                {...(rotated === null
+                {...(rotated === null || box.id !== rotated.id
                   ? {}
                   : {
                       turn: {
-                        degrees: rotated.rotation - selectedBox.rotation,
-                        pivot: toCanvas(
-                          transform,
-                          selectedBox.x + selectedBox.w / 2,
-                          selectedBox.y + selectedBox.h / 2,
-                        ),
+                        degrees: rotated.rotation - box.rotation,
+                        pivot: toCanvas(transform, box.x + box.w / 2, box.y + box.h / 2),
                       },
                     })}
               />
-            )}
+            ))}
+          {transform !== null && marquee.state.phase === "drawing" && (
+            <Marquee rect={marquee.state.rect} transform={transform} />
+          )}
           {transform !== null && <Guides guides={guides} transform={transform} />}
-          {selectedBox !== null && selectedBox.page === currentPage && transform !== null && (
+          {joint !== null && transform !== null && (
+            <ControlLayer
+              box={{
+                id: "grupo",
+                page: currentPage,
+                ...(resized === null ? joint : resized.box),
+                rotation: 0,
+                bounds: joint,
+                line: null,
+                overflow: 0,
+              }}
+              transform={transform}
+              offset={dragOffset}
+              showSize={resized?.phase === "resizing"}
+              rotatable={false}
+              interactive={selecting}
+              onResizeStart={(handle, event) =>
+                // La caja conjunta no tiene alto automático: lo que midan
+                // los elementos por dentro sigue siendo cosa suya.
+                resize.start(selection, handle, { ...joint, rotation: 0 }, false, event.clientX, event.clientY)
+              }
+              onBodyPointerDown={(event) => {
+                if (event.button !== 0 || event.altKey || event.metaKey) {
+                  return;
+                }
+                event.stopPropagation();
+                event.preventDefault();
+                drag.start(selection, event.clientX, event.clientY);
+              }}
+            />
+          )}
+          {!many && selectedBox !== null && selectedBox.page === currentPage && transform !== null && (
             <ControlLayer
               box={{
                 ...selectedBox,
@@ -370,7 +409,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
                   (element) => element.id === selectedBox.id,
                 );
                 const autoHeight = declared !== undefined && "h" in declared && declared.h === null;
-                resize.start(selectedBox.id, handle, selectedBox, autoHeight, event.clientX, event.clientY);
+                resize.start([selectedBox.id], handle, selectedBox, autoHeight, event.clientX, event.clientY);
               }}
               onBodyPointerDown={(event) => {
                 // Alt o ⌘ atraviesan hacia el elemento de abajo: eso lo
@@ -380,7 +419,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
                 }
                 event.stopPropagation();
                 event.preventDefault();
-                drag.start(selectedBox.id, event.clientX, event.clientY);
+                drag.start([selectedBox.id], event.clientX, event.clientY);
               }}
             />
           )}

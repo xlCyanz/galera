@@ -54,7 +54,7 @@ const SNAP_MM = 1;
 let container: HTMLDivElement;
 let root: Root;
 let ops: Array<Record<string, unknown>>;
-let asked: Array<{ id: string; rect: MmRect; grips: Grips }>;
+let asked: Array<{ ids: string[]; rect: MmRect; grips: Grips }>;
 /** Si el núcleo de mentira engancha algo, o contesta que no hay nada. */
 let snaps: boolean;
 
@@ -88,7 +88,7 @@ beforeEach(async () => {
       return applied;
     }
     if (command === "snap") {
-      const asking = args as unknown as { id: string; rect: MmRect; grips: Grips };
+      const asking = args as unknown as { ids: string[]; rect: MmRect; grips: Grips };
       asked.push(asking);
       const rect = asking.rect;
       if (!snaps) {
@@ -183,7 +183,7 @@ describe("el ajuste al arrastrar", () => {
 
     expect(asked).not.toHaveLength(0);
     const last = asked.at(-1)!;
-    expect(last.id).toBe("r1");
+    expect(last.ids).toEqual(["r1"]);
     expect(last.grips).toEqual({ x: "whole", y: "whole" });
     // La caja del elemento movida 10 mm: 30 + 10.
     expect(last.rect.x).toBeCloseTo(40, 6);

@@ -2,6 +2,9 @@
  * La capa de controles: lo único que la interfaz dibuja por su cuenta
  * encima del SVG de Typst (principio 2).
  *
+ * Con varios elementos seleccionados la caja es la conjunta, y entonces no
+ * se gira: solo se mueve y se estira.
+ *
  * Para el elemento seleccionado dibuja su contorno y sus manejadores
  * (`Handles.tsx`). El contorno es **la caja que devolvió el layout**, pasada
  * a píxeles con `transform.ts`, así que coincide con lo que dibujó Typst a
@@ -35,6 +38,8 @@ export interface ControlLayerProps {
   showSize?: boolean;
   /** Enseñar el ángulo: durante un giro. */
   showAngle?: boolean;
+  /** Si se puede girar. La caja conjunta de una multiselección, no. */
+  rotatable?: boolean;
   /**
    * Si responde al puntero. Con otra herramienta que no sea la de
    * selección, el contorno se ve pero el clic pasa al lienzo.
@@ -51,6 +56,7 @@ export function ControlLayer({
   onRotateStart,
   showSize = false,
   showAngle = false,
+  rotatable = true,
   interactive = true,
 }: ControlLayerProps) {
   const rect = rectToCanvas(transform, { ...box, x: box.x + offset.dx, y: box.y + offset.dy });
@@ -77,6 +83,7 @@ export function ControlLayer({
             width={rect.width}
             height={rect.height}
             rotation={box.rotation}
+            rotatable={rotatable}
             {...(onResizeStart === undefined ? {} : { onResizeStart })}
             {...(onRotateStart === undefined ? {} : { onRotateStart })}
           />

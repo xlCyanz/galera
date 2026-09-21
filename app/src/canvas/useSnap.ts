@@ -26,7 +26,13 @@ export interface Snapping {
    * Pregunta por esta caja. Se llama desde el manejador del gesto, no al
    * dibujar.
    */
-  ask: (page: number, id: string, rect: MmRect, grips: Grips, settings: Settings) => void;
+  ask: (
+    page: number,
+    ids: readonly string[],
+    rect: MmRect,
+    grips: Grips,
+    settings: Settings,
+  ) => void;
   /** El ajuste que ya haya llegado **para esta caja**, o `null`. */
   at: (rect: MmRect) => Snapped | null;
   /** Olvida el ajuste: al soltar, al cancelar y mientras se desactiva. */
@@ -36,7 +42,7 @@ export interface Snapping {
 /** Lo que se ha preguntado y todavía no se ha contestado. */
 interface Question {
   page: number;
-  id: string;
+  ids: readonly string[];
   rect: MmRect;
   grips: Grips;
   settings: Settings;
@@ -61,7 +67,7 @@ export function useSnap(): Snapping {
     queued.current = null;
     waiting.current = true;
     const asked = generation.current;
-    snapTo(question.page, question.id, question.rect, question.grips, question.settings)
+    snapTo(question.page, question.ids, question.rect, question.grips, question.settings)
       .then((snapped) => {
         // Puede haber llegado un `clear` mientras tanto: entonces sobra.
         if (asked === generation.current) {
@@ -79,8 +85,8 @@ export function useSnap(): Snapping {
   };
 
   return {
-    ask: (page, id, rect, grips, settings) => {
-      queued.current = { page, id, rect, grips, settings };
+    ask: (page, ids, rect, grips, settings) => {
+      queued.current = { page, ids, rect, grips, settings };
       pump();
     },
     at: (rect) => {

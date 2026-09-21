@@ -85,7 +85,7 @@ afterEach(() => {
 });
 
 const viewport = () => container.querySelector<HTMLElement>(".canvas-viewport")!;
-const selected = () => useDocumentStore.getState().selectedElement;
+const selected = () => (useDocumentStore.getState().selection[0] ?? null);
 
 /**
  * Un clic en un punto de la pantalla —pulsar y soltar enseguida—, y espera

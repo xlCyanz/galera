@@ -242,7 +242,7 @@ describe("arrastrar el elemento seleccionado", () => {
     expect(ghost()).toBeNull();
     expect(translate(layer())).toEqual(before);
     // Y sigue seleccionado: Escape era para el arrastre.
-    expect(useDocumentStore.getState().selectedElement).toBe("r1");
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
   });
 
   it("Shift restringe el movimiento a un eje", async () => {
@@ -266,7 +266,7 @@ describe("arrastrar el elemento seleccionado", () => {
     const viewport = container.querySelector<HTMLElement>(".canvas-viewport")!;
     press(viewport, 400, 300);
     await settle();
-    expect(useDocumentStore.getState().selectedElement).toBe("r1");
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
     moveTo(420, 300);
     await release(420, 300);
     expect(ops).toEqual([{ op: "move", id: "r1", dx: Math.round((20 / PX_PER_MM) * 1000) / 1000, dy: 0 }]);
