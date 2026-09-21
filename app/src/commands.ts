@@ -24,6 +24,7 @@ import type { Glyph, LayoutBox, MmRect } from "./types/layout";
 import type { Document, TextStyle } from "./types/model";
 import type { Op } from "./types/ops";
 import type { Alignment, Spread } from "./types/align";
+import type { CodeError } from "./types/code";
 import type { CodeSpan } from "./types/codegen";
 import type { Grips, Settings as SnapSettings, Snapped } from "./types/snap";
 
@@ -436,6 +437,17 @@ export interface GeneratedCode {
  */
 export function generatedCode(): Promise<GeneratedCode> {
   return invoke<GeneratedCode>("generated_code");
+}
+
+/**
+ * Dónde está roto el código de un bloque, por líneas.
+ *
+ * Son los errores **de sintaxis**, los que se ven sin compilar: es lo que
+ * hace falta mientras se escribe. Lo que falla al evaluar sale al compilar,
+ * con el resto de los problemas del documento.
+ */
+export function checkCode(source: string): Promise<CodeError[]> {
+  return invoke<CodeError[]>("check_code", { source });
 }
 
 /** Un comando de edición aplicado, tal como lo devuelve `apply_op`. */

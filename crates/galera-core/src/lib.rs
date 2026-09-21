@@ -20,6 +20,7 @@
 //! - [`layout`](mod@layout): la caja real de cada elemento, tal como la compuso Typst.
 //! - [`ops`]: comandos de edición, cada uno con cómo deshacerlo, y el historial.
 //! - [`clipboard`]: copiar y pegar elementos, también de un documento a otro.
+//! - [`code`](mod@code): dónde está roto el código de un bloque, por líneas.
 //! - [`snap`](mod@snap): guías de alineación y ajuste al mover un elemento.
 //!
 //! # Principio que ordena todo lo demás
@@ -38,6 +39,7 @@
 pub mod archive;
 pub mod assets;
 pub mod clipboard;
+pub mod code;
 pub mod codegen;
 pub mod compile;
 pub mod error;
@@ -62,6 +64,7 @@ pub use assets::{
     AssetSummary, ImageFormat, ImportImageError, ImportedImage, asset_summaries, import_image,
 };
 pub use clipboard::{Clip, ClipFile};
+pub use code::{CodeError, check_code};
 pub use codegen::{escape, escape_into};
 pub use compile::cache::Compiler;
 pub use compile::{Compiled, compile, compile_pdf, compile_svg};

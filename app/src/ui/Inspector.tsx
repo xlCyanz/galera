@@ -7,7 +7,7 @@
  * En un texto, además, su estilo: fuente, tamaño, color, alineación,
  * interlineado y espacio entre párrafos (`TextInspector.tsx`);
  * en una forma, su relleno, borde y radio (`ShapeInspector.tsx`); en un
- * bloque de código, su código (`CodeInspector.tsx`). El id se cambia con
+ * bloque de código, su código (`CodeEditor.tsx`). El id se cambia con
  * doble clic (`IdField.tsx`).
  *
  * Con **varios** seleccionados enseña lo que tienen en común y marca como
@@ -19,6 +19,8 @@
  * Sin selección, enseña el título del documento (editable) y la página que
  * se ve: su id, su tamaño y cuántos elementos tiene.
  */
+import { Suspense, lazy } from "react";
+
 import { applyOp } from "../commands";
 import { toMillimeters } from "../canvas/geometry";
 import {
@@ -32,7 +34,6 @@ import { useElementBox, useLayoutStore } from "../store/layout";
 import type { LayoutBox } from "../types/layout";
 import type { Element, Page } from "../types/model";
 import { AlignBar } from "./AlignBar";
-import { CodeInspector } from "./CodeInspector";
 import { IdField } from "./IdField";
 import { MeasureField } from "./MeasureField";
 import { ShapeInspector } from "./ShapeInspector";
@@ -42,6 +43,12 @@ import { formatNumber } from "./fieldValue";
 import { type FieldName, fieldOp, groupFields, inspectorFields } from "./inspectorFields";
 import { ELEMENT_KIND } from "./layerOrder";
 import { isShape } from "./shapeFields";
+
+// El editor de código trae CodeMirror, que pesa: se carga la primera vez
+// que se selecciona un bloque de código.
+const CodeEditor = lazy(() =>
+  import("./CodeEditor").then((module) => ({ default: module.CodeEditor })),
+);
 
 const FIELDS: Array<{ name: FieldName; label: string; title: string; unit: string }> = [
   { name: "x", label: "X", title: "Posición horizontal", unit: "mm" },
@@ -128,7 +135,11 @@ function ElementInspector({ element, measured }: { element: Element; measured: R
         })}
       </div>
       {element.type === "text" && <TextInspector element={element} />}
-      {element.type === "code" && <CodeInspector id={element.id} source={element.source} />}
+      {element.type === "code" && (
+        <Suspense fallback={<p className="code-hint">Cargando el editor…</p>}>
+          <CodeEditor id={element.id} source={element.source} />
+        </Suspense>
+      )}
       {(element.type === "rect" || element.type === "ellipse" || element.type === "line") && (
         <ShapeInspector elements={[element]} />
       )}
