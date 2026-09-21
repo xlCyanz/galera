@@ -19,7 +19,7 @@
 //! - [`open`](mod@open): abrir un proyecto comprobando su documento y sus recursos.
 //! - [`layout`](mod@layout): la caja real de cada elemento, tal como la compuso Typst.
 //! - [`ops`]: comandos de edición, cada uno con cómo deshacerlo. El historial, *(pendiente)*.
-//! - `snap`:    guías de alineación. *(pendiente)*
+//! - [`snap`](mod@snap): guías de alineación y ajuste al mover un elemento.
 //!
 //! # Principio que ordena todo lo demás
 //!
@@ -46,6 +46,7 @@ pub mod model;
 pub mod open;
 pub mod ops;
 pub mod project;
+pub mod snap;
 #[cfg(test)]
 mod testing;
 pub mod world;
@@ -75,6 +76,7 @@ pub use open::{DOCUMENT_FILE, OpenError, Opened, open};
 pub use ops::history::History;
 pub use ops::{Applied, Op, OpError, Property};
 pub use project::{AccessError, Project, ProjectError};
+pub use snap::{Guide, GuideKind, SNAP_PX, Snapped, neighbours, snap};
 pub use world::{GaleraWorld, WorldError};
 
 /// Versión del formato de documento que entiende este núcleo.
