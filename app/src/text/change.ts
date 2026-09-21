@@ -17,6 +17,7 @@
  * clústeres de grafemas.
  */
 import type { Run } from "../types/model";
+import { textIndex } from "./caret";
 
 /** El texto de un bloque: sus tramos, uno detrás de otro. */
 export function textOf(runs: readonly Run[]): string {
@@ -80,6 +81,19 @@ export function count(text: string, at: number): number {
     characters += 1;
   }
   return characters;
+}
+
+/**
+ * Cuántos caracteres hay antes del byte `byte`: lo que cuenta el núcleo, a
+ * partir de lo que cuenta el estado de la edición.
+ *
+ * La selección se guarda en bytes porque es lo que traen los glifos
+ * (`store/editing.ts`), pero un comando dice sus posiciones en caracteres,
+ * como el modelo (`model/text.rs`). En un texto ASCII las dos cuentas
+ * coinciden; en cuanto hay una «ñ» o una tilde, no.
+ */
+export function charactersBefore(text: string, byte: number): number {
+  return count(text, textIndex(text, byte));
 }
 
 /** Dónde empieza cada carácter de `text`, y el final del texto, en

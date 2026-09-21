@@ -11,10 +11,14 @@
  * glifo. **El texto no**: ese vive en el documento, que lo lleva el backend
  * (principio 1).
  *
- * La selección se cuenta en **bytes** del texto del elemento, como la
- * cuenta el núcleo: así el cursor (`text/Cursor.tsx`) compara con los
- * glifos sin traducir nada. Quien habla con el campo invisible, que cuenta
- * en unidades de JavaScript, traduce al entrar y al salir (`text/caret.ts`).
+ * La selección se cuenta en **bytes** del texto del elemento, como los
+ * cuentan los glifos: así el cursor (`text/Cursor.tsx`) compara con ellos
+ * sin traducir nada. Quien habla con el campo invisible, que cuenta en
+ * unidades de JavaScript, traduce al entrar y al salir (`text/caret.ts`).
+ *
+ * Los comandos no: sus posiciones van en **caracteres**, como las cuenta el
+ * modelo (`model/text.rs`). Quien arma un comando a partir de esta
+ * selección traduce con `charactersBefore` (`text/change.ts`).
  */
 import { create } from "zustand";
 
