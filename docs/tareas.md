@@ -12,10 +12,10 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 3 — Creación de elementos y paneles](https://github.com/xlCyanz/galera/milestone/4) | 14 | 13 |
 | [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 11 |
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 9 |
-| [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 2 |
+| [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 3 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **74** |
+| **Total** | **95** | **75** |
 
 
 ---
@@ -171,7 +171,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 |:--:|---|:--:|---|
 | ✅ | **F6-01** — Variables del documento y panel de variables | [#76](https://github.com/xlCyanz/galera/issues/76) | #2, #50 |
 | ✅ | **F6-02** — Fichas {{variable}} dentro del texto | [#77](https://github.com/xlCyanz/galera/issues/77) | #76, #57 |
-| ⬜ | **F6-03** — Infraestructura de plantillas | [#78](https://github.com/xlCyanz/galera/issues/78) | #51 |
+| ✅ | **F6-03** — Infraestructura de plantillas | [#78](https://github.com/xlCyanz/galera/issues/78) | #51 |
 | ⬜ | **F6-04** — Las seis plantillas del brief | [#79](https://github.com/xlCyanz/galera/issues/79) | #78, #77 |
 | ⬜ | **F6-05** — Importar CSV para generación en lote | [#80](https://github.com/xlCyanz/galera/issues/80) | #76 |
 | ⬜ | **F6-06** — Generación en lote a varios PDF o a uno combinado | [#81](https://github.com/xlCyanz/galera/issues/81) | #80, #12 |

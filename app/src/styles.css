@@ -1672,3 +1672,61 @@ body {
   opacity: 0.7;
   font-size: 0.75rem;
 }
+
+/* La galería de plantillas, sin documento abierto
+   (`ui/TemplateGallery.tsx`). */
+.template-gallery h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.templates {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.template {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+}
+
+.template h3 {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.template-preview {
+  display: block;
+  aspect-ratio: 210 / 297;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+
+.template-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.template-description,
+.template-variables {
+  margin: 0;
+  color: #475569;
+  font-size: 0.75rem;
+}
+
+.template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: auto;
+}

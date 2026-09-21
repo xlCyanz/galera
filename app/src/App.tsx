@@ -36,6 +36,7 @@ import { ShortcutsHelp } from "./ui/ShortcutsHelp";
 import { RecoveryNotice } from "./ui/RecoveryNotice";
 import { SidePanels } from "./ui/SidePanels";
 import { StatusBar } from "./ui/StatusBar";
+import { TemplateGallery } from "./ui/TemplateGallery";
 import { ToolRail } from "./ui/ToolRail";
 
 const mac = isMac();
@@ -256,6 +257,7 @@ export function App() {
         </button>
       </div>
       {title !== null && <ProjectInfo title={title} />}
+      {title === null && <TemplateGallery />}
       <div className="workspace">
         {title !== null && <ToolRail />}
         <Canvas />

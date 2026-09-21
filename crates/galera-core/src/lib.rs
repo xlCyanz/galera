@@ -22,6 +22,7 @@
 //! - [`clipboard`]: copiar y pegar elementos, también de un documento a otro.
 //! - [`code`](mod@code): dónde está roto el código de un bloque, por líneas.
 //! - [`variables`]: las variables del documento, dónde se usan y qué admiten.
+//! - [`templates`]: plantillas, y empezar un documento a partir de una.
 //! - [`snap`](mod@snap): guías de alineación y ajuste al mover un elemento.
 //!
 //! # Principio que ordena todo lo demás
@@ -52,6 +53,7 @@ pub mod open;
 pub mod ops;
 pub mod project;
 pub mod snap;
+pub mod templates;
 #[cfg(test)]
 mod testing;
 pub mod variables;
@@ -86,6 +88,7 @@ pub use ops::history::History;
 pub use ops::{Applied, Op, OpError, Property};
 pub use project::{AccessError, Project, ProjectError};
 pub use snap::{Grip, Grips, Guide, GuideKind, SNAP_PX, Snapped, neighbours, snap};
+pub use templates::{Template, TemplateError, TemplateMeta};
 pub use world::{GaleraWorld, WorldError};
 
 /// Versión del formato de documento que entiende este núcleo.
