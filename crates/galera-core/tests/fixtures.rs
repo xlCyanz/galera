@@ -31,6 +31,7 @@ const FIXTURES: &[&str] = &[
     "multipagina",
     "rectangulo",
     "texto",
+    "variables",
 ];
 
 fn fixtures_dir() -> PathBuf {

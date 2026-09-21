@@ -21,6 +21,9 @@
 //! Un valor vacío no es un error: una variable recién creada está vacía, y
 //! lo que se dice de ella es que no tiene valor, no que sea inválida.
 
+use std::collections::BTreeMap;
+
+use crate::error::{Diagnostic, Severity};
 use crate::model::{Document, Element, Variable, VariableKind};
 
 /// Cómo se escribe una variable dentro de un texto: `{{nombre}}`.
@@ -81,6 +84,117 @@ pub fn rename_in(document: &mut Document, from: &str, to: &str) -> usize {
         walk(&mut page.elements, &needle, &replacement, &mut changed);
     }
     changed
+}
+
+/// El texto con sus fichas sustituidas por el valor de cada variable.
+///
+/// Una variable **sin valor o que no está** se deja tal cual, `{{nombre}}`:
+/// así se ve en la página que ahí falta algo, en vez de desaparecer sin
+/// decir nada, y el aviso lo da [`missing`].
+///
+/// Lo que devuelve es texto del documento, no código: quien lo emita tiene
+/// que escaparlo, como cualquier otro texto (principio 6).
+pub fn substitute(text: &str, variables: &BTreeMap<String, Variable>) -> String {
+    substitute_with_map(text, variables).0
+}
+
+/// Como [`substitute`], y además por cada byte del texto sustituido dónde
+/// estaba en el original.
+///
+/// Todos los bytes que vienen de una ficha apuntan a **donde empieza la
+/// ficha**: para el cursor, una ficha es un solo sitio, por larga que sea la
+/// palabra que se ve.
+pub fn substitute_with_map(
+    text: &str,
+    variables: &BTreeMap<String, Variable>,
+) -> (String, Vec<usize>) {
+    let mut out = String::with_capacity(text.len());
+    let mut back = Vec::with_capacity(text.len());
+    let mut at = 0;
+
+    while at < text.len() {
+        if let Some((name, length)) = reference_at(text, at) {
+            let value = variables
+                .get(name)
+                .map(|variable| variable.value.as_str())
+                .filter(|value| !value.is_empty());
+            let piece = value.unwrap_or(&text[at..at + length]);
+            out.push_str(piece);
+            back.extend(std::iter::repeat_n(at, piece.len()));
+            at += length;
+            continue;
+        }
+        let character = text[at..].chars().next().unwrap_or('\0');
+        out.push(character);
+        back.extend(std::iter::repeat_n(at, character.len_utf8()));
+        at += character.len_utf8();
+    }
+
+    // Y el final del texto, que es una posición válida para el cursor.
+    back.push(text.len());
+    (out, back)
+}
+
+/// Si en `at` empieza una ficha, su nombre y cuánto ocupa entera.
+///
+/// El nombre es el de una variable: letras, dígitos, guion y guion bajo, lo
+/// mismo que un id. Un `{{` suelto no abre nada.
+pub fn reference_at(text: &str, at: usize) -> Option<(&str, usize)> {
+    let rest = text.get(at..)?;
+    let inner = rest.strip_prefix("{{")?;
+    let end = inner.find("}}")?;
+    let name = &inner[..end];
+    (!name.is_empty() && name.chars().all(is_name_char)).then_some((name, end + 4))
+}
+
+/// Los caracteres que puede llevar el nombre de una variable.
+fn is_name_char(character: char) -> bool {
+    character.is_ascii_alphanumeric() || character == '-' || character == '_'
+}
+
+/// Las fichas del documento que no tienen valor, como avisos.
+///
+/// Una ficha de una variable que no está, o que está vacía, se queda escrita
+/// en la página: se ve, pero hay que decirlo también donde se dicen los
+/// problemas.
+pub fn missing(document: &Document) -> Vec<Diagnostic> {
+    let mut found = Vec::new();
+    for element in document.elements() {
+        let Element::Text { content, .. } = element else {
+            continue;
+        };
+        let mut names: Vec<&str> = Vec::new();
+        for run in content {
+            let mut at = 0;
+            while at < run.text.len() {
+                match reference_at(&run.text, at) {
+                    Some((name, length)) => {
+                        let empty = document
+                            .variables
+                            .get(name)
+                            .is_none_or(|variable| variable.value.is_empty());
+                        if empty && !names.contains(&name) {
+                            names.push(name);
+                        }
+                        at += length;
+                    }
+                    None => at += 1,
+                }
+            }
+        }
+        for name in names {
+            found.push(Diagnostic {
+                severity: Severity::Warning,
+                message: format!(
+                    "la variable {name:?} no tiene valor: en la página se ve {}",
+                    reference(name)
+                ),
+                hints: vec!["dale un valor en el panel de variables".to_owned()],
+                element_id: Some(element.id().to_owned()),
+            });
+        }
+    }
+    found
 }
 
 /// Por qué un valor no vale para el tipo de su variable.
@@ -294,5 +408,109 @@ mod tests {
     fn a_text_takes_anything() {
         let document = document();
         assert!(check(&document, &Variable::text("lo que sea, 12/13/2026")).is_ok());
+    }
+
+    /// El criterio de la tarea: el valor entra escapado, como texto.
+    #[test]
+    fn a_value_with_markup_in_it_is_just_text() {
+        let document = crate::Document::from_json_str(
+            r##"{
+              "version": 1,
+              "meta": { "title": "x" },
+              "fonts": ["fonts/Inter-Regular.ttf"],
+              "variables": { "empresa": { "kind": "text", "value": "Cooperativa #1 *del* Este" } },
+              "pages": [ { "id": "p1", "size": { "width": 210, "height": 297 }, "elements": [
+                { "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                  "content": [{ "text": "Informe de {{empresa}}" }],
+                  "style": { "font": "Inter", "size": 12, "color": "#000000" } }
+              ] } ]
+            }"##,
+        )
+        .expect("es un documento");
+
+        let code = crate::codegen::generate(&document).expect("genera");
+        assert!(
+            code.contains(r"Informe de Cooperativa \#1 \*del\* Este"),
+            "{code}"
+        );
+    }
+
+    #[test]
+    fn substitution_puts_the_value_where_the_chip_was() {
+        let mut variables = BTreeMap::new();
+        variables.insert("nombre".to_owned(), Variable::text("Cooperativa"));
+
+        assert_eq!(
+            substitute("Hola {{nombre}}, ¿qué tal?", &variables),
+            "Hola Cooperativa, ¿qué tal?"
+        );
+        // Una variable que no está, o vacía, se queda escrita: se ve.
+        assert_eq!(substitute("{{otra}}", &variables), "{{otra}}");
+        variables.insert("vacia".to_owned(), Variable::text(""));
+        assert_eq!(substitute("{{vacia}}", &variables), "{{vacia}}");
+        // Y lo que no es una ficha se queda como está.
+        assert_eq!(substitute("{ {{} {{ }}", &variables), "{ {{} {{ }}");
+    }
+
+    /// El criterio de la tarea: una ficha es un solo sitio para el cursor.
+    #[test]
+    fn every_byte_of_a_chip_points_at_where_it_starts() {
+        let mut variables = BTreeMap::new();
+        variables.insert("nombre".to_owned(), Variable::text("Cooperativa"));
+        let (resolved, back) = substitute_with_map("a {{nombre}} b", &variables);
+
+        assert_eq!(resolved, "a Cooperativa b");
+        // La `a` y el espacio, donde estaban.
+        assert_eq!(back[0], 0);
+        assert_eq!(back[1], 1);
+        // Los once bytes del valor apuntan al `{` de la ficha.
+        assert!(back[2..13].iter().all(|at| *at == 2), "{back:?}");
+        // Y lo de después, a donde le toca: la ficha ocupa 10 bytes, así
+        // que el espacio que la sigue está en el 12.
+        assert_eq!(back[13], 12);
+        assert_eq!(back.last().copied(), Some("a {{nombre}} b".len()));
+    }
+
+    /// El criterio de la tarea: una variable sin valor avisa.
+    #[test]
+    fn a_chip_without_a_value_is_a_warning() {
+        let document = crate::Document::from_json_str(
+            r##"{
+              "version": 1,
+              "meta": { "title": "x" },
+              "variables": { "vacia": { "kind": "text", "value": "" },
+                             "llena": { "kind": "text", "value": "hay" } },
+              "pages": [ { "id": "p1", "size": { "width": 210, "height": 297 }, "elements": [
+                { "id": "t1", "type": "text", "x": 0, "y": 0, "w": 100, "h": null,
+                  "content": [{ "text": "{{vacia}} {{llena}} {{vacia}} {{nodefinida}}" }],
+                  "style": { "font": "Inter", "size": 12, "color": "#000000" } }
+              ] } ]
+            }"##,
+        )
+        .expect("es un documento");
+
+        let found = missing(&document);
+        assert_eq!(found.len(), 2, "{found:#?}");
+        assert!(
+            found
+                .iter()
+                .all(|one| one.element_id.as_deref() == Some("t1"))
+        );
+        assert!(found[0].message.contains("vacia"), "{}", found[0].message);
+        assert!(
+            found[1].message.contains("nodefinida"),
+            "{}",
+            found[1].message
+        );
+    }
+
+    #[test]
+    fn a_chip_is_a_name_between_double_braces() {
+        assert_eq!(reference_at("{{nombre}}", 0), Some(("nombre", 10)));
+        assert_eq!(reference_at("a {{n_1-2}} b", 2), Some(("n_1-2", 9)));
+        assert_eq!(reference_at("{{}}", 0), None, "sin nombre");
+        assert_eq!(reference_at("{{con espacio}}", 0), None);
+        assert_eq!(reference_at("{nombre}", 0), None, "una llave sola");
+        assert_eq!(reference_at("texto", 0), None);
     }
 }

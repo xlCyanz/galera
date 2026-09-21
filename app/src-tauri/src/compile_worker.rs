@@ -240,12 +240,17 @@ where
                     revision: compilation.revision,
                     ms,
                     reused: compilation.reused,
-                    // Los avisos de Typst y los del contenido que se sale de
-                    // su caja, que Typst no da porque para él no es un
-                    // problema: lo dibuja fuera y ya está.
+                    // Los avisos de Typst, los del contenido que se sale de
+                    // su caja —que Typst no da porque para él no es un
+                    // problema: lo dibuja fuera y ya está— y los de las
+                    // fichas de variable que no tienen valor.
                     diagnostics: [
                         compiled.warnings().to_vec(),
                         galera_core::overflowing(&boxes),
+                        state
+                            .open_document()
+                            .map(|(_, document)| galera_core::variables::missing(&document))
+                            .unwrap_or_default(),
                     ]
                     .concat(),
                     // Solo se vuelven a dibujar las páginas que han cambiado.

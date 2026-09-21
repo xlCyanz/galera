@@ -77,6 +77,11 @@
 
 use crate::model::{Align, ElementBox, Line, ListKind, Run, TextStyle, is_valid_link};
 
+use std::collections::BTreeMap;
+
+use crate::model::Variable;
+use crate::variables as vars;
+
 use super::{CodegenError, color, escape_into, millimeters, number, typst_string};
 
 /// Escribe un bloque de texto.
@@ -85,6 +90,7 @@ pub(super) fn emit_text(
     content: &[Run],
     style: &TextStyle,
     lines: &[Line],
+    variables: &BTreeMap<String, Variable>,
     out: &mut String,
 ) -> Result<(), CodegenError> {
     out.push_str(&format!("#block(width: {}", millimeters(base.w)));
@@ -114,7 +120,7 @@ pub(super) fn emit_text(
 
     out.push_str(&format!("); align({})[", horizontal_alignment(style.align)));
 
-    emit_content(content, lines, out)?;
+    emit_content(content, lines, variables, out)?;
 
     out.push_str("] })");
     Ok(())
@@ -123,8 +129,13 @@ pub(super) fn emit_text(
 /// Escribe el contenido: cada línea con el formato de sus tramos, las
 /// listas agrupadas y los saltos de línea del documento como saltos
 /// explícitos de Typst.
-fn emit_content(content: &[Run], lines: &[Line], out: &mut String) -> Result<(), CodegenError> {
-    let rendered = render_lines(content)?;
+fn emit_content(
+    content: &[Run],
+    lines: &[Line],
+    variables: &BTreeMap<String, Variable>,
+    out: &mut String,
+) -> Result<(), CodegenError> {
+    let rendered = render_lines(content, variables)?;
 
     // Cuántos saltos de línea quedan por escribir. Se cuentan sin
     // escribirlos porque dos seguidos no son lo mismo que uno.
@@ -186,7 +197,10 @@ fn emit_break(newlines: &mut usize, out: &mut String) {
 
 /// El contenido ya compuesto de cada línea del bloque: sus tramos
 /// escapados, cada uno con su formato.
-fn render_lines(content: &[Run]) -> Result<Vec<String>, CodegenError> {
+fn render_lines(
+    content: &[Run],
+    variables: &BTreeMap<String, Variable>,
+) -> Result<Vec<String>, CodegenError> {
     let mut lines = vec![String::new()];
 
     for run in content {
@@ -201,7 +215,7 @@ fn render_lines(content: &[Run]) -> Result<Vec<String>, CodegenError> {
                 let last = lines
                     .last_mut()
                     .unwrap_or_else(|| unreachable!("nunca vacío"));
-                emit_run(piece, run, last)?;
+                emit_run(piece, run, variables, last)?;
             }
         }
     }
@@ -282,10 +296,21 @@ fn emit_list(rendered: &[String], lines: &[Line], kind: ListKind, level: u8, out
     out.push(')');
 }
 
-/// Escribe un trozo de tramo, escapado y con el formato de su tramo.
-fn emit_run(piece: &str, run: &Run, out: &mut String) -> Result<(), CodegenError> {
-    let mut wrapped = String::with_capacity(piece.len() + 16);
-    escape_into(piece, &mut wrapped);
+/// Escribe un trozo de tramo, con sus fichas sustituidas, escapado y con el
+/// formato de su tramo.
+///
+/// Primero se sustituye y después se escapa: el valor de una variable es
+/// texto de la persona, igual que lo que hay escrito alrededor, y entra en
+/// el documento como texto y nunca como marcado (principio 6).
+fn emit_run(
+    piece: &str,
+    run: &Run,
+    variables: &BTreeMap<String, Variable>,
+    out: &mut String,
+) -> Result<(), CodegenError> {
+    let resolved = vars::substitute(piece, variables);
+    let mut wrapped = String::with_capacity(resolved.len() + 16);
+    escape_into(&resolved, &mut wrapped);
 
     // De dentro afuera: la cursiva pegada al texto, el color por fuera.
     for (applies, markup) in [

@@ -60,6 +60,7 @@ import { useElementBox, useLayoutStore, useOverflowing } from "../store/layout";
 import { useTool, useToolStore } from "../store/tool";
 import { Cursor } from "../text/Cursor";
 import { FormatBar } from "../text/FormatBar";
+import { ChipPicker } from "../text/ChipPicker";
 import { HiddenInput } from "../text/HiddenInput";
 import { SelectionLayer } from "../text/SelectionLayer";
 import { applyFormat, applyLines, useTextFormat } from "../text/useTextFormat";
@@ -484,6 +485,11 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
           {editing !== null && editingBox !== null && editingBox.page === currentPage && transform !== null && (
             <>
               <HiddenInput id={editing} box={editingBox} transform={transform} />
+              <ChipPicker
+                text={editingRuns.map((run) => run.text).join("")}
+                box={editingBox}
+                transform={transform}
+              />
               <SelectionLayer box={editingBox} transform={transform} />
               <Cursor box={editingBox} transform={transform} />
               <FormatBar
