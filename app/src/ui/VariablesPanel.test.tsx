@@ -3,7 +3,7 @@ import { act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { AppliedOp, OpenedProject } from "../commands";
+import type { AppliedOp, OpenedProject, VariableStatus } from "../commands";
 import { useDocumentStore } from "../store/document";
 import { VariablesPanel } from "./VariablesPanel";
 
@@ -18,7 +18,7 @@ const project: OpenedProject = {
     meta: { title: "x" },
     fonts: [],
     assets: {},
-    variables: { nombre: "Cooperativa Agrícola del Este" },
+    variables: { nombre: { kind: "text", value: "Cooperativa Agrícola del Este" } },
     pages: [{ id: "p1", size: { width: 210, height: 297, unit: "mm" }, elements: [] }],
   },
 };
@@ -28,11 +28,18 @@ let root: Root;
 let ops: Array<Record<string, unknown>>;
 /** Si el backend rechaza el cambio, con este mensaje. */
 let refuse: string | null;
+/** Lo que el núcleo dice de cada variable. */
+let status: Record<string, VariableStatus>;
 
 beforeEach(() => {
   ops = [];
   refuse = null;
+  status = {};
   mockIPC((command, args) => {
+    if (command === "variable_status") {
+      const name = (args as { name: string }).name;
+      return status[name] ?? { usedBy: [], invalid: null };
+    }
     if (command === "apply_op") {
       const op = (args as { op: Record<string, string> }).op;
       ops.push(op);
@@ -42,7 +49,7 @@ beforeEach(() => {
       // Aplica el cambio como el núcleo, para ver la lista nueva.
       const document = structuredClone(useDocumentStore.getState().document!);
       if (op.op === "set_variable") {
-        document.variables[op.name!] = op.value!;
+        document.variables[op.name!] = (op as unknown as { variable: { kind: "text"; value: string } }).variable;
       } else if (op.op === "remove_variable") {
         delete document.variables[op.name!];
       } else if (op.op === "rename_variable") {
@@ -61,6 +68,26 @@ beforeEach(() => {
   root = createRoot(container);
   act(() => root.render(<VariablesPanel />));
 });
+
+/** Deja llegar lo que el núcleo dice de cada variable. */
+async function settle() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+/** Monta el panel otra vez, para que vuelva a preguntar por las variables. */
+async function remount() {
+  act(() => root.unmount());
+  container.remove();
+  container = window.document.createElement("div");
+  window.document.body.append(container);
+  root = createRoot(container);
+  await act(async () => {
+    root.render(<VariablesPanel />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
 
 afterEach(() => {
   act(() => root.unmount());
@@ -103,8 +130,10 @@ describe("panel de variables", () => {
     const value = input("Valor de nombre");
     type(value, "Otra cooperativa");
     await blur(value);
-    expect(ops).toEqual([{ op: "set_variable", name: "nombre", value: "Otra cooperativa" }]);
-    expect(useDocumentStore.getState().document?.variables.nombre).toBe("Otra cooperativa");
+    expect(ops).toEqual([
+      { op: "set_variable", name: "nombre", variable: { kind: "text", value: "Otra cooperativa" } },
+    ]);
+    expect(useDocumentStore.getState().document?.variables.nombre?.value).toBe("Otra cooperativa");
     expect(useDocumentStore.getState().history.undo).toBe("x");
   });
 
@@ -115,7 +144,9 @@ describe("panel de variables", () => {
     const name = input("Nombre de la variable nueva");
     type(name, "anio");
     await key(name, "Enter");
-    expect(ops).toEqual([{ op: "set_variable", name: "anio", value: "" }]);
+    expect(ops).toEqual([
+      { op: "set_variable", name: "anio", variable: { kind: "text", value: "" } },
+    ]);
     expect(row("anio")).not.toBeNull();
   });
 
@@ -156,5 +187,70 @@ describe("panel de variables", () => {
     await key(name, "Enter");
     expect(container.textContent).toContain("no vale");
     expect(Object.keys(useDocumentStore.getState().document!.variables)).toEqual(["nombre"]);
+  });
+
+  /** El criterio de la tarea: el tipo se elige y se manda con el valor. */
+  it("cambiar el tipo manda la variable entera", async () => {
+    const kind = container.querySelector<HTMLSelectElement>('select[aria-label="Tipo de nombre"]')!;
+    expect([...kind.options].map((one) => one.value)).toEqual(["text", "number", "date", "image"]);
+
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!;
+      setter.call(kind, "date");
+      kind.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(ops).toEqual([
+      {
+        op: "set_variable",
+        name: "nombre",
+        variable: { kind: "date", value: "Cooperativa Agrícola del Este" },
+      },
+    ]);
+  });
+
+  /** El criterio de la tarea: se ve dónde se usa cada variable. */
+  it("dice en qué elementos se usa, y lo que el núcleo objeta del valor", async () => {
+    status = { nombre: { usedBy: ["t1", "c1"], invalid: "no es una fecha" } };
+    await remount();
+
+    expect(row("nombre")?.textContent).toContain("Se usa en 2 elementos: t1, c1");
+    expect(row("nombre")?.textContent).toContain("no es una fecha");
+  });
+
+  it("sin usarse en ningún sitio lo dice también", async () => {
+    await settle();
+    expect(row("nombre")?.textContent).toContain("Sin usar");
+  });
+
+  /** El criterio de la tarea: quitar una que se usa avisa antes. */
+  it("quitar una que se usa pregunta, y solo la quita si se confirma", async () => {
+    status = { nombre: { usedBy: ["t1"], invalid: null } };
+    await remount();
+
+    await act(async () => {
+      row("nombre")!.querySelector<HTMLButtonElement>(".asset-remove")!.click();
+    });
+    expect(ops).toHaveLength(0);
+    expect(container.textContent).toContain("se usa en 1 elemento");
+
+    // Dejarla: no se manda nada.
+    await act(async () => {
+      [...container.querySelectorAll("button")].find((one) => one.textContent === "Dejarla")!.click();
+    });
+    expect(ops).toHaveLength(0);
+    expect(row("nombre")).not.toBeNull();
+
+    // Y confirmando sí.
+    await act(async () => {
+      row("nombre")!.querySelector<HTMLButtonElement>(".asset-remove")!.click();
+    });
+    await act(async () => {
+      [...container.querySelectorAll("button")]
+        .find((one) => one.textContent === "Quitarla igualmente")!
+        .click();
+    });
+    expect(ops).toEqual([{ op: "remove_variable", name: "nombre" }]);
   });
 });

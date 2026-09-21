@@ -32,7 +32,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::layout::MmRect;
 use crate::model::text::{Format, TextError};
-use crate::model::{Document, Element, Line, Page, Run, Stroke, TextStyle, is_valid_id};
+use crate::model::{Document, Element, Line, Page, Run, Stroke, TextStyle, Variable, is_valid_id};
+use crate::variables;
 
 /// Un cambio del documento.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -194,8 +195,8 @@ pub enum Op {
     SetVariable {
         /// Su nombre.
         name: String,
-        /// Su valor nuevo.
-        value: String,
+        /// Lo que pasa a ser: su tipo y su valor.
+        variable: Variable,
     },
 
     /// Quita una variable del documento.
@@ -797,26 +798,26 @@ impl Op {
                 Ok(Op::SetTitle { title: previous })
             }
 
-            Op::SetVariable { name, value } => {
+            Op::SetVariable { name, variable } => {
                 check_variable_name(name)?;
-                let previous = document.variables.insert(name.clone(), value.clone());
+                let previous = document.variables.insert(name.clone(), variable.clone());
                 Ok(match previous {
-                    Some(value) => Op::SetVariable {
+                    Some(variable) => Op::SetVariable {
                         name: name.clone(),
-                        value,
+                        variable,
                     },
                     None => Op::RemoveVariable { name: name.clone() },
                 })
             }
 
             Op::RemoveVariable { name } => {
-                let value = document
+                let variable = document
                     .variables
                     .remove(name)
                     .ok_or_else(|| OpError::VariableNotFound { name: name.clone() })?;
                 Ok(Op::SetVariable {
                     name: name.clone(),
-                    value,
+                    variable,
                 })
             }
 
@@ -829,8 +830,11 @@ impl Op {
                     if document.variables.contains_key(to) {
                         return Err(OpError::VariableNameTaken { name: to.clone() });
                     }
-                    let value = document.variables.remove(from).unwrap_or_default();
-                    document.variables.insert(to.clone(), value);
+                    let variable = document.variables.remove(from).unwrap_or_default();
+                    document.variables.insert(to.clone(), variable);
+                    // Y donde se usaba: renombrar una variable no puede
+                    // dejar el documento señalando a una que ya no está.
+                    variables::rename_in(document, from, to);
                 }
                 Ok(Op::RenameVariable {
                     from: to.clone(),
