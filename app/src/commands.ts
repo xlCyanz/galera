@@ -20,7 +20,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 import type { Diagnostic } from "./types/diagnostic";
-import type { Glyph, LayoutBox, MmRect } from "./types/layout";
+import type { FlowRange, Glyph, LayoutBox, MmRect } from "./types/layout";
 import type { Document, TextStyle } from "./types/model";
 import type { Op } from "./types/ops";
 import type { Alignment, Spread } from "./types/align";
@@ -276,6 +276,8 @@ export interface CompilationFinished {
   pages: string[];
   /** La caja real de cada elemento, de todas las páginas. */
   boxes: LayoutBox[];
+  /** Qué rango del texto de su flujo quedó en cada zona. */
+  flows: FlowRange[];
 }
 
 /** `compilation:error`: una compilación ha fallado. */

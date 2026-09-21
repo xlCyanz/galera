@@ -66,7 +66,7 @@ describe("barra de estado", () => {
     act(() =>
       useCompilationStore
         .getState()
-        .finish({ revision: 1, ms: 12.34, reused: false, diagnostics: [], pages: ["<svg/>", "<svg/>"], boxes: [] }),
+        .finish({ revision: 1, ms: 12.34, reused: false, diagnostics: [], pages: ["<svg/>", "<svg/>"], boxes: [], flows: [] }),
     );
     expect(text(".status-compilation")).toBe("Compilado en 12,3 ms");
     expect(container.textContent).toContain("Página 1 de 2");
@@ -117,7 +117,9 @@ describe("barra de estado", () => {
         ms: 5,
         reused: false,
         diagnostics: [typstFailure.diagnostics[1]!],
-        pages: ["<svg/>", "<svg/>"], boxes: [],
+        pages: ["<svg/>", "<svg/>"],
+        boxes: [],
+        flows: [],
       }),
     );
     expect(text(".status-issues")).toBe("1 aviso");

@@ -58,6 +58,7 @@
 mod code;
 pub mod escape;
 mod flow;
+pub use flow::length as flow_length;
 mod group;
 mod image;
 mod shapes;
@@ -169,6 +170,10 @@ pub fn generate(document: &Document) -> Result<String, CodegenError> {
             typst_string(&document.meta.title)
         ));
     }
+
+    // Lo que necesitan los flujos va antes de las páginas: una zona de la
+    // página 1 usa lo mismo que una de la 7.
+    flow::emit_prelude(document, &mut out)?;
 
     let mut previous_size: Option<&PageSize> = None;
     for (index, page) in document.pages.iter().enumerate() {
@@ -356,8 +361,8 @@ fn emit_body(element: &Element, document: &Document, out: &mut String) -> Result
             code::emit_code(base, source, out);
             Ok(())
         }
-        Element::Flow { base, .. } => {
-            flow::emit_zone(base, out);
+        Element::Flow { base, flow: name } => {
+            flow::emit_zone(base, name, document, out);
             Ok(())
         }
         Element::Group { base, children } => group::emit_group(base, children, document, out),

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "meta": { "title": "Texto que fluye" },
+  "fonts": ["fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf"],
+  "flows": {
+    "cuerpo": {
+      "content": [
+        { "text": "La galera era la mesa donde el cajista dejaba las líneas ya compuestas antes de atarlas. " },
+        { "text": "De ahí viene el nombre", "bold": true },
+        { "text": ", y de ahí viene también esto: el texto se compone seguido y pasa de una zona a la siguiente cuando la primera se llena, aunque la siguiente esté en otra página." }
+      ],
+      "style": { "font": "Inter", "size": 11, "color": "#1F2733", "align": "justify", "leading": 0.65 },
+      "zones": ["z1", "z2", "z3"]
+    }
+  },
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "z1", "type": "flow", "x": 20, "y": 30, "w": 75, "h": 40, "flow": "cuerpo" },
+        { "id": "z2", "type": "flow", "x": 115, "y": 30, "w": 75, "h": 40, "flow": "cuerpo" }
+      ]
+    },
+    {
+      "id": "p2",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "z3", "type": "flow", "x": 20, "y": 30, "w": 170, "h": null, "flow": "cuerpo" }
+      ]
+    }
+  ]
+}
