@@ -1,20 +1,32 @@
 /**
- * El panel de lote: la tabla con la que se generarán muchos documentos.
+ * El panel de lote: la tabla con la que se generan muchos documentos.
  *
- * Se elige un CSV, se mira **qué columna le toca a cada variable** y se ven
- * las primeras filas con los valores que tendrían. Generar los documentos
- * es F6-06; aquí se prepara y, sobre todo, **se dice lo que está mal antes**
- * de generar nada.
+ * Se elige un CSV, se mira **qué columna le toca a cada variable**, se ven
+ * las primeras filas con los valores que tendrían y se generan: un PDF por
+ * fila o uno solo con todas.
+ *
+ * Mientras se generan, el panel enseña por qué fila va y deja cancelar. El
+ * avance llega del backend con el evento `batch:progress`, así que la
+ * ventana no se queda quieta aunque salgan cien documentos.
  *
  * Leer el archivo, adivinar el separador y la codificación, emparejar las
- * columnas y decidir qué fila está incompleta lo hace el núcleo
- * (`galera_core::batch::csv`, principio 5).
+ * columnas, decidir qué fila está incompleta y componer lo hace el núcleo
+ * (`galera_core::batch`, principio 5).
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { type LoadedCsv, checkRows, chooseCsv, errorMessage, readCsv } from "../commands";
+import {
+  type LoadedCsv,
+  cancelBatch,
+  checkRows,
+  chooseCsv,
+  errorMessage,
+  generateBatch,
+  onBatchProgress,
+  readCsv,
+} from "../commands";
 import { useOpenDocument } from "../store/document";
-import type { Encoding } from "../types/batch";
+import type { Encoding, Outcome, Progress } from "../types/batch";
 
 /** Cuántas filas se enseñan en la vista previa. */
 const PREVIEW_ROWS = 5;
@@ -38,11 +50,28 @@ export function BatchPanel() {
   const [loaded, setLoaded] = useState<LoadedCsv | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [combined, setCombined] = useState(false);
+  const [pattern, setPattern] = useState<string | null>(null);
+  const [progress, setProgress] = useState<Progress | null>(null);
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  // Un solo oyente del avance, mientras el panel esté abierto: el evento
+  // llega del backend fila a fila.
+  useEffect(() => {
+    const subscription = onBatchProgress(setProgress);
+    return () => {
+      void subscription.then((unlisten) => unlisten());
+    };
+  }, []);
 
   if (document === null) {
     return null;
   }
   const variables = Object.keys(document.variables);
+  // El patrón que se propone: el nombre sale del valor de la primera
+  // variable, que es lo que distingue una fila de otra.
+  const name = pattern ?? (variables[0] === undefined ? "documento.pdf" : `{{${variables[0]}}}.pdf`);
 
   const run = (work: Promise<LoadedCsv | null>) => {
     setBusy(true);
@@ -75,6 +104,24 @@ export function BatchPanel() {
     void checkRows({ ...loaded }, mapping)
       .then((checked) => setLoaded({ ...loaded, mapping, checked }))
       .catch((reason: unknown) => setMessage(errorMessage(reason)));
+  };
+
+  /** Genera el lote y deja el resultado a la vista. */
+  const generate = () => {
+    if (loaded === null) {
+      return;
+    }
+    setMessage(null);
+    setOutcome(null);
+    setProgress({ done: 0, total: loaded.checked.length });
+    setGenerating(true);
+    void generateBatch(loaded, loaded.mapping, combined, name)
+      .then((done) => setOutcome(done))
+      .catch((reason: unknown) => setMessage(errorMessage(reason)))
+      .finally(() => {
+        setGenerating(false);
+        setProgress(null);
+      });
   };
 
   const broken = loaded?.checked.filter((row) => row.problems.length > 0) ?? [];
@@ -188,6 +235,79 @@ export function BatchPanel() {
               ))}
             </tbody>
           </table>
+
+          <div className="batch-output">
+            <label>
+              <input
+                type="radio"
+                name="batch-output"
+                checked={!combined}
+                disabled={generating}
+                onChange={() => setCombined(false)}
+              />
+              Un PDF por fila
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="batch-output"
+                checked={combined}
+                disabled={generating}
+                onChange={() => setCombined(true)}
+              />
+              Un solo PDF con todas
+            </label>
+            {!combined && (
+              <label className="batch-pattern">
+                Nombre
+                <input
+                  type="text"
+                  value={name}
+                  disabled={generating}
+                  aria-label="Patrón del nombre"
+                  onChange={(event) => setPattern(event.currentTarget.value)}
+                />
+              </label>
+            )}
+          </div>
+
+          {generating ? (
+            <div className="batch-progress" role="status">
+              <progress value={progress?.done ?? 0} max={progress?.total ?? loaded.checked.length} />
+              <span>
+                {progress === null
+                  ? "Generando…"
+                  : `Generando… ${progress.done} de ${progress.total}`}
+              </span>
+              <button type="button" onClick={() => void cancelBatch()}>
+                Cancelar
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="batch-generate" disabled={busy} onClick={generate}>
+              Generar
+            </button>
+          )}
+
+          {outcome !== null && (
+            <div className="batch-outcome" role="status">
+              <p>
+                {outcome.written.length === 1
+                  ? "1 documento generado"
+                  : `${outcome.written.length} documentos generados`}
+                {outcome.cancelled && " · cancelado antes de acabar"}
+              </p>
+              {outcome.failures.length > 0 && (
+                <ul className="batch-failures">
+                  {outcome.failures.map((failure) => (
+                    <li key={failure.row} data-failure={failure.row}>
+                      {failure.row === 0 ? "El lote" : `Fila ${failure.row}`}: {failure.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </>
       )}
     </section>

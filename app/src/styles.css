@@ -1792,3 +1792,58 @@ body {
   background: #fef2f2;
   color: #7f1d1d;
 }
+
+.batch-output {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.5rem 0 0.3rem;
+  font-size: 0.75rem;
+}
+
+.batch-output label {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.batch-pattern {
+  flex: 1 1 100%;
+}
+
+.batch-pattern input {
+  flex: 1;
+  min-width: 0;
+}
+
+.batch-generate {
+  width: 100%;
+}
+
+.batch-progress {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.75rem;
+}
+
+.batch-progress progress {
+  flex: 1;
+  min-width: 0;
+}
+
+.batch-outcome {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+}
+
+.batch-outcome p {
+  margin: 0;
+}
+
+.batch-failures {
+  margin: 0.2rem 0 0;
+  padding-left: 1rem;
+  color: #7f1d1d;
+}

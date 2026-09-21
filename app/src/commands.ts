@@ -24,7 +24,7 @@ import type { Glyph, LayoutBox, MmRect } from "./types/layout";
 import type { Document, TextStyle } from "./types/model";
 import type { Op } from "./types/ops";
 import type { Alignment, Spread } from "./types/align";
-import type { Csv, Encoding, Mapping, Row } from "./types/batch";
+import type { Csv, Encoding, Mapping, Outcome, Progress, Row } from "./types/batch";
 import type { CodeError } from "./types/code";
 import type { CodeSpan } from "./types/codegen";
 import type { Grips, Settings as SnapSettings, Snapped } from "./types/snap";
@@ -526,6 +526,38 @@ export function readCsv(
 /** Vuelve a mirar las filas con otro emparejamiento, sin releer el archivo. */
 export function checkRows(csv: Csv, mapping: Mapping): Promise<Row[]> {
   return invoke<Row[]>("check_rows", { csv, mapping });
+}
+
+/**
+ * Genera el lote: pregunta dónde dejarlo y compone una fila tras otra.
+ *
+ * Con `combined`, un solo PDF con las páginas de todas las filas; sin él,
+ * uno por fila con el nombre que salga de `pattern`. `null` si se cancela el
+ * diálogo. Va avisando con `batch:progress`, y una fila que falle no para el
+ * resto: sale en `failures`.
+ */
+export function generateBatch(
+  csv: Csv,
+  mapping: Mapping,
+  combined: boolean,
+  pattern: string,
+): Promise<Outcome | null> {
+  return invoke<Outcome | null>("generate_batch", { csv, mapping, combined, pattern });
+}
+
+/** Pide que el lote en marcha pare. Lo que ya se escribió se queda. */
+export function cancelBatch(): Promise<void> {
+  return invoke<void>("cancel_batch");
+}
+
+/** `batch:progress`: por qué fila va el lote. */
+export const BatchEvents = { progress: "batch:progress" } as const;
+
+/** Escucha el avance del lote. Devuelve cómo dejar de escuchar. */
+export function onBatchProgress(handler: (progress: Progress) => void): Promise<() => void> {
+  return listen<Progress>(BatchEvents.progress, (event) => handler(event.payload)).catch(
+    () => () => undefined,
+  );
 }
 
 /** Un comando de edición aplicado, tal como lo devuelve `apply_op`. */

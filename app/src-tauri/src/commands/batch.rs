@@ -4,16 +4,34 @@
 //! cualquier otro: la interfaz no puede pedir que se lea una ruta que no se
 //! haya ofrecido ahí. Lo que se lee, y qué columna le toca a cada variable,
 //! lo decide el núcleo (`galera_core::batch::csv`, principio 5).
+//!
+//! # Generar
+//!
+//! [`generate_batch`] es lo mismo con la carpeta o el archivo de destino
+//! elegidos igual, en el diálogo. Compone **fuera del hilo de los comandos**
+//! y va avisando fila a fila con el evento `batch:progress`, así que la
+//! ventana sigue viva mientras salen cien documentos. Cancelar es
+//! [`cancel_batch`]: levanta una bandera que la generación mira después de
+//! cada fila.
+//!
+//! Las filas no llegan hechas desde la interfaz: llegan la tabla y el
+//! emparejamiento, y aquí se vuelven a sacar con el núcleo. Lo que se
+//! genera sale del documento abierto, no de lo que mande la ventana.
 
 use std::path::PathBuf;
 
 use galera_core::batch::csv::{self, Csv, Encoding, Mapping, Row};
+use galera_core::batch::{Failure, Outcome, Output, Progress, generate};
 use serde::Serialize;
-use tauri::{State, Window};
+use tauri::{AppHandle, Emitter, Manager, State, Window};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::commands::CommandError;
+use crate::commands::export::default_file_name;
 use crate::state::AppState;
+
+/// El evento con el que se va diciendo por qué fila va el lote.
+pub const PROGRESS: &str = "batch:progress";
 
 /// Un CSV leído, con lo que hace falta para enseñarlo.
 #[derive(Debug, Serialize)]
@@ -124,6 +142,106 @@ pub async fn check_rows(
     Ok(csv::rows(&document, &csv, &mapping))
 }
 
+/// Genera el lote, preguntando dónde con el diálogo nativo.
+///
+/// Con `combined`, un solo PDF con las páginas de todas las filas; sin él,
+/// uno por fila en una carpeta, con el nombre que salga de `pattern`.
+///
+/// Devuelve `None` si se cancela el diálogo. Una fila que no salga no para
+/// el lote: se apunta en [`Outcome::failures`].
+///
+/// # Errores
+///
+/// [`CommandError::NothingOpen`] si no hay documento abierto.
+#[tauri::command]
+pub async fn generate_batch(
+    csv: Csv,
+    mapping: Mapping,
+    combined: bool,
+    pattern: String,
+    window: Window,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Option<Outcome>, CommandError> {
+    let (project, document) = state.open_document().ok_or(CommandError::NothingOpen)?;
+    let rows = csv::rows(&document, &csv, &mapping);
+    let summary = state.summary();
+
+    let output = if combined {
+        let mut dialog = window
+            .dialog()
+            .file()
+            .set_title("Guardar el lote en un PDF")
+            .set_file_name(default_file_name(summary.title.as_deref().unwrap_or("")))
+            .add_filter("PDF", &["pdf"])
+            .set_parent(&window);
+        if let Some(root) = &summary.root {
+            dialog = dialog.set_directory(root);
+        }
+        let Some(chosen) = dialog.blocking_save_file() else {
+            return Ok(None);
+        };
+        Output::Combined {
+            path: chosen
+                .into_path()
+                .map_err(|_| CommandError::NotALocalPath)?,
+        }
+    } else {
+        let mut dialog = window
+            .dialog()
+            .file()
+            .set_title("Elegir la carpeta donde dejar los documentos")
+            .set_parent(&window);
+        if let Some(root) = &summary.root {
+            dialog = dialog.set_directory(root);
+        }
+        let Some(chosen) = dialog.blocking_pick_folder() else {
+            return Ok(None);
+        };
+        Output::PerRow {
+            dir: chosen
+                .into_path()
+                .map_err(|_| CommandError::NotALocalPath)?,
+            pattern,
+        }
+    };
+
+    state.start_batch();
+    // Componer cien documentos no puede pasar en el hilo que atiende los
+    // comandos: mientras dura, la ventana tiene que seguir respondiendo.
+    let handle = app.clone();
+    let joined = tauri::async_runtime::spawn_blocking(move || {
+        let state = handle.state::<AppState>();
+        generate(&document, &project, &rows, &output, &mut |progress| {
+            report(&handle, progress);
+            !state.batch_cancelled()
+        })
+    })
+    .await;
+
+    Ok(Some(joined.unwrap_or_else(|_| Outcome {
+        failures: vec![Failure {
+            row: 0,
+            message: "la generación se interrumpió".to_owned(),
+        }],
+        ..Outcome::default()
+    })))
+}
+
+/// Pide que el lote pare. Lo que ya se haya escrito se queda.
+#[tauri::command]
+pub async fn cancel_batch(state: State<'_, AppState>) -> Result<(), CommandError> {
+    state.cancel_batch();
+    Ok(())
+}
+
+/// Si el aviso no llega, no hay a quién decírselo: la ventana ya no existe.
+fn report(app: &AppHandle, progress: Progress) {
+    if let Err(error) = app.emit(PROGRESS, progress) {
+        eprintln!("aviso: no se pudo enviar el avance del lote: {error}");
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -195,6 +313,63 @@ mod tests {
         let state = opened();
         let error = read_in(&state, Path::new("/no/existe.csv"), None, None).expect_err("no está");
         assert_eq!(error.kind(), "write");
+    }
+
+    /// El criterio de la tarea: se generan los documentos de las filas.
+    #[test]
+    fn it_generates_one_document_per_row() {
+        let dir = TempDir::new().expect("carpeta temporal");
+        let path = csv_file(&dir, b"Empresa;Fecha\nUna;2026-09-21\nOtra;2026-09-22\n");
+        let state = opened();
+        let (project, document) = state.open_document().expect("hay documento");
+        let loaded = read_in(&state, &path, None, None).expect("se lee");
+
+        let out = TempDir::new().expect("carpeta temporal");
+        let outcome = galera_core::batch::generate(
+            &document,
+            &project,
+            &loaded.checked,
+            &galera_core::batch::Output::PerRow {
+                dir: out.path().to_owned(),
+                pattern: "{{empresa}}.pdf".to_owned(),
+            },
+            &mut |_| true,
+        );
+
+        assert!(outcome.failures.is_empty(), "{:#?}", outcome.failures);
+        assert_eq!(outcome.written.len(), 2);
+        assert!(out.path().join("Una.pdf").is_file());
+        assert!(out.path().join("Otra.pdf").is_file());
+    }
+
+    /// El criterio de la tarea: se puede cancelar a media generación.
+    #[test]
+    fn the_flag_of_the_state_stops_it() {
+        let dir = TempDir::new().expect("carpeta temporal");
+        let path = csv_file(&dir, b"Empresa;Fecha\nUna;2026-09-21\nOtra;2026-09-22\n");
+        let state = opened();
+        let (project, document) = state.open_document().expect("hay documento");
+        let loaded = read_in(&state, &path, None, None).expect("se lee");
+
+        let out = TempDir::new().expect("carpeta temporal");
+        state.start_batch();
+        let outcome = galera_core::batch::generate(
+            &document,
+            &project,
+            &loaded.checked,
+            &galera_core::batch::Output::PerRow {
+                dir: out.path().to_owned(),
+                pattern: "{{empresa}}.pdf".to_owned(),
+            },
+            &mut |_| {
+                // Como en el comando: se cancela después de la primera fila.
+                state.cancel_batch();
+                !state.batch_cancelled()
+            },
+        );
+
+        assert!(outcome.cancelled);
+        assert_eq!(outcome.written.len(), 1);
     }
 
     #[test]

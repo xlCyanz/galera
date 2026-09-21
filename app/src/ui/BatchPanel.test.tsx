@@ -1,9 +1,10 @@
+import { emit } from "@tauri-apps/api/event";
 import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { LoadedCsv, OpenedProject } from "../commands";
+import { BatchEvents, type LoadedCsv, type OpenedProject } from "../commands";
 import { useDocumentStore } from "../store/document";
 import { BatchPanel } from "./BatchPanel";
 
@@ -55,10 +56,13 @@ let root: Root;
 let asked: Array<{ command: string; args: Record<string, unknown> }>;
 /** Si el diálogo se cancela. */
 let cancelled: boolean;
+/** Cómo se contesta a `generate_batch`: se resuelve desde la prueba. */
+let generation: { resolve: (outcome: unknown) => void };
 
 beforeEach(() => {
   asked = [];
   cancelled = false;
+  generation = { resolve: () => undefined };
   mockIPC((command, args) => {
     asked.push({ command, args: args as Record<string, unknown> });
     if (command === "choose_csv") {
@@ -71,8 +75,15 @@ beforeEach(() => {
     if (command === "check_rows") {
       return loaded.checked;
     }
+    if (command === "generate_batch") {
+      // Queda a medias hasta que la prueba lo resuelva: así se puede mirar
+      // lo que se enseña mientras se genera.
+      return new Promise((resolve) => {
+        generation.resolve = resolve;
+      });
+    }
     return null;
-  });
+  }, { shouldMockEvents: true });
 
   useDocumentStore.setState(useDocumentStore.getInitialState(), true);
   useDocumentStore.getState().open(project);
@@ -82,8 +93,11 @@ beforeEach(() => {
   act(() => root.render(<BatchPanel />));
 });
 
-afterEach(() => {
+afterEach(async () => {
   act(() => root.unmount());
+  // Dejar de escuchar el avance es asíncrono: tiene que terminar antes de
+  // quitar los mocks, o falla fuera de la prueba.
+  await settle();
   container.remove();
   clearMocks();
 });
@@ -93,6 +107,8 @@ const chooseButton = () =>
 const select = (label: string) =>
   container.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`);
 const rows = () => [...container.querySelectorAll<HTMLElement>("[data-row]")];
+const button = (label: string) =>
+  [...container.querySelectorAll("button")].find((one) => one.textContent === label);
 
 async function settle() {
   await act(async () => {
@@ -176,5 +192,81 @@ describe("el panel de lote", () => {
     cancelled = true;
     await choose();
     expect(container.querySelector(".batch-preview")).toBeNull();
+  });
+
+  /** El criterio de la tarea: un PDF por fila con el nombre de un patrón. */
+  it("genera con el patrón que propone, que se puede cambiar", async () => {
+    await choose();
+    const pattern = container.querySelector<HTMLInputElement>('input[aria-label="Patrón del nombre"]')!;
+    expect(pattern.value).toBe("{{empresa}}.pdf");
+
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      setter.call(pattern, "{{empresa}}-2026.pdf");
+      pattern.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    act(() => button("Generar")!.click());
+    await settle();
+
+    const asking = asked.at(-1);
+    expect(asking?.command).toBe("generate_batch");
+    expect(asking?.args).toMatchObject({ combined: false, pattern: "{{empresa}}-2026.pdf" });
+  });
+
+  /** El criterio de la tarea: también un solo PDF con todas las filas. */
+  it("puede pedir un solo PDF con todas", async () => {
+    await choose();
+    const both = [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')][1]!;
+    act(() => both.click());
+    act(() => button("Generar")!.click());
+    await settle();
+
+    expect(asked.at(-1)?.args).toMatchObject({ combined: true });
+    // Sin nombre por fila: el archivo lo pregunta el diálogo.
+    expect(container.querySelector('input[aria-label="Patrón del nombre"]')).toBeNull();
+  });
+
+  /** El criterio de la tarea: se ve el avance y se puede cancelar. */
+  it("enseña por qué fila va y deja cancelar", async () => {
+    await choose();
+    act(() => button("Generar")!.click());
+    await settle();
+
+    await act(async () => {
+      await emit(BatchEvents.progress, { done: 1, total: 2 });
+    });
+    expect(container.textContent).toContain("Generando… 1 de 2");
+    expect(container.querySelector("progress")?.value).toBe(1);
+
+    act(() => button("Cancelar")!.click());
+    await settle();
+    expect(asked.at(-1)?.command).toBe("cancel_batch");
+
+    act(() => generation.resolve({ written: ["/p/Una.pdf"], failures: [], cancelled: true }));
+    await settle();
+    expect(container.textContent).toContain("1 documento generado");
+    expect(container.textContent).toContain("cancelado antes de acabar");
+  });
+
+  /** El criterio de la tarea: una fila que falla no para el lote. */
+  it("dice qué filas no salieron", async () => {
+    await choose();
+    act(() => button("Generar")!.click());
+    await settle();
+    act(() =>
+      generation.resolve({
+        written: ["/p/Una.pdf"],
+        failures: [{ row: 2, message: "no es una fecha AAAA-MM-DD que exista" }],
+        cancelled: false,
+      }),
+    );
+    await settle();
+
+    expect(container.textContent).toContain("1 documento generado");
+    const failure = container.querySelector("[data-failure='2']");
+    expect(failure?.textContent).toContain("Fila 2");
+    expect(failure?.textContent).toContain("no es una fecha");
+    // Y el botón vuelve: el lote acabó.
+    expect(button("Generar")).toBeDefined();
   });
 });

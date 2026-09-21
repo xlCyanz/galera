@@ -27,6 +27,19 @@ rows: Array<Array<string>>, };
 export type Encoding = "utf8" | "latin1";
 
 /**
+ * Lo que le pasó a una fila que no salió.
+ */
+export type Failure = { 
+/**
+ * Qué fila, contando desde 1.
+ */
+row: number, 
+/**
+ * Qué le pasó, listo para enseñar.
+ */
+message: string, };
+
+/**
  * Qué columna le toca a cada variable.
  */
 export type Mapping = { 
@@ -34,6 +47,36 @@ export type Mapping = {
  * Por variable, la columna que la rellena, o `null` si ninguna.
  */
 columns: { [key in string]: number | null }, };
+
+/**
+ * Cómo acabó el lote.
+ */
+export type Outcome = { 
+/**
+ * Los archivos que se han escrito, en orden.
+ */
+written: Array<string>, 
+/**
+ * Las filas que no salieron, con lo que les pasó.
+ */
+failures: Array<Failure>, 
+/**
+ * Si se paró antes de acabar porque se pidió cancelar.
+ */
+cancelled: boolean, };
+
+/**
+ * Cómo va el lote, fila a fila.
+ */
+export type Progress = { 
+/**
+ * Cuántas filas se han hecho ya, contando las que fallaron.
+ */
+done: number, 
+/**
+ * Cuántas hay en total.
+ */
+total: number, };
 
 /**
  * Una fila del CSV con lo que valdría cada variable.

@@ -122,6 +122,8 @@ pub fn run() -> tauri::Result<()> {
             commands::batch::choose_csv,
             commands::batch::read_csv,
             commands::batch::check_rows,
+            commands::batch::generate_batch,
+            commands::batch::cancel_batch,
             commands::templates::templates,
             commands::templates::new_from_template,
             commands::variables::variable_status,
