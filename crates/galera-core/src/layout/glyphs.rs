@@ -92,7 +92,7 @@ impl Compiled {
         let Some(text) = element_text(document, id) else {
             return Vec::new();
         };
-        let Some(map) = TextMap::new(self.source(), id, &text) else {
+        let Some(map) = TextMap::new(self.source(), id, &text, &document.variables) else {
             return Vec::new();
         };
 
@@ -277,7 +277,32 @@ impl TextMap {
     /// Recorre el contenido del elemento `id` en `source` junto a su `text`.
     /// `None` si el elemento no está en el código o si los dos no van de la
     /// mano, que sería un error del codegen o de este módulo.
-    fn new(source: &Source, id: &str, text: &str) -> Option<Self> {
+    ///
+    /// # Las fichas de variable
+    ///
+    /// En el código está **el valor** de la variable y en el texto del
+    /// documento la ficha entera, `{{nombre}}`. El recorrido se hace contra
+    /// el texto ya sustituido —que es lo que el codegen escapó— y al final
+    /// se traduce cada posición al texto del documento: todos los bytes que
+    /// vienen de una ficha apuntan a donde empieza, así que **una ficha es
+    /// un solo sitio para el cursor**, por larga que sea la palabra que se
+    /// ve.
+    fn new(
+        source: &Source,
+        id: &str,
+        text: &str,
+        variables: &std::collections::BTreeMap<String, crate::model::Variable>,
+    ) -> Option<Self> {
+        let (resolved, back) = crate::variables::substitute_with_map(text, variables);
+        let mut map = Self::walk(source, id, &resolved)?;
+        for index in &mut map.indices {
+            *index = back.get(*index).copied().unwrap_or(*index);
+        }
+        Some(map)
+    }
+
+    /// El recorrido en sí, contra el texto que de verdad se emitió.
+    fn walk(source: &Source, id: &str, text: &str) -> Option<Self> {
         let code = source.text();
         let label = code.find(&format!("<{LABEL_PREFIX}{id}>"))?;
         let line = code[..label].rfind('\n').map_or(0, |at| at + 1);
@@ -757,5 +782,51 @@ mod tests {
         assert_eq!(json["line"], 0);
         assert_eq!(json["x"], 20.0);
         assert!(json["width"].as_f64().expect("número") > 0.0);
+    }
+
+    /// El criterio de la tarea: una ficha es un solo sitio para el cursor.
+    #[test]
+    fn a_variable_chip_is_one_place_in_the_text() {
+        let glyphs = glyphs_of("variables", "titulo");
+        let text = text_of("variables", "titulo");
+        assert_eq!(text, "Informe de {{empresa}}");
+
+        // Lo que se dibuja es el valor, pero todos sus glifos apuntan al
+        // `{` de la ficha: el cursor no puede meterse dentro.
+        let chip = text.find("{{").expect("hay ficha");
+        let inside: Vec<usize> = glyphs
+            .iter()
+            .map(|glyph| glyph.text_index)
+            .filter(|at| *at >= chip)
+            .collect();
+        assert!(!inside.is_empty(), "el valor se dibuja");
+        assert!(inside.iter().all(|at| *at == chip), "{inside:?}");
+
+        // Y lo de antes de la ficha sigue letra a letra.
+        let before: Vec<usize> = glyphs
+            .iter()
+            .map(|glyph| glyph.text_index)
+            .filter(|at| *at < chip)
+            .collect();
+        assert_eq!(before.first().copied(), Some(0));
+        assert!(
+            before.windows(2).all(|pair| pair[0] < pair[1]),
+            "{before:?}"
+        );
+    }
+
+    /// Una ficha sin valor se queda escrita, y se puede señalar igual.
+    #[test]
+    fn a_chip_without_a_value_is_drawn_as_it_is_written() {
+        let glyphs = glyphs_of("variables", "cuerpo");
+        let text = text_of("variables", "cuerpo");
+        let chip = text.find("{{pendiente}}").expect("hay ficha");
+
+        let drawn: Vec<usize> = glyphs
+            .iter()
+            .map(|glyph| glyph.text_index)
+            .filter(|at| *at == chip)
+            .collect();
+        assert!(!drawn.is_empty(), "se ve en la página");
     }
 }

@@ -1589,7 +1589,7 @@ body {
 /* Las variables, con su tipo y dónde se usan (`ui/VariablesPanel.tsx`). */
 .variable {
   display: grid;
-  grid-template-columns: minmax(4rem, 1fr) auto minmax(4rem, 1fr) auto;
+  grid-template-columns: minmax(4rem, 1fr) auto minmax(4rem, 1fr) auto auto;
   gap: 0.25rem;
   align-items: center;
 }
@@ -1629,4 +1629,46 @@ body {
 .variable-confirm p {
   margin: 0;
   width: 100%;
+}
+
+/* La lista de variables al escribir `{{` (`text/ChipPicker.tsx`). */
+.chip-picker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  max-height: 12rem;
+  margin: 0;
+  padding: 0.15rem;
+  overflow-y: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgb(15 23 42 / 18%);
+  list-style: none;
+}
+
+.chip-picker button {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.15rem 0.4rem;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chip-picker button.is-highlighted {
+  background: var(--ruler-pointer);
+  color: #fff;
+}
+
+.chip-value {
+  opacity: 0.7;
+  font-size: 0.75rem;
 }

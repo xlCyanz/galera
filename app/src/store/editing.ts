@@ -40,6 +40,14 @@ export interface EditingState {
    * día. */
   selectionRequests: number;
 
+  /**
+   * Lo que se ha pedido insertar en el texto desde fuera —una ficha de
+   * variable—, con qué trozo sustituye.
+   */
+  insert: { text: string; from: number; to: number } | null;
+  /** Sube con cada petición de insertar, para que el campo la atienda. */
+  insertRequests: number;
+
   /** Entra a escribir en un texto, con el cursor al final. */
   edit: (element: string, at?: number) => void;
   /** Sale del modo de escritura. */
@@ -54,6 +62,8 @@ export interface EditingState {
   setComposing: (composing: boolean) => void;
   /** Guarda dónde quedó cada glifo, de la última compilación. */
   setGlyphs: (glyphs: Glyph[]) => void;
+  /** Pide meter ese texto en el que se escribe, entre `from` y `to`. */
+  requestInsert: (text: string, from: number, to: number) => void;
   /** Anota que se acaba de escribir. */
   typed: () => void;
 }
@@ -66,6 +76,8 @@ export const useEditingStore = create<EditingState>()((set) => ({
   glyphs: [],
   typedAt: 0,
   selectionRequests: 0,
+  insert: null,
+  insertRequests: 0,
 
   edit: (element, at = 0) =>
     set({ element, start: at, end: at, composing: false, glyphs: [], typedAt: 0 }),
@@ -76,6 +88,12 @@ export const useEditingStore = create<EditingState>()((set) => ({
   setComposing: (composing) => set({ composing }),
   setGlyphs: (glyphs) => set({ glyphs }),
   typed: () => set({ typedAt: performance.now() }),
+
+  requestInsert: (text, from, to) =>
+    set((state) => ({
+      insert: { text, from, to },
+      insertRequests: state.insertRequests + 1,
+    })),
 }));
 
 /** El texto que se está escribiendo, o `null`. */

@@ -50,6 +50,13 @@
  * palabra— sí lo hace el campo.
  *
  * Colocar el cursor con el ratón llega con F4-07 (#61).
+ *
+ * # Las fichas de variable
+ *
+ * `{{nombre}}` es una ficha: en la página se ve su valor, y aquí se trata
+ * como una sola pieza (`chips.ts`). Las flechas la saltan entera, Retroceso
+ * y Supr se la llevan de una vez, y escribir `{{` abre la lista de
+ * variables (`ChipPicker.tsx`), que inserta la ficha por el store.
  */
 import { useEffect, useEffectEvent, useRef } from "react";
 
@@ -64,6 +71,7 @@ import type { LayoutBox } from "../types/layout";
 import type { Line, Run } from "../types/model";
 import { byteIndex, lineMove, textIndex } from "./caret";
 import { change, textOf } from "./change";
+import { arrow, deletion } from "./chips";
 import { indent } from "./lines";
 import { applyLines } from "./useTextFormat";
 
@@ -111,6 +119,8 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
   // Cuando la selección la cambia el ratón, el campo se pone al día: así
   // escribir sustituye lo seleccionado y ⌘C copia lo que se ve.
   const selectionRequests = useEditingStore((state) => state.selectionRequests);
+  // Lo que pide insertar la lista de variables: una ficha en el cursor.
+  const insertRequests = useEditingStore((state) => state.insertRequests);
 
   const commit = useEffectEvent(() => {
     // Un cambio detrás de otro: el siguiente se calcula cuando el anterior
@@ -257,6 +267,23 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
     element.focus();
   }, [selectionRequests]);
 
+  // Lo que pida insertarse desde fuera: una ficha de variable.
+  useEffect(() => {
+    const element = field.current;
+    const { insert } = useEditingStore.getState();
+    if (element === null || insertRequests === 0 || insert === null) {
+      return;
+    }
+    const { text, from, to } = insert;
+    const value = element.value;
+    element.value = value.slice(0, from) + text + value.slice(to);
+    const at = from + text.length;
+    element.setSelectionRange(at, at);
+    element.focus();
+    commit();
+    remember();
+  }, [insertRequests]);
+
   // Dónde quedó cada glifo, de la compilación que se está viendo.
   useEffect(() => {
     let current = true;
@@ -335,6 +362,41 @@ export function HiddenInput({ id, box, transform }: HiddenInputProps) {
             event.preventDefault();
           }
           return;
+        }
+        // Una ficha de variable se borra y se salta entera: el cursor no
+        // se mete dentro de `{{nombre}}`.
+        if (event.key === "Backspace" || event.key === "Delete") {
+          const element = event.currentTarget;
+          const range = deletion(
+            element.value,
+            element.selectionStart,
+            element.selectionEnd,
+            event.key === "Backspace" ? "backward" : "forward",
+          );
+          if (range !== null) {
+            event.preventDefault();
+            element.value = element.value.slice(0, range.from) + element.value.slice(range.to);
+            element.setSelectionRange(range.from, range.from);
+            commit();
+            remember();
+            return;
+          }
+        }
+        if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && !event.shiftKey) {
+          const element = event.currentTarget;
+          if (element.selectionStart === element.selectionEnd) {
+            const at = arrow(
+              element.value,
+              element.selectionStart,
+              event.key === "ArrowLeft" ? -1 : 1,
+            );
+            if (at !== null) {
+              event.preventDefault();
+              element.setSelectionRange(at, at);
+              remember();
+              return;
+            }
+          }
         }
         column.current = null;
         if (event.key === "Escape") {
