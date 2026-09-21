@@ -1,12 +1,14 @@
 /**
  * La parte de arriba de la columna derecha: capas, páginas, recursos,
- * fuentes, variables o el código generado, con una pestaña para cada uno. El inspector va
+ * fuentes, variables, el lote o el código generado, con una pestaña para
+ * cada uno. El inspector va
  * siempre debajo.
  */
 import { Suspense, lazy, useState } from "react";
 
 import { AssetsPanel } from "./AssetsPanel";
 import { FontsPanel } from "./FontsPanel";
+import { BatchPanel } from "./BatchPanel";
 import { LayersPanel } from "./LayersPanel";
 import { PagesPanel } from "./PagesPanel";
 import { VariablesPanel } from "./VariablesPanel";
@@ -17,7 +19,7 @@ const CodePanel = lazy(() =>
   import("./CodePanel").then((module) => ({ default: module.CodePanel })),
 );
 
-type Tab = "layers" | "pages" | "assets" | "fonts" | "variables" | "code";
+type Tab = "layers" | "pages" | "assets" | "fonts" | "variables" | "batch" | "code";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "layers", label: "Capas" },
@@ -25,6 +27,7 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "assets", label: "Recursos" },
   { id: "fonts", label: "Fuentes" },
   { id: "variables", label: "Variables" },
+  { id: "batch", label: "Lote" },
   { id: "code", label: "Código" },
 ];
 
@@ -51,6 +54,7 @@ export function SidePanels() {
       {tab === "assets" && <AssetsPanel />}
       {tab === "fonts" && <FontsPanel />}
       {tab === "variables" && <VariablesPanel />}
+      {tab === "batch" && <BatchPanel />}
       {tab === "code" && (
         <Suspense fallback={<p className="code-notice">Cargando el código…</p>}>
           <CodePanel />
