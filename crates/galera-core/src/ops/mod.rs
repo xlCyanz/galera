@@ -25,13 +25,14 @@
 pub mod align;
 pub mod group;
 pub mod history;
+pub mod pages;
 mod text;
 
 use serde::{Deserialize, Serialize};
 
 use crate::layout::MmRect;
 use crate::model::text::{Format, TextError};
-use crate::model::{Document, Element, Line, Run, Stroke, TextStyle, is_valid_id};
+use crate::model::{Document, Element, Line, Page, Run, Stroke, TextStyle, is_valid_id};
 
 /// Un cambio del documento.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -241,6 +242,40 @@ pub enum Op {
         from: String,
         /// La clave nueva.
         to: String,
+    },
+
+    /// Mete una página en el documento, en `index` o al final.
+    ///
+    /// Es también lo que deshace [`Op::RemovePage`]: la misma página, con
+    /// sus elementos tal como estaban.
+    InsertPage {
+        /// Dónde va, contando desde 0; sin él, al final.
+        index: Option<usize>,
+        /// La página entera.
+        page: Page,
+    },
+
+    /// Quita una página con todo lo que lleva. La última no se puede quitar.
+    RemovePage {
+        /// La página, por su id.
+        id: String,
+    },
+
+    /// Copia una página detrás de la original, con ids nuevos para todo lo
+    /// que lleva dentro.
+    DuplicatePage {
+        /// La página que se copia.
+        id: String,
+        /// El id de la copia, que no puede tenerlo nadie más.
+        to: String,
+    },
+
+    /// Cambia una página de sitio.
+    ReorderPage {
+        /// La página, por su id.
+        id: String,
+        /// La posición nueva, contando desde 0.
+        index: usize,
     },
 
     /// Mete varios elementos de una página en un grupo nuevo.
@@ -500,6 +535,10 @@ impl Op {
             Op::RenameVariable { from, to } => format!("Renombrar la variable {from} a {to}"),
             Op::AddFont { path, .. } => format!("Añadir la fuente {}", file_name(path)),
             Op::RemoveFont { path } => format!("Quitar la fuente {}", file_name(path)),
+            Op::InsertPage { page, .. } => format!("Añadir la página {}", page.id),
+            Op::RemovePage { id } => format!("Quitar la página {id}"),
+            Op::DuplicatePage { id, .. } => format!("Duplicar la página {id}"),
+            Op::ReorderPage { id, .. } => format!("Mover la página {id}"),
             Op::Group { ids, .. } => format!("Agrupar {} elementos", ids.len()),
             Op::Ungroup { id } => format!("Desagrupar {id}"),
             Op::Batch { ops } => describe_batch(ops),
@@ -523,7 +562,11 @@ impl Op {
             | Op::Reorder { id, .. } => Some(id),
             Op::Create { element, .. } | Op::Restore { element } => Some(element.id()),
             Op::Group { id, .. } | Op::Ungroup { id } => Some(id),
-            Op::SetTitle { .. }
+            Op::InsertPage { .. }
+            | Op::RemovePage { .. }
+            | Op::DuplicatePage { .. }
+            | Op::ReorderPage { .. }
+            | Op::SetTitle { .. }
             | Op::SetVariable { .. }
             | Op::RemoveVariable { .. }
             | Op::RenameVariable { .. }
@@ -556,6 +599,14 @@ impl Op {
 
     fn apply_in_place(&self, document: &mut Document) -> Result<Op, OpError> {
         match self {
+            Op::InsertPage { index, page } => pages::apply_insert(document, *index, page),
+
+            Op::RemovePage { id } => pages::apply_remove(document, id),
+
+            Op::DuplicatePage { id, to } => pages::apply_duplicate(document, id, to),
+
+            Op::ReorderPage { id, index } => pages::apply_reorder(document, id, *index),
+
             Op::Group { ids, id, rect } => group::apply_group(document, ids, id, *rect),
 
             Op::Ungroup { id } => group::apply_ungroup(document, id),
