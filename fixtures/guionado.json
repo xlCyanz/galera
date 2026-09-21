@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "meta": {
+    "title": "Guionado"
+  },
+  "fonts": [
+    "fonts/Inter-Regular.ttf"
+  ],
+  "pages": [
+    {
+      "id": "p1",
+      "size": {
+        "width": 210,
+        "height": 297,
+        "unit": "mm"
+      },
+      "elements": [
+        {
+          "id": "columna",
+          "type": "text",
+          "x": 20,
+          "y": 20,
+          "w": 42,
+          "h": null,
+          "content": [
+            {
+              "text": "The internationalization of the cooperative's documentation requires extraordinarily comprehensive interdisciplinary collaboration between administrators, representatives and the telecommunications infrastructure responsible for distributing information. The internationalization of the cooperative's documentation requires extraordinarily comprehensive interdisciplinary collaboration between administrators, representatives and the telecommunications infrastructure responsible for distributing information."
+            }
+          ],
+          "style": {
+            "font": "Inter",
+            "size": 10,
+            "color": "#1F2733",
+            "align": "justify",
+            "leading": 0.65
+          }
+        }
+      ]
+    }
+  ]
+}

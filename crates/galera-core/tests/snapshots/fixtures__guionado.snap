@@ -1,0 +1,11 @@
+---
+source: crates/galera-core/tests/fixtures.rs
+expression: code
+---
+// Generado por Galera a partir de document.json.
+// No editar a mano: este archivo se reescribe entero en cada compilación.
+#set document(title: "Guionado")
+#set page(width: 210mm, height: 297mm, margin: 0pt)
+
+// p1
+#place(top + left, dx: 20mm, dy: 20mm)[#block(width: 42mm, { set text(font: "Inter", size: 10pt, fill: rgb("#1F2733")); set par(leading: 0.65em, justify: true); align(left)[The internationalization of the cooperative's documentation requires extraordinarily comprehensive interdisciplinary collaboration between administrators, representatives and the telecommunications infrastructure responsible for distributing information. The internationalization of the cooperative's documentation requires extraordinarily comprehensive interdisciplinary collaboration between administrators, representatives and the telecommunications infrastructure responsible for distributing information.] })] <el-columna>
