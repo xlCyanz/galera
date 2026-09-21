@@ -80,6 +80,7 @@ pub fn sample_document(font: &str, family: &str) -> Document {
         fonts: vec![font.to_owned()],
         assets: Default::default(),
         variables: Default::default(),
+        flows: Default::default(),
         pages: vec![Page {
             id: "muestra".to_owned(),
             size: PageSize {

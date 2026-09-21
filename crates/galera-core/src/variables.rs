@@ -83,6 +83,16 @@ pub fn rename_in(document: &mut Document, from: &str, to: &str) -> usize {
     for page in &mut document.pages {
         walk(&mut page.elements, &needle, &replacement, &mut changed);
     }
+
+    // El texto de un flujo no está en ningún elemento: lo lleva el flujo.
+    for flow in document.flows.values_mut() {
+        for run in &mut flow.content {
+            if run.text.contains(&needle) {
+                run.text = run.text.replace(&needle, &replacement);
+                changed += 1;
+            }
+        }
+    }
     changed
 }
 

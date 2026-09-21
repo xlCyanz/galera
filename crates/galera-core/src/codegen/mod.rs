@@ -57,6 +57,7 @@
 
 mod code;
 pub mod escape;
+mod flow;
 mod group;
 mod image;
 mod shapes;
@@ -353,6 +354,10 @@ fn emit_body(element: &Element, document: &Document, out: &mut String) -> Result
         Element::Image { base, asset } => image::emit_image(base, asset, document, out),
         Element::Code { base, source } => {
             code::emit_code(base, source, out);
+            Ok(())
+        }
+        Element::Flow { base, .. } => {
+            flow::emit_zone(base, out);
             Ok(())
         }
         Element::Group { base, children } => group::emit_group(base, children, document, out),

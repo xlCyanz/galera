@@ -32,9 +32,11 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+pub mod flow;
 pub mod text;
 pub mod validate;
 
+pub use flow::Flow;
 pub use validate::{
     Location, Problem, ValidationError, ValidationErrors, is_valid_color, is_valid_id,
     is_valid_link,
@@ -79,6 +81,17 @@ pub struct Document {
     #[serde(default)]
     pub variables: BTreeMap<String, Variable>,
 
+    /// Los textos que fluyen, de nombre a flujo.
+    ///
+    /// Cada uno lleva su contenido y la cadena de zonas por las que pasa
+    /// (ver [`flow`]). Las zonas son elementos [`Element::Flow`] de las
+    /// páginas, y pueden estar en páginas distintas.
+    ///
+    /// Un documento sin flujos no escribe el campo: los que ya existen
+    /// siguen guardándose igual que antes.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub flows: BTreeMap<String, Flow>,
+
     /// Páginas, en el orden en que se imprimen.
     #[serde(default)]
     pub pages: Vec<Page>,
@@ -113,6 +126,7 @@ impl Document {
                 title: title.into(),
             },
             fonts: Vec::new(),
+            flows: BTreeMap::new(),
             assets: Default::default(),
             variables: Default::default(),
             pages: vec![Page {
@@ -476,6 +490,19 @@ pub enum Element {
         source: String,
     },
 
+    /// Una zona de un texto que fluye.
+    ///
+    /// No lleva texto: lo lleva su flujo ([`Flow`]), que pasa por esta zona
+    /// y por las demás de su cadena, en orden. Aquí solo está **dónde** cabe
+    /// ese texto; cuánto entra lo decide Typst al componer (principio 3).
+    Flow {
+        /// Identidad, posición y tamaño.
+        #[serde(flatten)]
+        base: ElementBox,
+        /// A qué flujo pertenece: una clave de [`Document::flows`].
+        flow: String,
+    },
+
     /// Varios elementos tratados como uno.
     ///
     /// Su caja es la que los contiene a todos, y **sus hijos se colocan
@@ -510,6 +537,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Flow { base, .. }
             | Element::Group { base, .. } => &base.id,
             Element::Line { id, .. } => id,
         }
@@ -525,6 +553,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Flow { base, .. }
             | Element::Group { base, .. } => base.id = id,
             Element::Line { id: current, .. } => *current = id,
         }
@@ -539,6 +568,7 @@ impl Element {
             Element::Line { .. } => "line",
             Element::Image { .. } => "image",
             Element::Code { .. } => "code",
+            Element::Flow { .. } => "flow",
             Element::Group { .. } => "group",
         }
     }
@@ -553,6 +583,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Flow { base, .. }
             | Element::Group { base, .. } => (base.x, base.y),
             Element::Line { x, y, .. } => (*x, *y),
         }
@@ -566,6 +597,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Flow { base, .. }
             | Element::Group { base, .. } => &base.layer,
             Element::Line { layer, .. } => layer,
         }
@@ -579,6 +611,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Flow { base, .. }
             | Element::Group { base, .. } => &mut base.layer,
             Element::Line { layer, .. } => layer,
         }
@@ -592,6 +625,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Flow { base, .. }
             | Element::Group { base, .. } => base.rotation,
             Element::Line { rotation, .. } => *rotation,
         }
@@ -605,6 +639,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Flow { base, .. }
             | Element::Group { base, .. } => Some(base),
             Element::Line { .. } => None,
         }
@@ -618,6 +653,7 @@ impl Element {
             | Element::Ellipse { base, .. }
             | Element::Image { base, .. }
             | Element::Code { base, .. }
+            | Element::Flow { base, .. }
             | Element::Group { base, .. } => Some(base),
             Element::Line { .. } => None,
         }

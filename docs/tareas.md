@@ -13,9 +13,9 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 4 — Edición de texto de alta fidelidad](https://github.com/xlCyanz/galera/milestone/5) | 12 | 11 |
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 9 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 6 |
-| [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 0 |
+| [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 1 |
 | [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **78** |
+| **Total** | **95** | **79** |
 
 
 ---
@@ -187,7 +187,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 
 | Estado | Tarea | Issue | Depende de |
 |:--:|---|:--:|---|
-| ⬜ | **F7-01** — Modelo del elemento flow y enlace entre zonas | [#83](https://github.com/xlCyanz/galera/issues/83) | #2, #72 |
+| ✅ | **F7-01** — Modelo del elemento flow y enlace entre zonas | [#83](https://github.com/xlCyanz/galera/issues/83) | #2, #72 |
 | ⬜ | **F7-02** — Codegen del texto que fluye entre páginas | [#84](https://github.com/xlCyanz/galera/issues/84) | #83, #7 |
 | ⬜ | **F7-03** — Edición de texto dentro de un flow | [#85](https://github.com/xlCyanz/galera/issues/85) | #84, #61 |
 | ⬜ | **F7-04** — Modelo y codegen de tablas | [#86](https://github.com/xlCyanz/galera/issues/86) | #2, #5 |

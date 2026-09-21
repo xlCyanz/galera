@@ -33,7 +33,7 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 
 use crate::compile::cache::Compiler;
-use crate::model::{Document, Element, Page, Variable};
+use crate::model::{Document, Element, Flow, Page, Variable};
 use crate::project::Project;
 use crate::variables;
 
@@ -166,9 +166,11 @@ fn combined(
     let mut outcome = Outcome::default();
     let mut whole = document.clone();
     whole.pages.clear();
+    whole.flows.clear();
 
     for (index, row) in rows.iter().enumerate() {
         whole.pages.extend(pages_of(document, row));
+        whole.flows.extend(flows_of(document, row.number));
 
         if !progress(Progress {
             done: index + 1,
@@ -252,11 +254,32 @@ fn renamed(document: &Document, row: usize) -> Vec<Page> {
 /// Le pone al elemento —y a lo que lleve dentro— el número de su fila.
 fn mark(element: &mut Element, row: usize) {
     element.set_id(format!("{}-f{row}", element.id()));
-    if let Element::Group { children, .. } = element {
-        for child in children {
-            mark(child, row);
+    match element {
+        Element::Group { children, .. } => {
+            for child in children {
+                mark(child, row);
+            }
         }
+        // Una zona apunta a su flujo por el nombre, y los flujos también
+        // se copian por fila (ver [`flows_of`]).
+        Element::Flow { flow, .. } => *flow = format!("{flow}-f{row}"),
+        _ => {}
     }
+}
+
+/// Los flujos de una fila, con los nombres y las cadenas marcados igual que
+/// las páginas: en el PDF combinado, el texto de una fila no fluye hacia la
+/// zona de otra.
+fn flows_of(document: &Document, row: usize) -> Vec<(String, Flow)> {
+    document
+        .flows
+        .iter()
+        .map(|(name, flow)| {
+            let mut copy = flow.clone();
+            copy.zones = copy.zones.iter().map(|id| format!("{id}-f{row}")).collect();
+            (format!("{name}-f{row}"), copy)
+        })
+        .collect()
 }
 
 /// Compila a PDF y devuelve lo que salga, o por qué no salió.
@@ -505,6 +528,49 @@ mod tests {
     }
 
     /// El criterio de la tarea: cien filas.
+    /// En el PDF combinado, el texto de una fila no puede fluir hacia la
+    /// zona de otra: los flujos también se copian por fila.
+    #[test]
+    fn the_flows_of_a_row_are_its_own() {
+        let mut with_flow = document();
+        with_flow.flows.insert(
+            "cuerpo".to_owned(),
+            Flow {
+                content: Vec::new(),
+                style: crate::model::TextStyle {
+                    font: "Inter".to_owned(),
+                    size: 11.0,
+                    color: "#000000".to_owned(),
+                    align: Default::default(),
+                    leading: 0.65,
+                    spacing: None,
+                },
+                zones: vec!["z1".to_owned()],
+            },
+        );
+        with_flow.pages[0].elements.push(
+            serde_json::from_str(
+                r##"{ "id": "z1", "type": "flow", "x": 0, "y": 60, "w": 50, "h": 20,
+                      "flow": "cuerpo" }"##,
+            )
+            .expect("es un elemento"),
+        );
+
+        let flows = flows_of(&with_flow, 2);
+        assert_eq!(flows.len(), 1);
+        assert_eq!(flows[0].0, "cuerpo-f2");
+        assert_eq!(flows[0].1.zones, vec!["z1-f2"]);
+
+        // Y la zona de esa fila apunta al flujo de esa fila.
+        let pages = pages_of(&with_flow, &rows(&["Una"])[0]);
+        let zone = pages[0]
+            .elements
+            .iter()
+            .find(|element| element.id() == "z1-f1")
+            .expect("la zona está");
+        assert_eq!(crate::model::flow::flow_of(zone), Some("cuerpo-f1"));
+    }
+
     #[test]
     fn a_hundred_rows_come_out() {
         let dir = TempDir::new().expect("carpeta temporal");

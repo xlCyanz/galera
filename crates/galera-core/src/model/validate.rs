@@ -25,14 +25,14 @@
 //! como última línea de defensa. Una sola definición: validación y codegen no
 //! pueden discrepar.
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
 use crate::model::{
-    Document, Element, ElementBox, MAX_GROUP_DEPTH, MAX_LIST_LEVEL, Stroke, VariableKind,
+    Document, Element, ElementBox, MAX_GROUP_DEPTH, MAX_LIST_LEVEL, Stroke, VariableKind, flow,
 };
 use crate::variables;
 
@@ -65,6 +65,11 @@ pub enum Location {
         /// El nombre de la variable.
         name: String,
     },
+    /// En un texto que fluye, por su nombre.
+    Flow {
+        /// El nombre del flujo.
+        name: String,
+    },
 }
 
 impl fmt::Display for Location {
@@ -73,6 +78,7 @@ impl fmt::Display for Location {
             Location::Page { id } => write!(f, "página {id:?}"),
             Location::Element { id } => write!(f, "elemento {id:?}"),
             Location::Variable { name } => write!(f, "variable {name:?}"),
+            Location::Flow { name } => write!(f, "flujo {name:?}"),
         }
     }
 }
@@ -139,6 +145,35 @@ pub enum Problem {
         value: String,
     },
 
+    /// Una zona nombra un flujo que el documento no declara.
+    UnknownFlow {
+        /// El nombre que no se encontró.
+        name: String,
+    },
+    /// Una zona no está en la cadena del flujo que dice ser el suyo.
+    ZoneNotLinked {
+        /// El flujo que la zona dice que es el suyo.
+        flow: String,
+    },
+    /// Una cadena nombra una zona que no existe o que no es una zona.
+    UnknownZone {
+        /// El id que no se encontró.
+        id: String,
+    },
+    /// Una cadena nombra la misma zona dos veces: el texto volvería sobre
+    /// sí mismo.
+    RepeatedZone {
+        /// El id que se repite.
+        id: String,
+    },
+    /// Una cadena nombra una zona que pertenece a otro flujo.
+    ZoneOfAnotherFlow {
+        /// El id de la zona.
+        id: String,
+        /// El flujo al que dice pertenecer.
+        flow: String,
+    },
+
     /// Un color no tiene forma de color hexadecimal.
     InvalidColor {
         /// Qué color, como se llama en el JSON.
@@ -193,6 +228,27 @@ impl fmt::Display for Problem {
             Problem::InvalidLink { value } => write!(
                 f,
                 "el enlace {value:?} no vale: solo http://, https:// y mailto:"
+            ),
+            Problem::UnknownFlow { name } => write!(
+                f,
+                "es una zona del flujo {name:?}, que no está declarado en flows"
+            ),
+            Problem::ZoneNotLinked { flow } => write!(
+                f,
+                "dice ser una zona del flujo {flow:?}, pero su cadena no la lleva"
+            ),
+            Problem::UnknownZone { id } => {
+                write!(
+                    f,
+                    "su cadena nombra {id:?}, que no es una zona del documento"
+                )
+            }
+            Problem::RepeatedZone { id } => {
+                write!(f, "su cadena nombra {id:?} más de una vez")
+            }
+            Problem::ZoneOfAnotherFlow { id, flow } => write!(
+                f,
+                "su cadena nombra {id:?}, que es una zona del flujo {flow:?}"
             ),
             Problem::InvalidColor { field, value } => write!(
                 f,
@@ -434,7 +490,49 @@ impl Document {
                             report.push(at(), Problem::UnknownAsset { key: asset.clone() });
                         }
                     }
+                    Element::Flow { flow, .. } => {
+                        if !self.flows.contains_key(flow) {
+                            report.push(at(), Problem::UnknownFlow { name: flow.clone() });
+                        } else if flow::chain_with(&self.flows, element.id()) != Some(flow.as_str())
+                        {
+                            // Una zona que nadie enlaza es texto que no se
+                            // compone en ninguna parte: huérfana.
+                            report.push(at(), Problem::ZoneNotLinked { flow: flow.clone() });
+                        }
+                    }
                     Element::Code { .. } | Element::Group { .. } => {}
+                }
+            }
+        }
+
+        // Las cadenas de los flujos: cada una nombra zonas del documento,
+        // suyas, y cada una una sola vez. Una zona repetida sería texto que
+        // vuelve sobre sí mismo.
+        let zones: BTreeMap<&str, &str> = self
+            .elements()
+            .filter_map(|element| Some((element.id(), flow::flow_of(element)?)))
+            .collect();
+
+        for (name, one) in &self.flows {
+            let at = || Location::Flow { name: name.clone() };
+            report.positive("style.size", one.style.size, at);
+            report.color("style.color", &one.style.color, at);
+
+            let mut seen = HashSet::new();
+            for zone in &one.zones {
+                match zones.get(zone.as_str()) {
+                    None => report.push(at(), Problem::UnknownZone { id: zone.clone() }),
+                    Some(owner) if owner != name => report.push(
+                        at(),
+                        Problem::ZoneOfAnotherFlow {
+                            id: zone.clone(),
+                            flow: (*owner).to_owned(),
+                        },
+                    ),
+                    Some(_) => {}
+                }
+                if !seen.insert(zone.as_str()) {
+                    report.push(at(), Problem::RepeatedZone { id: zone.clone() });
                 }
             }
         }
@@ -463,6 +561,19 @@ impl Document {
             .collect();
 
         let mut report = Report::default();
+        // Un flujo también tiene su familia, y no está en ningún elemento:
+        // el texto lo lleva el flujo, no la zona.
+        for (name, one) in &self.flows {
+            if !available.contains(&one.style.font.to_lowercase()) {
+                report.push(
+                    Location::Flow { name: name.clone() },
+                    Problem::UnknownFontFamily {
+                        family: one.style.font.clone(),
+                    },
+                );
+            }
+        }
+
         for element in self.elements() {
             if let Element::Text { style, .. } = element
                 && !available.contains(&style.font.to_lowercase())
