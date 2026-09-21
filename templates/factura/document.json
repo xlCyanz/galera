@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "meta": { "title": "Factura" },
+  "fonts": ["fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf"],
+  "assets": {},
+  "variables": {
+    "empresa": { "kind": "text", "value": "Estudio Galera" },
+    "cliente": { "kind": "text", "value": "Cooperativa del Este" },
+    "numero": { "kind": "text", "value": "2026-014" },
+    "fecha": { "kind": "date", "value": "2026-09-21" },
+    "total": { "kind": "text", "value": "1.250,50" }
+  },
+  "pages": [
+    {
+      "id": "factura",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "banda", "type": "rect", "x": 0, "y": 0, "w": 210, "h": 38,
+          "fill": "#1F2733", "stroke": null },
+        { "id": "titulo", "type": "text", "x": 20, "y": 12, "w": 100, "h": null,
+          "content": [ { "text": "Factura" } ],
+          "style": { "font": "Inter", "size": 24, "color": "#FFFFFF" } },
+        { "id": "numero", "type": "text", "x": 120, "y": 16, "w": 70, "h": null,
+          "content": [ { "text": "Nº {{numero}}" } ],
+          "style": { "font": "Inter", "size": 12, "color": "#FFFFFF", "align": "right" } },
+
+        { "id": "emisor", "type": "text", "x": 20, "y": 52, "w": 80, "h": null,
+          "content": [
+            { "text": "De\n", "bold": true },
+            { "text": "{{empresa}}" }
+          ],
+          "style": { "font": "Inter", "size": 10, "color": "#1F2733", "leading": 0.7 } },
+        { "id": "receptor", "type": "text", "x": 110, "y": 52, "w": 80, "h": null,
+          "content": [
+            { "text": "Para\n", "bold": true },
+            { "text": "{{cliente}}" }
+          ],
+          "style": { "font": "Inter", "size": 10, "color": "#1F2733", "leading": 0.7 } },
+        { "id": "fecha", "type": "text", "x": 110, "y": 72, "w": 80, "h": null,
+          "content": [ { "text": "Fecha: {{fecha}}" } ],
+          "style": { "font": "Inter", "size": 10, "color": "#5B6472" } },
+
+        { "id": "conceptos", "type": "table", "x": 20, "y": 95, "w": 170, "h": null,
+          "columns": [
+            { "width": "fraction", "fr": 3 },
+            { "width": "fixed", "mm": 25 },
+            { "width": "fixed", "mm": 35 }
+          ],
+          "rows": [
+            { "fill": "#F1F5F9",
+              "cells": [
+                { "content": [ { "text": "Concepto", "bold": true } ] },
+                { "content": [ { "text": "Cantidad", "bold": true } ], "align": "right" },
+                { "content": [ { "text": "Importe", "bold": true } ], "align": "right" }
+              ] },
+            { "cells": [
+                { "content": [ { "text": "Diseño de la identidad" } ] },
+                { "content": [ { "text": "1" } ], "align": "right" },
+                { "content": [ { "text": "900,00 €" } ], "align": "right" }
+              ] },
+            { "cells": [
+                { "content": [ { "text": "Maquetación del catálogo" } ] },
+                { "content": [ { "text": "12" } ], "align": "right" },
+                { "content": [ { "text": "350,50 €" } ], "align": "right" }
+              ] },
+            { "cells": [
+                { "content": [ { "text": "Total", "bold": true } ], "colspan": 2, "align": "right" },
+                { "content": [ { "text": "{{total}} €", "bold": true } ], "align": "right",
+                  "fill": "#F1F5F9" }
+              ] }
+          ],
+          "style": { "font": "Inter", "size": 10, "color": "#1F2733", "leading": 0.65 },
+          "stroke": { "color": "#CBD5E1", "width": 0.2 },
+          "inset": 2.5 },
+
+        { "id": "aviso", "type": "text", "x": 20, "y": 265, "w": 170, "h": null,
+          "content": [ { "text": "Pago por transferencia a 30 días. Gracias por confiar en {{empresa}}." } ],
+          "style": { "font": "Inter", "size": 9, "color": "#5B6472" } }
+      ]
+    }
+  ]
+}

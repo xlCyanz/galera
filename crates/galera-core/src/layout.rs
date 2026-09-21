@@ -418,6 +418,13 @@ impl Extent {
 /// borde de abajo de un bloque medido: así un texto con el alto automático
 /// no se sale nunca, y lo que sobresale es de verdad una línea que no cabe
 /// y no el rabo de una «p».
+///
+/// Las rayas no se miden. Son lo que el compositor dibuja **en el borde** de
+/// lo que midió —las de una tabla, sin ir más lejos—, y las pone centradas
+/// en él, así que asoman medio trazo por fuera por definición. Contarlas
+/// haría que cualquier tabla con borde avisara de que se sale de su caja sin
+/// que le sobre una sola línea. Lo que dice que algo no cabe es el
+/// contenido: el texto, las imágenes y los bloques.
 fn content_bottom(frame: &Frame, offset: Point) -> Option<Abs> {
     let mut bottom: Option<Abs> = None;
     for (position, item) in frame.items() {
@@ -425,6 +432,7 @@ fn content_bottom(frame: &Frame, offset: Point) -> Option<Abs> {
         let found = match item {
             FrameItem::Group(group) => content_bottom(&group.frame, at),
             FrameItem::Text(_) => Some(at.y),
+            FrameItem::Shape(shape, _) if matches!(shape.geometry, Geometry::Line(_)) => None,
             FrameItem::Shape(shape, _) => Some(at.y + shape.geometry.bbox(None).max.y),
             FrameItem::Image(_, size, _) => Some(at.y + size.y),
             FrameItem::Link(..) | FrameItem::Tag(_) => None,
@@ -910,6 +918,19 @@ mod tests {
                 assert_eq!(layout_box.overflow, 0.0, "{name}: {layout_box:?}");
             }
         }
+    }
+
+    /// Una tabla con borde no se sale de su caja por las rayas que dibuja:
+    /// van centradas en el borde de lo que midió Typst, así que asoman medio
+    /// trazo por definición.
+    #[test]
+    fn the_rules_of_a_table_do_not_count_as_content_that_does_not_fit() {
+        let boxes = boxes_of(&fixture("tabla"));
+        assert!(
+            overflowing(&boxes).is_empty(),
+            "una tabla con borde avisa sin que le sobre nada: {:?}",
+            overflowing(&boxes)
+        );
     }
 
     /// El criterio de la tarea: lo que se sale sale también en el panel de

@@ -1,0 +1,5 @@
+{
+  "name": "Factura",
+  "description": "Cabecera con los datos de las dos partes y una tabla de conceptos con su total.",
+  "category": "negocio"
+}

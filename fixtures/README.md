@@ -46,6 +46,23 @@ Sin `cargo-insta`, `cargo test` deja los cambios en archivos `.snap.new` junto a
 3. `cargo insta test -p galera-core` y `cargo insta review` para crear su instantánea.
 4. Añadirlo a la tabla de arriba.
 
+## Los PDF de las plantillas
+
+`plantillas/` guarda el PDF que compone cada plantilla de `templates/`, uno
+por carpeta y con su mismo nombre. Están para **mirarlos**: qué enseña cada
+plantilla recién abierta, sin tener que abrir la aplicación.
+
+No se comparan byte a byte —dos compilaciones de Typst no dan el mismo
+archivo—, así que lo que protege a las plantillas es
+`crates/galera-core/tests/plantillas.rs`, que las abre, las compone y
+comprueba que no avisan de nada. Se rehacen con:
+
+```bash
+for t in boletin carta certificado credencial factura informe; do
+  cargo run -p galera-cli -- templates/$t -o fixtures/plantillas/$t.pdf
+done
+```
+
 ## Fuentes
 
 `fonts/` contiene **Inter 4.1**, las dos caras que declaran los fixtures:
