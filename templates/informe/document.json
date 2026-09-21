@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "meta": { "title": "Informe" },
+  "fonts": ["fonts/Inter-Regular.ttf"],
+  "assets": {},
+  "variables": {
+    "empresa": { "kind": "text", "value": "" },
+    "asunto": { "kind": "text", "value": "" },
+    "fecha": { "kind": "date", "value": "" }
+  },
+  "pages": [
+    {
+      "id": "portada",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "banda", "type": "rect", "x": 0, "y": 0, "w": 210, "h": 60,
+          "fill": "#1F2733", "stroke": null },
+        { "id": "titulo", "type": "text", "x": 20, "y": 20, "w": 170, "h": null,
+          "content": [ { "text": "{{asunto}}" } ],
+          "style": { "font": "Inter", "size": 28, "color": "#FFFFFF" } },
+        { "id": "empresa", "type": "text", "x": 20, "y": 80, "w": 170, "h": null,
+          "content": [ { "text": "{{empresa}}" } ],
+          "style": { "font": "Inter", "size": 16, "color": "#1F2733" } },
+        { "id": "fecha", "type": "text", "x": 20, "y": 265, "w": 170, "h": null,
+          "content": [ { "text": "Fecha: {{fecha}}" } ],
+          "style": { "font": "Inter", "size": 11, "color": "#1F2733" } }
+      ]
+    }
+  ]
+}

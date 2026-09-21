@@ -9,7 +9,7 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use galera_core::{ArchiveError, GaleraError, ImportFontError};
+use galera_core::{ArchiveError, GaleraError, ImportFontError, TemplateError};
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
@@ -50,6 +50,17 @@ pub enum CommandError {
     #[error(transparent)]
     Archive(#[from] ArchiveError),
 
+    /// No hay ninguna plantilla con ese nombre.
+    #[error("no hay ninguna plantilla que se llame {id:?}")]
+    TemplateNotFound {
+        /// La que se pidió.
+        id: String,
+    },
+
+    /// No se pudo empezar un documento desde una plantilla.
+    #[error(transparent)]
+    Template(#[from] TemplateError),
+
     /// No se pudo añadir una fuente al proyecto.
     #[error(transparent)]
     Font(#[from] ImportFontError),
@@ -88,6 +99,8 @@ impl CommandError {
             CommandError::NothingOpen => "nothing_open",
             CommandError::NotALocalPath => "not_a_local_path",
             CommandError::Archive(_) => "archive",
+            CommandError::TemplateNotFound { .. } => "template_not_found",
+            CommandError::Template(_) => "template",
             CommandError::Font(_) => "font",
             CommandError::FontInUse { .. } => "font_in_use",
             CommandError::Write { .. } => "write",

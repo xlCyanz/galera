@@ -466,6 +466,35 @@ export function variableStatus(name: string): Promise<VariableStatus> {
   return invoke<VariableStatus>("variable_status", { name });
 }
 
+/** Una plantilla de las que trae la aplicación, lista para enseñar. */
+export interface TemplateCard {
+  /** Su carpeta: `informe`. */
+  id: string;
+  /** Cómo se llama. */
+  name: string;
+  /** Una línea de qué es. */
+  description: string;
+  /** De qué grupo es, si lo dice. */
+  category?: string | null;
+  /** Su primera página compuesta por Typst, o `null` si no compone. */
+  preview: string | null;
+  /** Las variables que declara. */
+  variables: string[];
+}
+
+/** Las plantillas que trae la aplicación, con su vista previa. */
+export function templates(): Promise<TemplateCard[]> {
+  return invoke<TemplateCard[]>("templates");
+}
+
+/**
+ * Empieza un documento desde una plantilla: pregunta dónde guardarlo, copia
+ * la plantilla entera y abre la copia. `null` si se cancela.
+ */
+export function newFromTemplate(id: string, archive: boolean): Promise<OpenedProject | null> {
+  return invoke<OpenedProject | null>("new_from_template", { id, archive });
+}
+
 /** Un comando de edición aplicado, tal como lo devuelve `apply_op`. */
 export interface AppliedOp {
   /** La revisión con la que queda el documento; su compilación ya incluye el cambio. */

@@ -21,6 +21,7 @@ pub mod render;
 pub mod selection;
 pub mod session;
 pub mod snap;
+pub mod templates;
 pub mod text;
 pub mod variables;
 

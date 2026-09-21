@@ -119,6 +119,8 @@ pub fn run() -> tauri::Result<()> {
             commands::render::request_compilation,
             commands::selection::element_at,
             commands::selection::elements_in,
+            commands::templates::templates,
+            commands::templates::new_from_template,
             commands::variables::variable_status,
             commands::variables::variables_of,
             commands::code::generated_code,
