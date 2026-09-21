@@ -1431,3 +1431,39 @@ body {
   border-width: 1px;
   opacity: 0.5;
 }
+
+/* Alinear y repartir, arriba del inspector (`ui/AlignBar.tsx`). */
+.align-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.align-buttons {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.align-bar .tool-button {
+  width: 26px;
+  height: 26px;
+}
+
+.align-bar .tool-button svg rect {
+  fill: currentColor;
+  stroke: none;
+}
+
+.align-bar .tool-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.align-against {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  font-size: 0.75rem;
+}

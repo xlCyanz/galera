@@ -10,6 +10,7 @@
 //! [`undo`] y [`redo`] lo recorren (ver `galera_core::ops::history`).
 
 use galera_core::layout::MmRect;
+use galera_core::ops::align::{self, Alignment, Item, Spread};
 use galera_core::ops::group;
 use galera_core::{Document, Op};
 use serde::Serialize;
@@ -112,6 +113,154 @@ fn scale_group_in(
     let (_, document) = state.open_document().ok_or(CommandError::NothingOpen)?;
     let op = group::scale(&document, ids, from, to).map_err(galera_core::GaleraError::from)?;
     apply_in(state, &op, None)
+}
+
+/// Alinea varios elementos, respecto a la selección o a la página.
+///
+/// Con `to_page`, la línea a la que se alinea sale de la página que se ve;
+/// sin él, de la caja que contiene a todos los elementos. Las cuentas son
+/// del núcleo (`ops::align`), y todo entra como un solo paso del historial.
+///
+/// # Errores
+///
+/// [`CommandError::NothingOpen`] si no hay documento.
+#[tauri::command]
+pub async fn align_elements(
+    ids: Vec<String>,
+    how: Alignment,
+    to_page: bool,
+    state: State<'_, AppState>,
+    queue: State<'_, CompileQueue>,
+) -> Result<Option<AppliedOp>, CommandError> {
+    let applied = align_in(&state, &ids, how, to_page)?;
+    if applied.is_some() {
+        queue.request();
+    }
+    Ok(applied)
+}
+
+/// Reparte varios elementos con el mismo hueco entre ellos.
+///
+/// Con `to_page`, se reparten de borde a borde de la página; sin él, entre
+/// los dos que están más lejos, que no se mueven.
+///
+/// # Errores
+///
+/// [`CommandError::NothingOpen`] si no hay documento.
+#[tauri::command]
+pub async fn spread_elements(
+    ids: Vec<String>,
+    axis: Spread,
+    to_page: bool,
+    state: State<'_, AppState>,
+    queue: State<'_, CompileQueue>,
+) -> Result<Option<AppliedOp>, CommandError> {
+    let applied = spread_in(&state, &ids, axis, to_page)?;
+    if applied.is_some() {
+        queue.request();
+    }
+    Ok(applied)
+}
+
+/// La parte de [`align_elements`] que no depende de Tauri.
+fn align_in(
+    state: &AppState,
+    ids: &[String],
+    how: Alignment,
+    to_page: bool,
+) -> Result<Option<AppliedOp>, CommandError> {
+    let (items, page) = targets(state, ids)?;
+    apply_moves(state, align::align(&items, how, to_page.then_some(page)))
+}
+
+/// La parte de [`spread_elements`] que no depende de Tauri.
+fn spread_in(
+    state: &AppState,
+    ids: &[String],
+    axis: Spread,
+    to_page: bool,
+) -> Result<Option<AppliedOp>, CommandError> {
+    let (items, page) = targets(state, ids)?;
+    apply_moves(state, align::spread(&items, axis, to_page.then_some(page)))
+}
+
+/// Los elementos con la caja que se ve, y el rectángulo de su página.
+///
+/// Se usan las cajas de la última compilación buena, que es la que se está
+/// viendo: un texto de alto automático mide lo que midió Typst. Mientras no
+/// haya ninguna compilación se usa la que declara el documento, que es lo
+/// único que se sabe.
+fn targets(state: &AppState, ids: &[String]) -> Result<(Vec<Item>, MmRect), CommandError> {
+    let (_, document) = state.open_document().ok_or(CommandError::NothingOpen)?;
+    let boxes = state
+        .last_good_compilation()
+        .map(|compiled| compiled.layout())
+        .unwrap_or_default();
+
+    let items: Vec<Item> = ids
+        .iter()
+        .filter_map(|id| {
+            let measured = boxes.iter().find(|one| one.id == *id).map(|one| one.bounds);
+            let rect = measured.or_else(|| declared(&document, id))?;
+            Some(Item {
+                id: id.clone(),
+                rect,
+            })
+        })
+        .collect();
+
+    // La página de los elementos, o la primera si todavía no hay cajas.
+    let number = items
+        .first()
+        .and_then(|first| boxes.iter().find(|one| one.id == first.id))
+        .map_or(0, |found| found.page);
+    let size = document
+        .pages
+        .get(number)
+        .map(|page| MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: page.size.unit.to_millimeters(page.size.width),
+            h: page.size.unit.to_millimeters(page.size.height),
+        })
+        .unwrap_or(MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 0.0,
+            h: 0.0,
+        });
+    Ok((items, size))
+}
+
+/// La caja que declara el documento, para cuando todavía no hay
+/// compilación. Un alto automático cuenta como cero: es lo único que se
+/// sabe de él hasta que Typst lo mida.
+fn declared(document: &galera_core::Document, id: &str) -> Option<MmRect> {
+    let element = document.element(id)?;
+    if let galera_core::Element::Line { x, y, x2, y2, .. } = element {
+        return Some(MmRect {
+            x: x.min(*x2),
+            y: y.min(*y2),
+            w: (x2 - x).abs(),
+            h: (y2 - y).abs(),
+        });
+    }
+    let base = element.base()?;
+    Some(MmRect {
+        x: base.x,
+        y: base.y,
+        w: base.w,
+        h: base.h.unwrap_or(0.0),
+    })
+}
+
+/// Aplica el comando si mueve algo; si no, no toca el historial.
+fn apply_moves(state: &AppState, op: Op) -> Result<Option<AppliedOp>, CommandError> {
+    let empty = matches!(&op, Op::Batch { ops } if ops.is_empty());
+    if empty {
+        return Ok(None);
+    }
+    Ok(Some(apply_in(state, &op, None)?))
 }
 
 /// Deshace el último paso del historial y pide compilar. `null` si no hay
@@ -334,6 +483,88 @@ mod tests {
         };
         let error = scale_group_in(&AppState::default(), &["r1".to_owned()], rect, rect)
             .expect_err("no hay documento");
+        assert_eq!(error.kind(), "nothing_open");
+    }
+
+    /// El criterio de la tarea: alinear la selección con cajas conocidas.
+    #[test]
+    fn aligning_moves_the_elements_to_the_same_line() {
+        let state = opened();
+        // r1 (0,0 210×15) y t1 (20,30 170 de ancho): alineados a la
+        // izquierda, t1 se va a x = 0.
+        let applied = align_in(
+            &state,
+            &["r1".to_owned(), "t1".to_owned()],
+            Alignment::Left,
+            false,
+        )
+        .expect("se aplica")
+        .expect("mueve algo");
+        assert_eq!(applied.description, "Mover t1", "solo se mueve uno");
+        let text = applied
+            .document
+            .element("t1")
+            .and_then(|one| one.base())
+            .expect("caja");
+        assert_eq!(text.x, 0.0);
+    }
+
+    /// El criterio de la tarea: alinear respecto a la página.
+    #[test]
+    fn aligning_to_the_page_centres_on_the_paper() {
+        let state = opened();
+        // La imagen está en x = 20 y mide 80 de ancho: centrada en una
+        // página de 210 va a (210 - 80) / 2 = 65.
+        let applied = align_in(&state, &["i1".to_owned()], Alignment::CenterX, true)
+            .expect("se aplica")
+            .expect("mueve algo");
+        let image = applied
+            .document
+            .element("i1")
+            .and_then(|one| one.base())
+            .expect("caja");
+        assert_eq!(image.x, 65.0);
+
+        // Y el texto, que ya estaba centrado, no se mueve.
+        assert!(
+            align_in(&state, &["t1".to_owned()], Alignment::CenterX, true)
+                .expect("no falla")
+                .is_none()
+        );
+    }
+
+    /// El criterio de la tarea: cada operación es un solo paso.
+    #[test]
+    fn spreading_is_one_step_of_the_history() {
+        let state = opened();
+        let applied = spread_in(
+            &state,
+            &["r1".to_owned(), "t1".to_owned(), "i1".to_owned()],
+            Spread::Vertical,
+            false,
+        )
+        .expect("se aplica")
+        .expect("mueve algo");
+        assert_eq!(applied.revision, 2, "una sola revisión");
+    }
+
+    #[test]
+    fn aligning_what_is_already_in_place_changes_nothing() {
+        let state = opened();
+        let applied =
+            align_in(&state, &["r1".to_owned()], Alignment::Left, false).expect("no falla");
+        assert!(applied.is_none(), "ni un paso del historial");
+    }
+
+    #[test]
+    fn aligning_without_a_document_says_so() {
+        let error = align_in(
+            &AppState::default(),
+            &["r1".to_owned()],
+            Alignment::Left,
+            false,
+        )
+        .expect_err("no hay documento");
         assert_eq!(error.kind(), "nothing_open");
     }
 }

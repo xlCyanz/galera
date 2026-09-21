@@ -14,6 +14,8 @@
  * «Mixto» lo que no coincide; escribir un valor lo fija en todos, como un
  * solo paso del historial.
  *
+ * Arriba, alinear y repartir lo seleccionado (`AlignBar.tsx`).
+ *
  * Sin selección, enseña el título del documento (editable) y la página que
  * se ve: su id, su tamaño y cuántos elementos tiene.
  */
@@ -29,6 +31,7 @@ import {
 import { useElementBox, useLayoutStore } from "../store/layout";
 import type { LayoutBox } from "../types/layout";
 import type { Element, Page } from "../types/model";
+import { AlignBar } from "./AlignBar";
 import { CodeInspector } from "./CodeInspector";
 import { IdField } from "./IdField";
 import { MeasureField } from "./MeasureField";
@@ -106,6 +109,7 @@ function ElementInspector({ element, measured }: { element: Element; measured: R
       <h2>
         {ELEMENT_KIND[element.type]} <IdField id={element.id} />
       </h2>
+      <AlignBar />
       <div className="inspector-grid">
         {FIELDS.map(({ name, label, title, unit }) => {
           const field = fields[name];
@@ -163,6 +167,7 @@ function GroupInspector({
   return (
     <section>
       <h2>{elements.length} elementos</h2>
+      <AlignBar />
       <div className="inspector-grid">
         {FIELDS.map(({ name, label, title, unit }) => {
           const field = fields[name];
