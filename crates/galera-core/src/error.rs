@@ -90,7 +90,25 @@ pub enum GaleraError {
         /// Cuántas páginas tiene el documento.
         count: usize,
     },
+
+    /// Se pidió un PNG con una densidad que no vale.
+    #[error("{ppi} puntos por pulgada no vale: se admite entre {MIN_PPI} y {MAX_PPI}")]
+    BadDensity {
+        /// La densidad pedida.
+        ppi: f32,
+    },
+
+    /// El PNG no se pudo escribir.
+    #[error("no se pudo escribir el PNG: {0}")]
+    Png(String),
 }
+
+/// La densidad mínima que se admite para un PNG, en puntos por pulgada.
+pub const MIN_PPI: f32 = 24.0;
+
+/// La máxima. Por encima, una página A4 pasa de 100 megapíxeles y lo que
+/// sale no es una imagen sino una espera.
+pub const MAX_PPI: f32 = 1200.0;
 
 /// Un resultado del núcleo.
 pub type Result<T, E = GaleraError> = std::result::Result<T, E>;
@@ -108,6 +126,8 @@ impl GaleraError {
             GaleraError::World(_) => "world",
             GaleraError::Typst(_) => "typst",
             GaleraError::PageOutOfRange { .. } => "page_out_of_range",
+            GaleraError::BadDensity { .. } => "bad_density",
+            GaleraError::Png(_) => "png",
         }
     }
 }

@@ -1,12 +1,13 @@
 //! Herramienta de terminal de Galera.
 //!
-//! Convierte un documento de Galera en PDF o SVG usando `galera-core`, sin
-//! interfaz gráfica. Sirve para probar el núcleo de punta a punta y para
+//! Convierte un documento de Galera en PDF, SVG o PNG usando `galera-core`,
+//! sin interfaz gráfica. Sirve para probar el núcleo de punta a punta y para
 //! depurar el código Typst que genera el editor.
 //!
 //! ```text
 //! galera-cli fixtures/informe.json -o salida.pdf
 //! galera-cli fixtures/informe.json -o portada.svg --page 1
+//! galera-cli fixtures/informe.json -o portada.png --page 1 --ppi 300
 //! galera-cli fixtures/informe.json --emit-typst
 //! ```
 //!
@@ -36,6 +37,8 @@ enum Format {
     Pdf,
     /// Una sola página en SVG: lo mismo que muestra el lienzo del editor.
     Svg,
+    /// Una sola página en PNG, con la densidad de `--ppi`.
+    Png,
 }
 
 /// Convierte un documento de Galera en PDF o SVG.
@@ -64,16 +67,20 @@ struct Args {
     #[arg(short, long, value_enum)]
     format: Option<Format>,
 
-    /// Página que se exporta a SVG, empezando en 1.
+    /// Página que se exporta a SVG o a PNG, empezando en 1.
     ///
-    /// Solo tiene sentido con SVG: un PDF lleva siempre todas las páginas.
+    /// Solo tiene sentido con esos dos: un PDF lleva todas las páginas.
     #[arg(short, long, value_name = "N", value_parser = clap::value_parser!(u32).range(1..))]
     page: Option<u32>,
+
+    /// Densidad del PNG, en puntos por pulgada. 72 es el tamaño natural.
+    #[arg(long, value_name = "PPP", default_value_t = 300.0)]
+    ppi: f32,
 
     /// En vez de compilar, escribe el código Typst que genera Galera.
     ///
     /// Sirve para depurar: es exactamente lo que recibe el compilador.
-    #[arg(long, conflicts_with_all = ["format", "page"])]
+    #[arg(long, conflicts_with_all = ["format", "page", "ppi"])]
     emit_typst: bool,
 }
 
@@ -138,6 +145,7 @@ impl fmt::Display for CliError {
                 let example = match format {
                     Format::Pdf => "salida.pdf",
                     Format::Svg => "salida.svg",
+                    Format::Png => "salida.png",
                 };
                 write!(
                     f,
@@ -241,6 +249,24 @@ fn run(args: &Args) -> Result<(), CliError> {
             write_file(output, svg.as_bytes())?;
             eprintln!("{}: página {page}", output.display());
         }
+        Format::Png => {
+            let page = args.page.unwrap_or(1);
+            let png =
+                compiled
+                    .to_png(page as usize - 1, args.ppi)
+                    .map_err(|error| match error {
+                        GaleraError::PageOutOfRange { count, .. } => CliError::Compile {
+                            path: document_path.clone(),
+                            source: GaleraError::PageOutOfRange {
+                                page: page as usize,
+                                count,
+                            },
+                        },
+                        other => compile_error(other),
+                    })?;
+            write_file(output, &png)?;
+            eprintln!("{}: página {page} a {} ppp", output.display(), args.ppi);
+        }
     }
 
     Ok(())
@@ -285,6 +311,7 @@ fn format_from_extension(path: &Path) -> Option<Format> {
     match path.extension()?.to_str()?.to_ascii_lowercase().as_str() {
         "pdf" => Some(Format::Pdf),
         "svg" => Some(Format::Svg),
+        "png" => Some(Format::Png),
         _ => None,
     }
 }

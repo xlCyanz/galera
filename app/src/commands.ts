@@ -25,6 +25,7 @@ import type { Document, TextStyle } from "./types/model";
 import type { Op } from "./types/ops";
 import type { Alignment, Spread } from "./types/align";
 import type { Csv, Encoding, Mapping, Outcome, Progress, Row } from "./types/batch";
+import type { Format, Pages } from "./types/export";
 import type { CodeError } from "./types/code";
 import type { CodeSpan } from "./types/codegen";
 import type { Grips, Settings as SnapSettings, Snapped } from "./types/snap";
@@ -494,6 +495,25 @@ export function templates(): Promise<TemplateCard[]> {
  */
 export function newFromTemplate(id: string, archive: boolean): Promise<OpenedProject | null> {
   return invoke<OpenedProject | null>("new_from_template", { id, archive });
+}
+
+/** Lo que ha salido de una exportación, tal como lo devuelve `export_as`. */
+export interface ExportedFiles {
+  /** Los archivos escritos, en orden de página. */
+  paths: string[];
+  /** Cuánto ocupan entre todos, en bytes. */
+  bytes: number;
+}
+
+/**
+ * Exporta el documento abierto al formato y las páginas que se digan,
+ * preguntando dónde con el diálogo nativo. `null` si se cancela.
+ *
+ * Los formatos que van por página —SVG y PNG— dejan un archivo por página en
+ * una carpeta; el PDF y el `.typ`, uno solo.
+ */
+export function exportAs(format: Format, pages: Pages): Promise<ExportedFiles | null> {
+  return invoke<ExportedFiles | null>("export_as", { format, pages });
 }
 
 /** Un CSV leído, tal como lo devuelve `choose_csv`. */

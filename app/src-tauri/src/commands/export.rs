@@ -1,4 +1,4 @@
-//! Exportar el documento abierto a PDF.
+//! Exportar el documento abierto: PDF, SVG, PNG y el código `.typ`.
 //!
 //! # El mismo documento que se ve
 //!
@@ -16,11 +16,23 @@
 //! Primero se obtiene el PDF y después se pregunta dónde guardarlo. Si el
 //! documento no compila, se dice enseguida, sin hacer elegir un archivo para
 //! nada.
+//!
+//! # Los otros formatos
+//!
+//! [`export_as`] es lo mismo para los cuatro formatos y para las páginas que
+//! se pidan (ver `galera_core::export`). Los formatos que van por página
+//! —SVG y PNG— escriben un archivo por página en una carpeta que se elige;
+//! el PDF y el `.typ`, uno solo.
+//!
+//! Exportar todo sale de **la compilación que ya está** en el estado, que es
+//! la del lienzo (principio 2). Exportar un rango no puede: se recorta el
+//! documento y se compone lo recortado, que es lo que hay que entregar.
 
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use galera_core::export::{self, Format, Pages};
 use serde::Serialize;
 use tauri::{State, Window};
 use tauri_plugin_dialog::DialogExt;
@@ -81,6 +93,116 @@ pub async fn export_pdf(
     }))
 }
 
+/// Lo que ha salido de una exportación.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportedFiles {
+    /// Los archivos escritos, en orden de página.
+    pub paths: Vec<PathBuf>,
+    /// Cuánto ocupan entre todos, en bytes.
+    pub bytes: usize,
+}
+
+/// Exporta el documento abierto al formato y las páginas que se digan.
+///
+/// Devuelve `None` si se cancela el diálogo.
+///
+/// # Errores
+///
+/// - [`CommandError::NothingOpen`] si no hay proyecto abierto.
+/// - [`CommandError::DoesNotCompile`] si el documento no compila.
+/// - [`CommandError::Core`] si se pide una página que no existe o una
+///   densidad que no vale.
+/// - [`CommandError::Write`] si algún archivo no se puede escribir.
+#[tauri::command]
+pub async fn export_as(
+    format: Format,
+    pages: Pages,
+    window: Window,
+    state: State<'_, AppState>,
+) -> Result<Option<ExportedFiles>, CommandError> {
+    let summary = state.summary();
+    let stem = file_stem(summary.title.as_deref().unwrap_or(""));
+    let files = files_of(&state, format, pages)?;
+
+    let single = files.len() == 1 && !format.is_per_page();
+    let paths = if single {
+        let mut dialog = window
+            .dialog()
+            .file()
+            .set_title("Exportar")
+            .set_file_name(export::file_name(&stem, format, None))
+            .add_filter(format.extension().to_uppercase(), &[format.extension()])
+            .set_parent(&window);
+        if let Some(root) = &summary.root {
+            dialog = dialog.set_directory(root);
+        }
+        let Some(chosen) = dialog.blocking_save_file() else {
+            return Ok(None);
+        };
+        vec![
+            chosen
+                .into_path()
+                .map_err(|_| CommandError::NotALocalPath)?,
+        ]
+    } else {
+        let mut dialog = window
+            .dialog()
+            .file()
+            .set_title("Elegir la carpeta donde dejar los archivos")
+            .set_parent(&window);
+        if let Some(root) = &summary.root {
+            dialog = dialog.set_directory(root);
+        }
+        let Some(chosen) = dialog.blocking_pick_folder() else {
+            return Ok(None);
+        };
+        let dir = chosen
+            .into_path()
+            .map_err(|_| CommandError::NotALocalPath)?;
+        files
+            .iter()
+            .map(|file| dir.join(export::file_name(&stem, format, file.page)))
+            .collect()
+    };
+
+    let mut bytes = 0;
+    for (file, path) in files.iter().zip(&paths) {
+        write_file(path, &file.bytes)?;
+        bytes += file.bytes.len();
+    }
+    Ok(Some(ExportedFiles { paths, bytes }))
+}
+
+/// Los archivos de una exportación, sin escribir todavía.
+///
+/// Exportar el documento entero sale de la compilación que ya está en el
+/// estado, que es la del lienzo (principio 2). Un rango no puede salir de
+/// ahí: se recorta el documento y se compone lo recortado, y los archivos
+/// se nombran con la página que se pidió, no con la que quedó.
+fn files_of(
+    state: &AppState,
+    format: Format,
+    pages: Pages,
+) -> Result<Vec<export::Exported>, CommandError> {
+    let (project, document) = state.open_document().ok_or(CommandError::NothingOpen)?;
+    let indexes = pages.resolve(document.pages.len())?;
+
+    if pages == Pages::All {
+        let compilation = state.compilation().ok_or(CommandError::NothingOpen)?;
+        let compiled = compilation.result.map_err(CommandError::DoesNotCompile)?;
+        return Ok(export::export(&compiled, format, &indexes)?);
+    }
+
+    let cut = export::subset(&document, &indexes);
+    let compiled = galera_core::compile(&cut, &project)?;
+    let mut files = export::export(&compiled, format, &(0..indexes.len()).collect::<Vec<_>>())?;
+    for (file, index) in files.iter_mut().zip(&indexes) {
+        file.page = file.page.map(|_| index + 1);
+    }
+    Ok(files)
+}
+
 /// El PDF del documento abierto, de la compilación guardada para su
 /// revisión, o de una nueva si no hay.
 fn pdf_of_open_document(state: &AppState) -> Result<Vec<u8>, CommandError> {
@@ -112,6 +234,13 @@ pub fn default_file_name(title: &str) -> String {
     } else {
         format!("{name}.pdf")
     }
+}
+
+/// El nombre que proponen los demás formatos, sin extensión: el mismo de
+/// [`default_file_name`] sin el `.pdf`.
+pub fn file_stem(title: &str) -> String {
+    let name = default_file_name(title);
+    name.strip_suffix(".pdf").unwrap_or(&name).to_owned()
 }
 
 /// Escribe el archivo entero o no lo toca.
@@ -194,6 +323,90 @@ mod tests {
         assert!(!shown.reused);
         pdf_of_open_document(&state).expect("exporta");
         assert!(state.compilation().expect("hay documento").reused);
+    }
+
+    /// El informe de las fixtures con una página más, para probar rangos.
+    fn two_pages() -> (Project, Document) {
+        let (project, mut document) = informe();
+        let mut second = document.pages[0].clone();
+        second.id = "p2".to_owned();
+        // Los ids no se repiten en un documento, tampoco entre páginas.
+        for element in &mut second.elements {
+            let id = format!("{}b", element.id());
+            element.set_id(id);
+        }
+        document.pages.push(second);
+        (project, document)
+    }
+
+    /// El criterio de la tarea: SVG, PNG y `.typ` además del PDF.
+    #[test]
+    fn it_exports_the_four_formats() {
+        let (project, document) = two_pages();
+        let state = AppState::default();
+        state.open(project, document);
+
+        let pdf = files_of(&state, Format::Pdf, Pages::All).expect("exporta");
+        assert_eq!(pdf.len(), 1);
+        assert!(pdf[0].bytes.starts_with(b"%PDF-"));
+
+        let svg = files_of(&state, Format::Svg, Pages::All).expect("exporta");
+        assert_eq!(svg.len(), 2, "el informe tiene dos páginas");
+        assert!(svg[0].bytes.starts_with(b"<svg"));
+
+        let png = files_of(&state, Format::Png { ppi: 72.0 }, Pages::All).expect("exporta");
+        assert_eq!(png.len(), 2);
+        assert!(png[0].bytes.starts_with(b"\x89PNG"));
+
+        let typ = files_of(&state, Format::Typ, Pages::All).expect("exporta");
+        assert_eq!(typ.len(), 1);
+        let code = String::from_utf8(typ[0].bytes.clone()).expect("es texto");
+        assert!(code.contains("<el-t1>"), "{code}");
+    }
+
+    /// El criterio de la tarea: la página actual, un rango o todo.
+    #[test]
+    fn it_exports_only_the_pages_that_are_asked_for() {
+        let (project, document) = two_pages();
+        let state = AppState::default();
+        state.open(project, document);
+
+        let one = files_of(&state, Format::Svg, Pages::Only { page: 2 }).expect("exporta");
+        assert_eq!(one.len(), 1);
+        // Se nombra con la página que se pidió, no con la que quedó.
+        assert_eq!(one[0].page, Some(2));
+
+        let range =
+            files_of(&state, Format::Svg, Pages::Range { from: 1, to: 2 }).expect("exporta");
+        assert_eq!(range.len(), 2);
+        assert_eq!(range[1].page, Some(2));
+
+        // Un PDF de una página es un PDF de una página, no del documento.
+        let pdf = files_of(&state, Format::Pdf, Pages::Only { page: 2 }).expect("exporta");
+        assert_eq!(pdf.len(), 1);
+        assert!(pdf[0].bytes.starts_with(b"%PDF-"));
+        assert!(
+            pdf[0].bytes.len()
+                < files_of(&state, Format::Pdf, Pages::All).expect("exporta")[0]
+                    .bytes
+                    .len()
+        );
+    }
+
+    #[test]
+    fn a_page_that_is_not_there_says_so() {
+        let (project, document) = two_pages();
+        let state = AppState::default();
+        state.open(project, document);
+
+        let error = files_of(&state, Format::Svg, Pages::Only { page: 9 }).expect_err("no está");
+        assert_eq!(error.kind(), "page_out_of_range");
+    }
+
+    #[test]
+    fn the_name_of_the_files_comes_from_the_title() {
+        assert_eq!(file_stem("Informe anual"), "Informe anual");
+        assert_eq!(file_stem(""), "documento");
     }
 
     #[test]

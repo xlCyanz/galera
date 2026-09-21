@@ -109,6 +109,32 @@ fn assets_are_found_next_to_the_document_not_in_the_current_folder() {
     assert!(elsewhere.path().join("salida.pdf").exists());
 }
 
+/// El criterio de la tarea: PNG con la densidad que se pida.
+#[test]
+fn it_writes_a_png_with_the_density_that_is_asked_for() {
+    let dir = project();
+    let output = galera(
+        dir.path(),
+        &[
+            "document.json",
+            "-o",
+            "pagina.png",
+            "--page",
+            "1",
+            "--ppi",
+            "144",
+        ],
+    );
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let png = fs::read(dir.path().join("pagina.png")).expect("el PNG debe existir");
+    assert!(png.starts_with(b"\x89PNG"));
+    // La página 1 es A4: 210 mm a 144 ppp son 1191 píxeles de ancho, que van
+    // en el cabecero IHDR.
+    let width = u32::from_be_bytes([png[16], png[17], png[18], png[19]]);
+    assert_eq!(width, 1191);
+}
+
 /// El criterio de la tarea: `--format svg` y `--page N`.
 #[test]
 fn it_writes_an_svg_of_the_requested_page() {

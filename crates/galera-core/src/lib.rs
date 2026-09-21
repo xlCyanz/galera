@@ -47,6 +47,7 @@ pub mod code;
 pub mod codegen;
 pub mod compile;
 pub mod error;
+pub mod export;
 pub mod fonts;
 mod import;
 pub mod layout;
@@ -74,7 +75,8 @@ pub use code::{CodeError, check_code};
 pub use codegen::{escape, escape_into};
 pub use compile::cache::Compiler;
 pub use compile::{Compiled, compile, compile_pdf, compile_svg};
-pub use error::{Diagnostic, GaleraError, Result, Severity};
+pub use error::{Diagnostic, GaleraError, MAX_PPI, MIN_PPI, Result, Severity};
+pub use export::{Exported, Format, Pages, export, subset, typst_source};
 pub use fonts::{
     ImportFontError, ImportedFont, default_text_style, font_users, import_font, sample_document,
 };

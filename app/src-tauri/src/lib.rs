@@ -142,6 +142,7 @@ pub fn run() -> tauri::Result<()> {
             commands::ops::undo,
             commands::ops::redo,
             commands::export::export_pdf,
+            commands::export::export_as,
             commands::fonts::text_defaults,
             commands::fonts::add_font,
             commands::fonts::list_fonts,
