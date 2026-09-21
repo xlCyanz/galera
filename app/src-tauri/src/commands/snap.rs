@@ -181,10 +181,7 @@ mod tests {
         let target = box_of(&state, "i1");
         // La imagen va de 20 a 100; estirada hasta 103, su borde derecho
         // queda a 2 mm del centro de la página.
-        let moving = MmRect {
-            w: 83.0,
-            ..target
-        };
+        let moving = MmRect { w: 83.0, ..target };
         let grips = Grips {
             x: Grip::End,
             y: Grip::None,
