@@ -1375,3 +1375,39 @@ body {
   font: inherit;
   font-size: 12px;
 }
+
+/* Las guías del ajuste mientras se mueve o se redimensiona
+   (`canvas/Guides.tsx`). Van encima del SVG de Typst, nunca dentro. */
+.snap-guides {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.snap-guide line {
+  stroke: #e0218a;
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+/* Las de la página y las de los márgenes, más discretas. */
+.snap-guide.is-page line,
+.snap-guide.is-margin line {
+  stroke: #7b61ff;
+  stroke-dasharray: 4 3;
+}
+
+/* La distancia de un espaciado, al lado de su hueco. */
+.snap-distance {
+  fill: #e0218a;
+  font: 10px/1 system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}

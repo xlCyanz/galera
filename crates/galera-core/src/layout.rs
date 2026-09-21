@@ -56,7 +56,7 @@
 pub mod glyphs;
 pub mod hit;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use typst::introspection::{Location, Tag};
 use typst::layout::{Abs, Frame, FrameItem, Point, Size, Transform};
 use typst::visualize::Geometry;
@@ -72,7 +72,7 @@ const LABEL_PREFIX: &str = "el-";
 
 /// Un rectángulo en milímetros, con el origen arriba a la izquierda de la
 /// página.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "layout.ts"))]
 pub struct MmRect {
     /// Distancia desde el borde izquierdo.

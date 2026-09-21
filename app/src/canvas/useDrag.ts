@@ -12,6 +12,14 @@
  *
  * - Esc durante el arrastre lo cancela: no se manda nada.
  * - Shift fija el movimiento en horizontal o en vertical.
+ * - ⌘ desactiva el ajuste a las guías mientras se tenga pulsado.
+ *
+ * # El ajuste
+ *
+ * A dónde se engancha lo decide el núcleo (`useSnap.ts`). El elemento sigue
+ * al ratón sin esperar la respuesta; cuando llega, se suma al movimiento y
+ * salen las guías. Lo que se manda al soltar es lo que se estaba viendo,
+ * enganchado incluido.
  */
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
@@ -19,7 +27,11 @@ import { applyOp } from "../commands";
 import { useCompilationStore } from "../store/compilation";
 import { useDocumentStore } from "../store/document";
 import { useLayoutStore } from "../store/layout";
+import type { MmRect } from "../types/layout";
+import type { Guide } from "../types/snap";
 import { type Delta, dragDelta, isStill, roundMm } from "./dragGeometry";
+import { WHOLE, snapOff, snapSettings } from "./snapping";
+import { useSnap } from "./useSnap";
 
 export type DragState =
   | { phase: "idle" }
@@ -35,34 +47,72 @@ const idle: DragState = { phase: "idle" };
 
 export interface Drag {
   state: DragState;
+  /** Las guías del ajuste, mientras se arrastra. */
+  guides: Guide[];
   /** Empieza a arrastrar `id` desde ese punto de la pantalla. */
   start: (id: string, clientX: number, clientY: number) => void;
 }
 
-/** @param pxPerMm La escala del lienzo, o `null` si no hay página. */
-export function useDrag(pxPerMm: number | null): Drag {
+/**
+ * @param pxPerMm La escala del lienzo, o `null` si no hay página.
+ * @param page La página visible, contando desde 0.
+ */
+export function useDrag(pxPerMm: number | null, page: number): Drag {
   const [state, setState] = useState<DragState>(idle);
   const origin = useRef({ x: 0, y: 0 });
   const pointer = useRef({ x: 0, y: 0 });
   const shift = useRef(false);
+  const meta = useRef(false);
+  /** La caja del elemento al empezar: sobre ella se pregunta el ajuste. */
+  const from = useRef<MmRect | null>(null);
+  const snapping = useSnap();
+
+  /** Dónde tiene el ratón la caja, sin ajustar. */
+  const draggedTo = (delta: Delta): MmRect | null => {
+    const box = from.current;
+    return box === null ? null : { ...box, x: box.x + delta.dx, y: box.y + delta.dy };
+  };
+
+  // Lo que se ve: el movimiento del ratón más lo que haya enganchado.
+  const raw = state.phase === "idle" ? { dx: 0, dy: 0 } : state.delta;
+  const proposed = state.phase === "idle" ? null : draggedTo(raw);
+  const snapped = proposed === null ? null : snapping.at(proposed);
+  const delta: Delta =
+    snapped === null ? raw : { dx: raw.dx + snapped.dx, dy: raw.dy + snapped.dy };
 
   const update = useEffectEvent(() => {
     if (state.phase !== "dragging" || pxPerMm === null) {
       return;
     }
-    setState({ ...state, delta: dragDelta(origin.current, pointer.current, pxPerMm, shift.current) });
+    const moved = dragDelta(origin.current, pointer.current, pxPerMm, shift.current);
+    setState({ ...state, delta: moved });
+    const rect = draggedTo(moved);
+    if (meta.current || rect === null) {
+      // Con ⌘ no se ajusta: ni enganche ni guías.
+      snapping.clear();
+      return;
+    }
+    snapping.ask(page, state.id, rect, WHOLE, snapSettings(pxPerMm));
   });
+
+  const stop = () => {
+    snapping.clear();
+    setState(idle);
+  };
 
   const commit = useEffectEvent(() => {
     if (state.phase !== "dragging") {
       return;
     }
-    const { id, delta } = state;
+    const { id } = state;
     if (isStill(delta)) {
-      setState(idle);
+      stop();
       return;
     }
+    // Lo que se manda es lo que se veía, enganche incluido; a partir de
+    // aquí el ajuste ya no pinta nada y las guías se van.
     setState({ phase: "committing", id, delta, revision: null });
+    snapping.clear();
     applyOp({ op: "move", id, dx: roundMm(delta.dx), dy: roundMm(delta.dy) })
       .then((applied) => {
         useDocumentStore.getState().applyEdit(applied);
@@ -72,7 +122,7 @@ export function useDrag(pxPerMm: number | null): Drag {
             : current,
         );
       })
-      .catch(() => setState(idle));
+      .catch(() => stop());
   });
 
   // Mientras se arrastra, el puntero y las teclas se escuchan en la ventana:
@@ -85,15 +135,17 @@ export function useDrag(pxPerMm: number | null): Drag {
     const move = (event: PointerEvent) => {
       pointer.current = { x: event.clientX, y: event.clientY };
       shift.current = event.shiftKey;
+      meta.current = snapOff(event);
       update();
     };
     const up = () => commit();
     const key = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setState(idle);
-      } else if (event.key === "Shift") {
-        shift.current = event.type === "keydown";
+        stop();
+      } else if (event.key === "Shift" || event.key === "Meta") {
+        shift.current = event.shiftKey;
+        meta.current = snapOff(event);
         update();
       }
     };
@@ -122,16 +174,21 @@ export function useDrag(pxPerMm: number | null): Drag {
       (revision) => revision !== null && state.revision !== null && revision >= state.revision,
     );
     if (arrived) {
-      setState(idle);
+      stop();
     }
   }, [state, layoutRevision, compilation]);
 
   return {
-    state,
+    state: state.phase === "idle" ? state : { ...state, delta },
+    guides: snapped?.guides ?? [],
     start: (id, clientX, clientY) => {
       origin.current = { x: clientX, y: clientY };
       pointer.current = { x: clientX, y: clientY };
       shift.current = false;
+      meta.current = false;
+      // La caja que se ve, que es sobre la que se pregunta el ajuste.
+      from.current = useLayoutStore.getState().boxes[id]?.bounds ?? null;
+      snapping.clear();
       setState({ phase: "dragging", id, delta: { dx: 0, dy: 0 } });
     },
   };

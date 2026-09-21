@@ -18,6 +18,7 @@ pub mod recovery;
 pub mod render;
 pub mod selection;
 pub mod session;
+pub mod snap;
 pub mod text;
 
 pub use error::CommandError;

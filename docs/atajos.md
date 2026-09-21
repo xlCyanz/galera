@@ -102,6 +102,11 @@ teclas van al texto y no a las herramientas:
   dibuja, `Esc` cancela **ese gesto** y `⇧` lo restringe (proporción, ángulos
   de 45°, movimiento recto). No son atajos: son parte del gesto, y solo
   valen mientras dura.
+- **El ajuste a las guías.** Al mover y al redimensionar, el elemento se
+  engancha a los bordes y los centros de los demás, a los de la página y a
+  los espaciados que ya hay, y salen las guías con las distancias.
+  Mantener `⌘` (`Ctrl` fuera de macOS) lo desactiva mientras dure el gesto;
+  `⇧` y `⌥` al redimensionar también, porque entonces manda la forma.
 - **La barra espaciadora**, mantenida, deja desplazar la página arrastrando.
   Tampoco es un atajo: cuenta mientras está pulsada.
 
