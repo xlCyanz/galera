@@ -16,6 +16,7 @@ export const ELEMENT_KIND: Record<Element["type"], string> = {
   line: "Línea",
   image: "Imagen",
   code: "Código",
+  group: "Grupo",
 };
 
 /** Caracteres de un texto que caben en el nombre de su fila. */

@@ -119,11 +119,15 @@ export function defaultShape(kind: ShapeKind, at: Point): ShapeGeometry {
  */
 export function newElementId(document: Document, kind: string): string {
   const taken = new Set<string>();
+  const add = (element: Element) => {
+    taken.add(element.id);
+    if (element.type === "group") {
+      element.children.forEach(add);
+    }
+  };
   for (const page of document.pages) {
     taken.add(page.id);
-    for (const element of page.elements) {
-      taken.add(element.id);
-    }
+    page.elements.forEach(add);
   }
   for (let n = 1; ; n += 1) {
     const id = `${kind}-${n}`;

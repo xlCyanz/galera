@@ -60,6 +60,13 @@ export interface DocumentState {
    * que sabe de varios es el lienzo, el inspector y el panel de capas.
    */
   selection: string[];
+  /**
+   * El grupo en el que se ha entrado con doble clic, o `null`.
+   *
+   * Dentro de un grupo el clic coge a sus hijos en vez de al grupo entero,
+   * y se sale con Escape o pulsando fuera.
+   */
+  enteredGroup: string | null;
   /** Qué se desharía y rehacería ahora, según el backend: «Mover r1». */
   history: EditHistory;
   /** El `.galera` al que se guarda, o `null` si el proyecto es una carpeta. */
@@ -115,6 +122,8 @@ export interface DocumentState {
   clearHighlight: () => void;
   /** Selecciona un elemento y solo ese, o ninguno con `null`. */
   select: (id: string | null) => void;
+  /** Entra en un grupo, o sale del que estuviera con `null`. */
+  enterGroup: (id: string | null) => void;
   /** Selecciona varios: reemplaza lo que hubiera. */
   selectMany: (ids: readonly string[]) => void;
   /** Añade o quita uno de la selección: ⇧ + clic. */
@@ -141,6 +150,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   rulersVisible: true,
   highlightedElement: null,
   selection: [],
+  enteredGroup: null,
   history: noHistory,
   archive: null,
   dirty: false,
@@ -154,6 +164,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
       scroll: origin,
       highlightedElement: null,
       selection: [],
+      enteredGroup: null,
       history: noHistory,
       archive: opened.archive,
       dirty: false,
@@ -167,6 +178,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
       scroll: origin,
       highlightedElement: null,
       selection: [],
+      enteredGroup: null,
       history: noHistory,
       archive: null,
       dirty: false,
@@ -213,6 +225,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
         document,
         currentPage: clampPage(state.currentPage, document.pages.length),
         selection: state.selection.filter((id) => exists(id)),
+        enteredGroup: exists(state.enteredGroup) ? state.enteredGroup : null,
         highlightedElement: exists(state.highlightedElement) ? state.highlightedElement : null,
       };
     }),
@@ -240,7 +253,14 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
 
   clearHighlight: () => set({ highlightedElement: null }),
 
-  select: (id) => set({ selection: id === null ? [] : [id] }),
+  select: (id) =>
+    set((state) => ({
+      selection: id === null ? [] : [id],
+      // Al seleccionar algo de fuera del grupo, se sale de él.
+      enteredGroup: id === null || !inside(state, state.enteredGroup, id) ? null : state.enteredGroup,
+    })),
+
+  enterGroup: (id) => set({ enteredGroup: id }),
 
   selectMany: (ids) => set({ selection: [...ids] }),
 
@@ -251,6 +271,17 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
         : [...state.selection, id],
     })),
 }));
+
+/** Si `id` es hijo del grupo `group` en el documento abierto. */
+function inside(state: DocumentState, group: string | null, id: string): boolean {
+  if (group === null) {
+    return false;
+  }
+  const found = state.document?.pages
+    .flatMap((page) => page.elements)
+    .find((element) => element.id === group);
+  return found?.type === "group" && found.children.some((child) => child.id === id);
+}
 
 /** Un zoom dentro de los límites. */
 export function clampZoom(zoom: number): number {
@@ -291,6 +322,8 @@ export const useRulersVisible = () => useDocumentStore((state) => state.rulersVi
  */
 export const useSelectedElement = () =>
   useDocumentStore((state) => (state.selection.length === 1 ? (state.selection[0] ?? null) : null));
+/** El grupo en el que se ha entrado, si se ha entrado en alguno. */
+export const useEnteredGroup = () => useDocumentStore((state) => state.enteredGroup);
 /** Todos los elementos seleccionados. */
 export const useSelection = () => useDocumentStore((state) => state.selection);
 /** El elemento resaltado. */

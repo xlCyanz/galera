@@ -22,6 +22,7 @@ const FIXTURES: &[&str] = &[
     "elipse",
     "escape",
     "formato",
+    "grupos",
     "guionado",
     "imagen",
     "informe",

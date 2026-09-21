@@ -31,7 +31,17 @@ use std::fmt;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
-use crate::model::{Document, Element, ElementBox, MAX_LIST_LEVEL, Stroke};
+use crate::model::{Document, Element, ElementBox, MAX_GROUP_DEPTH, MAX_LIST_LEVEL, Stroke};
+
+/// El elemento y todo lo que lleva dentro, con a qué profundidad está cada
+/// uno: 0 el de la página, 1 el hijo de un grupo, y así.
+fn nested(element: &Element, depth: usize) -> Vec<(&Element, usize)> {
+    let mut all = vec![(element, depth)];
+    for child in element.children() {
+        all.extend(nested(child, depth + 1));
+    }
+    all
+}
 
 /// Dónde está el problema.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -102,6 +112,11 @@ pub enum Problem {
         /// El nivel que se pidió.
         level: u8,
     },
+    /// Un grupo se anida dentro de otro más de lo que se admite.
+    GroupTooDeep {
+        /// La profundidad a la que estaba el elemento.
+        depth: usize,
+    },
     /// Un enlace no lleva a la web ni al correo.
     InvalidLink {
         /// El destino tal como está en el JSON.
@@ -145,6 +160,10 @@ impl fmt::Display for Problem {
             Problem::ListTooDeep { level } => write!(
                 f,
                 "una lista no se puede anidar hasta el nivel {level}: el máximo es {MAX_LIST_LEVEL}"
+            ),
+            Problem::GroupTooDeep { depth } => write!(
+                f,
+                "un grupo no se puede anidar hasta el nivel {depth}: el máximo es {MAX_GROUP_DEPTH}"
             ),
             Problem::InvalidLink { value } => write!(
                 f,
@@ -293,12 +312,18 @@ impl Document {
             report.positive("size.width", page.size.width, at_page);
             report.positive("size.height", page.size.height, at_page);
 
-            for element in &page.elements {
+            // Los grupos cuentan también por dentro: un hijo con un id
+            // repetido o una medida imposible es igual de inválido.
+            for (element, depth) in page.elements.iter().flat_map(|element| nested(element, 0)) {
                 let at = || Location::Element {
                     id: element.id().to_owned(),
                 };
 
                 report.check_id(element.id(), &mut seen_ids, at);
+
+                if depth > MAX_GROUP_DEPTH {
+                    report.push(at(), Problem::GroupTooDeep { depth });
+                }
 
                 if let Some(base) = element.base() {
                     report.check_box(base, at);
@@ -371,7 +396,7 @@ impl Document {
                             report.push(at(), Problem::UnknownAsset { key: asset.clone() });
                         }
                     }
-                    Element::Code { .. } => {}
+                    Element::Code { .. } | Element::Group { .. } => {}
                 }
             }
         }
@@ -400,7 +425,7 @@ impl Document {
             .collect();
 
         let mut report = Report::default();
-        for element in self.pages.iter().flat_map(|page| &page.elements) {
+        for element in self.elements() {
             if let Element::Text { style, .. } = element
                 && !available.contains(&style.font.to_lowercase())
             {

@@ -1,4 +1,4 @@
-//! Cambiar varios elementos a la vez.
+//! Cambiar varios elementos a la vez, y meterlos y sacarlos de un grupo.
 //!
 //! Con varios elementos seleccionados, el lienzo enseña **una sola caja**:
 //! la que los contiene a todos. Moverla los mueve a todos y estirarla los
@@ -26,7 +26,7 @@
 //!   girar y se queda con el giro que tenía.
 
 use crate::layout::MmRect;
-use crate::model::{Document, Element};
+use crate::model::{Document, Element, ElementBox, Layer, is_valid_id};
 use crate::ops::{Op, OpError};
 
 /// Desde cuánto una medida cuenta como cero, en mm.
@@ -98,6 +98,251 @@ pub fn scale(document: &Document, ids: &[String], from: MmRect, to: MmRect) -> R
 /// mueve.
 fn factor(from: f64, to: f64) -> f64 {
     if from.abs() < TINY { 1.0 } else { to / from }
+}
+
+/// Mete los elementos en un grupo nuevo con la caja `rect`.
+///
+/// Devuelve el comando que lo deshace: uno que quita el grupo y vuelve a
+/// poner cada elemento donde estaba, **tal como estaba**, sin recalcular
+/// nada.
+///
+/// # Errores
+///
+/// - [`OpError::ElementNotFound`] si algún id no está en el documento.
+/// - [`OpError::DuplicateId`] si el id del grupo ya lo usa alguien, o
+///   [`OpError::InvalidId`] si no vale para el código generado.
+/// - [`OpError::NotApplicable`] si no hay al menos dos elementos, si están
+///   en páginas distintas o si alguno está dentro de otro grupo.
+pub(super) fn apply_group(
+    document: &mut Document,
+    ids: &[String],
+    id: &str,
+    rect: MmRect,
+) -> Result<Op, OpError> {
+    if !is_valid_id(id) {
+        return Err(OpError::InvalidId { id: id.to_owned() });
+    }
+    if document.element(id).is_some() || document.pages.iter().any(|page| page.id == id) {
+        return Err(OpError::DuplicateId { id: id.to_owned() });
+    }
+    if ids.len() < 2 {
+        return Err(not_applicable(
+            id,
+            "Agrupar",
+            "hacen falta al menos dos elementos",
+        ));
+    }
+
+    // Todos en la misma página y en su primer nivel: un hijo de otro grupo
+    // no se puede sacar de donde está sin mover lo demás.
+    let mut page = None;
+    let mut positions = Vec::with_capacity(ids.len());
+    for one in ids {
+        let (at_page, index) = top_level(document, one)?;
+        if *page.get_or_insert(at_page) != at_page {
+            return Err(not_applicable(id, "Agrupar", "están en páginas distintas"));
+        }
+        positions.push(index);
+    }
+    let page = page.unwrap_or_default();
+
+    // El grupo se queda en la capa del que estaba más arriba, y los hijos
+    // conservan su orden.
+    let mut ordered = positions.clone();
+    ordered.sort_unstable();
+    let top = ordered.last().copied().unwrap_or_default();
+
+    // Cómo estaba todo, para el comando que lo deshace.
+    let before: Vec<(usize, Element)> = ordered
+        .iter()
+        .map(|index| (*index, document.pages[page].elements[*index].clone()))
+        .collect();
+
+    let mut children: Vec<Element> = ordered
+        .iter()
+        .map(|index| document.pages[page].elements[*index].clone())
+        .collect();
+    for child in &mut children {
+        offset(child, -rect.x, -rect.y);
+    }
+
+    // Se quitan de atrás adelante para que los índices sigan valiendo.
+    for index in ordered.iter().rev() {
+        document.pages[page].elements.remove(*index);
+    }
+    let at = top + 1 - ids.len();
+    document.pages[page].elements.insert(
+        at,
+        Element::Group {
+            base: ElementBox {
+                id: id.to_owned(),
+                x: rect.x,
+                y: rect.y,
+                w: rect.w,
+                h: Some(rect.h),
+                rotation: 0.0,
+                layer: Layer::default(),
+            },
+            children,
+        },
+    );
+
+    Ok(restore(document, page, id, before))
+}
+
+/// Saca los hijos de un grupo y lo quita.
+///
+/// # Errores
+///
+/// - [`OpError::ElementNotFound`] si no hay ningún elemento con ese id.
+/// - [`OpError::NotApplicable`] si no es un grupo o está dentro de otro.
+pub(super) fn apply_ungroup(document: &mut Document, id: &str) -> Result<Op, OpError> {
+    let (page, index) = top_level(document, id)?;
+    let Element::Group { base, children } = document.pages[page].elements[index].clone() else {
+        return Err(not_applicable(id, "Desagrupar", "no es un grupo"));
+    };
+
+    let mut freed = children;
+    for child in &mut freed {
+        offset(child, base.x, base.y);
+        if base.rotation != 0.0 {
+            turn(child, &base);
+        }
+    }
+
+    let before = vec![(index, document.pages[page].elements[index].clone())];
+    document.pages[page].elements.remove(index);
+    let ids: Vec<String> = freed.iter().map(|child| child.id().to_owned()).collect();
+    for (offset_index, child) in freed.into_iter().enumerate() {
+        document.pages[page]
+            .elements
+            .insert(index + offset_index, child);
+    }
+
+    Ok(restore_many(document, page, &ids, before))
+}
+
+/// Mueve un elemento `dx`, `dy` milímetros, sea del tipo que sea.
+fn offset(element: &mut Element, dx: f64, dy: f64) {
+    match element {
+        Element::Line { x, y, x2, y2, .. } => {
+            *x += dx;
+            *y += dy;
+            *x2 += dx;
+            *y2 += dy;
+        }
+        other => {
+            if let Some(base) = other.base_mut() {
+                base.x += dx;
+                base.y += dy;
+            }
+        }
+    }
+}
+
+/// Aplica a un hijo el giro que llevaba su grupo: gira su centro alrededor
+/// del centro del grupo y le suma el ángulo.
+///
+/// Girar la caja de un elemento es girarla sobre su propio centro, así que
+/// esto es exacto mientras se sepa dónde está ese centro. Con un alto
+/// automático no se sabe hasta componer, y entonces se gira su esquina: el
+/// elemento puede quedar desplazado, que es lo que pasa al desagrupar un
+/// grupo girado con un texto de alto automático dentro.
+fn turn(element: &mut Element, group: &ElementBox) {
+    let (cx, cy) = (
+        group.x + group.w / 2.0,
+        group.y + group.h.unwrap_or(0.0) / 2.0,
+    );
+    let (sin, cos) = group.rotation.to_radians().sin_cos();
+    let around = |x: f64, y: f64| {
+        let (dx, dy) = (x - cx, y - cy);
+        (cx + dx * cos - dy * sin, cy + dx * sin + dy * cos)
+    };
+
+    match element {
+        Element::Line {
+            x,
+            y,
+            x2,
+            y2,
+            rotation,
+            ..
+        } => {
+            (*x, *y) = around(*x, *y);
+            (*x2, *y2) = around(*x2, *y2);
+            *rotation += group.rotation;
+        }
+        other => {
+            let Some(base) = other.base_mut() else {
+                return;
+            };
+            let (half_w, half_h) = (base.w / 2.0, base.h.unwrap_or(0.0) / 2.0);
+            let (center_x, center_y) = around(base.x + half_w, base.y + half_h);
+            base.x = center_x - half_w;
+            base.y = center_y - half_h;
+            base.rotation += group.rotation;
+        }
+    }
+}
+
+/// El elemento en el primer nivel de una página: su página y su posición.
+fn top_level(document: &Document, id: &str) -> Result<(usize, usize), OpError> {
+    document
+        .pages
+        .iter()
+        .enumerate()
+        .find_map(|(page, content)| {
+            content
+                .elements
+                .iter()
+                .position(|element| element.id() == id)
+                .map(|index| (page, index))
+        })
+        .ok_or_else(|| {
+            if document.element(id).is_some() {
+                not_applicable(id, "Agrupar", "está dentro de otro grupo")
+            } else {
+                OpError::ElementNotFound { id: id.to_owned() }
+            }
+        })
+}
+
+/// El comando que quita `id` y vuelve a poner los elementos como estaban.
+fn restore(document: &Document, page: usize, id: &str, before: Vec<(usize, Element)>) -> Op {
+    restore_many(document, page, &[id.to_owned()], before)
+}
+
+/// El comando que quita esos elementos y vuelve a poner los de `before`.
+///
+/// No recalcula nada: guarda una copia exacta de lo que había, así que
+/// deshacer deja el documento como estaba hasta el último decimal.
+fn restore_many(
+    document: &Document,
+    page: usize,
+    ids: &[String],
+    before: Vec<(usize, Element)>,
+) -> Op {
+    let mut ops: Vec<Op> = ids.iter().map(|id| Op::Delete { id: id.clone() }).collect();
+    let name = document
+        .pages
+        .get(page)
+        .map(|one| one.id.clone())
+        .unwrap_or_default();
+    ops.extend(before.into_iter().map(|(index, element)| Op::Create {
+        page: name.clone(),
+        index: Some(index),
+        element,
+    }));
+    Op::Batch { ops }
+}
+
+/// Un comando que no se puede aplicar a esto.
+fn not_applicable(id: &str, what: &str, why: &str) -> OpError {
+    OpError::NotApplicable {
+        id: id.to_owned(),
+        kind: "group",
+        what: format!("{what}: {why}"),
+    }
 }
 
 #[cfg(test)]

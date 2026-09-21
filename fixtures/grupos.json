@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "meta": { "title": "Grupos" },
+  "fonts": ["fonts/Inter-Regular.ttf"],
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "tarjeta", "type": "group", "x": 20, "y": 30, "w": 170, "h": 80,
+          "name": "Tarjeta",
+          "children": [
+            { "id": "marco", "type": "rect", "x": 0, "y": 0, "w": 170, "h": 80,
+              "fill": "#f1f5f9", "stroke": { "color": "#1F2733", "width": 0.5 }, "radius": 4 },
+            { "id": "titulo", "type": "text", "x": 10, "y": 10, "w": 150, "h": null,
+              "content": [ { "text": "Informe anual" } ],
+              "style": { "font": "Inter", "size": 18, "color": "#1F2733" } },
+            { "id": "firma", "type": "group", "x": 10, "y": 45, "w": 90, "h": 25,
+              "name": "Firma",
+              "children": [
+                { "id": "raya", "type": "line", "x": 0, "y": 0, "x2": 90, "y2": 0,
+                  "stroke": { "color": "#1F2733", "width": 0.25 } },
+                { "id": "nombre", "type": "text", "x": 0, "y": 3, "w": 90, "h": null,
+                  "content": [ { "text": "Johan Sierra" } ],
+                  "style": { "font": "Inter", "size": 10, "color": "#1F2733" } }
+              ] }
+          ] },
+        { "id": "sello", "type": "group", "x": 150, "y": 200, "w": 40, "h": 40,
+          "rotation": 15,
+          "children": [
+            { "id": "circulo", "type": "ellipse", "x": 0, "y": 0, "w": 40, "h": 40,
+              "fill": null, "stroke": { "color": "#16a34a", "width": 1 } },
+            { "id": "visto", "type": "text", "x": 6, "y": 14, "w": 28, "h": null,
+              "content": [ { "text": "Visto" } ],
+              "style": { "font": "Inter", "size": 12, "color": "#16a34a", "align": "center" } }
+          ] }
+      ]
+    }
+  ]
+}

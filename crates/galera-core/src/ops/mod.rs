@@ -28,6 +28,7 @@ mod text;
 
 use serde::{Deserialize, Serialize};
 
+use crate::layout::MmRect;
 use crate::model::text::{Format, TextError};
 use crate::model::{Document, Element, Line, Run, Stroke, TextStyle, is_valid_id};
 
@@ -239,6 +240,32 @@ pub enum Op {
         from: String,
         /// La clave nueva.
         to: String,
+    },
+
+    /// Mete varios elementos de una página en un grupo nuevo.
+    ///
+    /// `rect` es la caja que tendrá el grupo, en mm: la que los contiene a
+    /// todos, que es la que enseña el lienzo. Las posiciones de los hijos
+    /// pasan a contarse desde esa esquina, así que **no se mueve nada de
+    /// sitio**. El grupo queda en la capa del elemento que estaba más
+    /// arriba.
+    ///
+    /// Solo con elementos de la misma página y que no estén ya dentro de
+    /// otro grupo.
+    Group {
+        /// Los elementos, por su id.
+        ids: Vec<String>,
+        /// El id del grupo nuevo, que no puede tenerlo nadie más.
+        id: String,
+        /// La caja del grupo, en mm.
+        rect: MmRect,
+    },
+
+    /// Deshace un grupo: sus hijos vuelven a la página, en su sitio y en su
+    /// capa.
+    Ungroup {
+        /// El grupo, por su id.
+        id: String,
     },
 
     /// Varios comandos como uno solo: se aplican en orden y se deshacen
@@ -472,6 +499,8 @@ impl Op {
             Op::RenameVariable { from, to } => format!("Renombrar la variable {from} a {to}"),
             Op::AddFont { path, .. } => format!("Añadir la fuente {}", file_name(path)),
             Op::RemoveFont { path } => format!("Quitar la fuente {}", file_name(path)),
+            Op::Group { ids, .. } => format!("Agrupar {} elementos", ids.len()),
+            Op::Ungroup { id } => format!("Desagrupar {id}"),
             Op::Batch { ops } => describe_batch(ops),
         }
     }
@@ -492,6 +521,7 @@ impl Op {
             | Op::Rename { id, .. }
             | Op::Reorder { id, .. } => Some(id),
             Op::Create { element, .. } | Op::Restore { element } => Some(element.id()),
+            Op::Group { id, .. } | Op::Ungroup { id } => Some(id),
             Op::SetTitle { .. }
             | Op::SetVariable { .. }
             | Op::RemoveVariable { .. }
@@ -525,6 +555,10 @@ impl Op {
 
     fn apply_in_place(&self, document: &mut Document) -> Result<Op, OpError> {
         match self {
+            Op::Group { ids, id, rect } => group::apply_group(document, ids, id, *rect),
+
+            Op::Ungroup { id } => group::apply_ungroup(document, id),
+
             Op::Batch { ops } => {
                 let mut undos = Vec::with_capacity(ops.len());
                 for op in ops {
@@ -669,9 +703,12 @@ impl Op {
             }
 
             Op::Restore { element } => {
-                let (page, index) = locate(document, element.id())?;
-                let previous =
-                    std::mem::replace(&mut document.pages[page].elements[index], element.clone());
+                // Vale también dentro de un grupo, como `edit`.
+                let target =
+                    find_mut(document, element.id()).ok_or_else(|| OpError::ElementNotFound {
+                        id: element.id().to_owned(),
+                    })?;
+                let previous = std::mem::replace(target, element.clone());
                 Ok(Op::Restore { element: previous })
             }
 
@@ -836,19 +873,59 @@ fn check_asset_key(document: &Document, key: &str) -> Result<(), OpError> {
 
 /// Cambia un elemento en su sitio y devuelve el [`Op::Restore`] con cómo
 /// estaba. Si `change` falla, el elemento queda como estaba.
+///
+/// Vale también para un elemento **dentro de un grupo**: se busca por todo
+/// el árbol, así que entrar en un grupo y mover o escribir en un hijo es un
+/// comando como cualquier otro.
 fn edit(
     document: &mut Document,
     id: &str,
     change: impl FnOnce(&mut Element) -> Result<(), OpError>,
 ) -> Result<Op, OpError> {
-    let (page, index) = locate(document, id)?;
-    let element = &mut document.pages[page].elements[index];
+    let element =
+        find_mut(document, id).ok_or_else(|| OpError::ElementNotFound { id: id.to_owned() })?;
     let previous = element.clone();
     if let Err(error) = change(element) {
         *element = previous;
         return Err(error);
     }
     Ok(Op::Restore { element: previous })
+}
+
+/// Por dónde se llega a un elemento: su página y, dentro de ella, el índice
+/// en cada nivel de grupos.
+fn path_of(document: &Document, id: &str) -> Option<(usize, Vec<usize>)> {
+    fn inside(elements: &[Element], id: &str) -> Option<Vec<usize>> {
+        for (index, element) in elements.iter().enumerate() {
+            if element.id() == id {
+                return Some(vec![index]);
+            }
+            if let Some(mut deeper) = inside(element.children(), id) {
+                deeper.insert(0, index);
+                return Some(deeper);
+            }
+        }
+        None
+    }
+    document
+        .pages
+        .iter()
+        .enumerate()
+        .find_map(|(page, content)| inside(&content.elements, id).map(|path| (page, path)))
+}
+
+/// El elemento al que lleva ese camino, para cambiarlo.
+fn find_mut<'a>(document: &'a mut Document, id: &str) -> Option<&'a mut Element> {
+    let (page, path) = path_of(document, id)?;
+    let (first, rest) = path.split_first()?;
+    let mut element = document.pages.get_mut(page)?.elements.get_mut(*first)?;
+    for index in rest {
+        element = match element {
+            Element::Group { children, .. } => children.get_mut(*index)?,
+            _ => return None,
+        };
+    }
+    Some(element)
 }
 
 /// En qué página y en qué posición está un elemento.

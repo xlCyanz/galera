@@ -36,6 +36,13 @@ export const ELEMENT_ICONS: Record<Element["type"], ReactNode> = {
   line: TOOL_ICONS.line,
   image: TOOL_ICONS.image,
   code: TOOL_ICONS.code,
+  // Un grupo: dos cajas que se solapan.
+  group: (
+    <>
+      <rect x="3" y="3" width="9" height="9" rx="1" />
+      <rect x="8" y="8" width="9" height="9" rx="1" />
+    </>
+  ),
 };
 
 /** Los iconos de los controles de cada capa. */

@@ -57,11 +57,13 @@
 
 mod code;
 pub mod escape;
+mod group;
 mod image;
 mod shapes;
 mod text;
 
 pub use escape::{escape, escape_into};
+pub(crate) use group::GROUP_PREFIX;
 
 use crate::model::{Document, Element, Page, PageSize, is_valid_color, is_valid_id};
 
@@ -223,7 +225,10 @@ fn emit_page(
 }
 
 /// Emite un elemento: su cuerpo, su rotación, su posición y su etiqueta.
-fn emit_element(
+///
+/// Las coordenadas de un elemento se cuentan desde la esquina de lo que lo
+/// contiene: la página, o el bloque de su grupo.
+pub(super) fn emit_element(
     element: &Element,
     document: &Document,
     out: &mut String,
@@ -294,6 +299,7 @@ fn emit_body(element: &Element, document: &Document, out: &mut String) -> Result
             code::emit_code(base, source, out);
             Ok(())
         }
+        Element::Group { base, children } => group::emit_group(base, children, document, out),
     }
 }
 

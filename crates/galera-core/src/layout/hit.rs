@@ -30,21 +30,31 @@
 use std::collections::HashSet;
 
 use super::{LayoutBox, MmRect};
-use crate::model::Document;
+use crate::model::{Document, Element};
 
 /// Las cajas que se pueden acertar con el ratón: todas menos las de los
 /// elementos que `document` tiene bloqueados.
 ///
 /// Se mira el documento actual, no el que se compiló: bloquear no cambia
 /// nada que dibuje Typst, así que vale en cuanto se bloquea.
+///
+/// Un grupo bloqueado bloquea también lo que lleva dentro: si no se puede
+/// coger el grupo, tampoco entrar en él.
 pub fn selectable(boxes: Vec<LayoutBox>, document: &Document) -> Vec<LayoutBox> {
-    let locked: HashSet<&str> = document
-        .pages
-        .iter()
-        .flat_map(|page| &page.elements)
-        .filter(|element| element.layer().is_locked())
-        .map(|element| element.id())
-        .collect();
+    fn lock<'a>(element: &'a Element, inherited: bool, locked: &mut HashSet<&'a str>) {
+        let closed = inherited || element.layer().is_locked();
+        if closed {
+            locked.insert(element.id());
+        }
+        for child in element.children() {
+            lock(child, closed, locked);
+        }
+    }
+
+    let mut locked: HashSet<&str> = HashSet::new();
+    for element in document.pages.iter().flat_map(|page| &page.elements) {
+        lock(element, false, &mut locked);
+    }
     if locked.is_empty() {
         return boxes;
     }
@@ -480,5 +490,55 @@ mod tests {
             .map(|found| found.id.as_str())
             .collect();
         assert_eq!(taken, vec!["a"]);
+    }
+
+    /// El criterio de la tarea: el clic coge el grupo, y pidiendo
+    /// atravesar se entra a lo que lleva dentro.
+    #[test]
+    fn a_click_takes_the_group_and_going_through_enters_it() {
+        // El layout devuelve los hijos antes que su grupo, que es lo que
+        // deja al grupo arriba del todo.
+        let boxes = [
+            rect("hijo1", 10.0, 10.0, 20.0, 20.0),
+            rect("hijo2", 40.0, 10.0, 20.0, 20.0),
+            rect("grupo", 10.0, 10.0, 50.0, 20.0),
+        ];
+
+        assert_eq!(at(&boxes, 15.0, 15.0), Some("grupo"));
+        // Atravesando el grupo se llega al hijo que hay bajo el puntero.
+        assert_eq!(
+            element_at(&boxes, 0, 15.0, 15.0, 0.0, Some("grupo")).map(|one| one.id.as_str()),
+            Some("hijo1")
+        );
+        assert_eq!(
+            element_at(&boxes, 0, 45.0, 15.0, 0.0, Some("grupo")).map(|one| one.id.as_str()),
+            Some("hijo2")
+        );
+    }
+
+    /// Un grupo bloqueado no se coge, y tampoco lo que lleva dentro.
+    #[test]
+    fn a_locked_group_keeps_its_children_out_of_reach() {
+        let document = crate::Document::from_json_str(
+            r##"{
+              "version": 1,
+              "meta": { "title": "x" },
+              "pages": [ { "id": "p1", "size": { "width": 210, "height": 297 }, "elements": [
+                { "id": "grupo", "type": "group", "x": 10, "y": 10, "w": 50, "h": 20,
+                  "locked": true, "children": [
+                  { "id": "hijo1", "type": "rect", "x": 0, "y": 0, "w": 20, "h": 20,
+                    "fill": "#000000" }
+                ] }
+              ] } ]
+            }"##,
+        )
+        .expect("es un documento");
+        let boxes = vec![
+            rect("hijo1", 10.0, 10.0, 20.0, 20.0),
+            rect("grupo", 10.0, 10.0, 50.0, 20.0),
+        ];
+
+        let open = selectable(boxes, &document);
+        assert!(open.is_empty(), "ni el grupo ni su hijo: {open:#?}");
     }
 }

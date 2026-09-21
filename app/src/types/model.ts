@@ -369,6 +369,56 @@ hidden?: boolean,
  * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
  * el panel de capas.
  */
+locked?: boolean, } | { "type": "group", 
+/**
+ * Lo que lleva dentro, **en orden de capas** y en coordenadas
+ * relativas a la esquina del grupo.
+ */
+children: Array<Element>, 
+/**
+ * Identificador único dentro del documento.
+ *
+ * Es también la etiqueta `<el-ID>` que el codegen deja en el código
+ * Typst para poder encontrar el elemento en el layout compilado.
+ */
+id: string, 
+/**
+ * Distancia desde el borde izquierdo de la página, en milímetros.
+ */
+x: number, 
+/**
+ * Distancia desde el borde superior de la página, en milímetros.
+ */
+y: number, 
+/**
+ * Ancho, en milímetros.
+ */
+w: number, 
+/**
+ * Alto en milímetros, o `None` para que lo mida Typst.
+ *
+ * La altura automática es lo normal en textos e imágenes: lo que ocupan
+ * depende de la composición, y solo Typst la conoce (principio 3).
+ */
+h: number | null, 
+/**
+ * Rotación en grados, en sentido horario, alrededor del centro.
+ */
+rotation: number, 
+/**
+ * Nombre que se enseña en el panel en vez del que se deduce del
+ * elemento.
+ */
+name?: string, 
+/**
+ * Si está oculto: no se emite en el código Typst, así que ni se dibuja
+ * ni se exporta.
+ */
+hidden?: boolean, 
+/**
+ * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
+ * el panel de capas.
+ */
 locked?: boolean, };
 
 /**
