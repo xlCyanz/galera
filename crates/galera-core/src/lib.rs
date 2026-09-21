@@ -76,7 +76,7 @@ pub use open::{DOCUMENT_FILE, OpenError, Opened, open};
 pub use ops::history::History;
 pub use ops::{Applied, Op, OpError, Property};
 pub use project::{AccessError, Project, ProjectError};
-pub use snap::{Guide, GuideKind, SNAP_PX, Snapped, neighbours, snap};
+pub use snap::{Grip, Grips, Guide, GuideKind, SNAP_PX, Snapped, neighbours, snap};
 pub use world::{GaleraWorld, WorldError};
 
 /// Versión del formato de documento que entiende este núcleo.

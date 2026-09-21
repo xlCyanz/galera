@@ -20,9 +20,10 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 import type { Diagnostic } from "./types/diagnostic";
-import type { Glyph, LayoutBox } from "./types/layout";
+import type { Glyph, LayoutBox, MmRect } from "./types/layout";
 import type { Document, TextStyle } from "./types/model";
 import type { Op } from "./types/ops";
+import type { Grips, Settings as SnapSettings, Snapped } from "./types/snap";
 
 /**
  * El estado de la sesión, tal como lo devuelve `session_status`.
@@ -309,6 +310,28 @@ export function elementAt(
   below: string | null,
 ): Promise<string | null> {
   return invoke<string | null>("element_at", { page, x, y, tolerance, below });
+}
+
+/**
+ * A dónde se engancha la caja que se está moviendo o redimensionando, y qué
+ * guías dibujar mientras tanto. Lo decide el núcleo (`galera_core::snap`)
+ * con la última compilación buena, la que se ve.
+ *
+ * `rect` es dónde la tiene el ratón ahora mismo, en mm de la página;
+ * `grips` dice qué se está moviendo en cada eje (la caja entera al
+ * arrastrar, un borde al redimensionar). `dx` y `dy` de la respuesta son
+ * cuánto hay que correr **eso que se agarra**, no siempre la caja entera.
+ *
+ * Sale todo a cero y sin guías si todavía no hay nada compilado.
+ */
+export function snapTo(
+  page: number,
+  id: string,
+  rect: MmRect,
+  grips: Grips,
+  settings: SnapSettings,
+): Promise<Snapped> {
+  return invoke<Snapped>("snap", { page, id, rect, grips, settings });
 }
 
 /** Un comando de edición aplicado, tal como lo devuelve `apply_op`. */

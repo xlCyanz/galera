@@ -26,6 +26,10 @@
  * campo invisible (`text/HiddenInput.tsx`) y cada cambio es un comando.
  * Escape o pulsar en el lienzo salen.
  *
+ * Al mover o redimensionar salen las guías de alineación (`Guides.tsx`),
+ * con las distancias entre elementos. Lo que se engancha y dónde van las
+ * guías lo decide el núcleo; ⌘ desactiva el ajuste mientras dure el gesto.
+ *
  * Un elemento bloqueado no se acierta con el clic (lo decide el núcleo); si
  * se selecciona desde el panel de capas, su contorno se ve pero no se
  * agarra, y las flechas no lo mueven.
@@ -58,6 +62,7 @@ import { ControlLayer } from "./ControlLayer";
 import { CreatePreview } from "./CreatePreview";
 import { DragGhost } from "./DragGhost";
 import { ElementHighlight } from "./ElementHighlight";
+import { Guides } from "./Guides";
 import { OverflowNotice } from "./OverflowNotice";
 import { type ImageLoader, PageSvg } from "./PageSvg";
 import { Rulers } from "./Rulers";
@@ -137,7 +142,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   // que declara el documento.
   const found = document === null || highlighted === null ? null : findElement(document, highlighted);
   const measured = useElementBox(highlighted);
-  const drag = useDrag(transform?.pxPerMm ?? null);
+  const drag = useDrag(transform?.pxPerMm ?? null, currentPage);
   const text = useTextEditing(transform, currentPage);
   // ⌘B, ⌘I y ⌘U sobre lo que haya seleccionado del texto.
   useTextFormat();
@@ -145,7 +150,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const onSelect = useSelection(transform, currentPage, drag.start);
   // La imagen que enseña la hoja, para la copia que se arrastra.
   const [shownUrl, setShownUrl] = useState<string | null>(null);
-  const resize = useResize(transform?.pxPerMm ?? null);
+  const resize = useResize(transform?.pxPerMm ?? null, currentPage);
   const resized =
     resize.state.phase !== "idle" && selectedBox !== null && resize.state.id === selectedBox.id
       ? resize.state
@@ -158,6 +163,8 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
       ? rotate.state
       : null;
   const dragged = drag.state.phase === "idle" ? null : drag.state;
+  // Las guías del gesto que haya en marcha, mover o redimensionar.
+  const guides = drag.guides.length > 0 ? drag.guides : resize.guides;
   const dragOffset =
     dragged !== null && selectedBox !== null && dragged.id === selectedBox.id
       ? dragged.delta
@@ -327,6 +334,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
                     })}
               />
             )}
+          {transform !== null && <Guides guides={guides} transform={transform} />}
           {selectedBox !== null && selectedBox.page === currentPage && transform !== null && (
             <ControlLayer
               box={{

@@ -25,6 +25,14 @@
 //! son píxeles de pantalla, y se convierten a milímetros con el zoom
 //! ([`Settings::scale`]).
 //!
+//! # Mover y redimensionar
+//!
+//! Al arrastrar se agarra la caja entera: se ajustan sus dos bordes y su
+//! centro, y engancharse la mueve sin cambiarle el tamaño. Al redimensionar
+//! se agarra solo el borde del manejador, que es el único que se está
+//! moviendo: engancharlo cambia el tamaño, y el borde de enfrente se queda
+//! donde está. Eso es [`Grips`], uno por eje.
+//!
 //! # Cómo se elige
 //!
 //! Primero se busca, en cada eje por separado, el desplazamiento más pequeño
@@ -80,6 +88,43 @@ impl Settings {
     }
 }
 
+/// Qué parte del elemento se está moviendo en un eje.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "snap.ts"))]
+#[serde(rename_all = "lowercase")]
+pub enum Grip {
+    /// La caja entera: se ajustan sus dos bordes y su centro, y engancharse
+    /// la mueve sin cambiarle el tamaño. Es lo que pasa al arrastrar.
+    Whole,
+    /// Solo el borde de menos —el izquierdo, o el de arriba—: engancharlo
+    /// cambia el tamaño y deja el de enfrente donde está.
+    Start,
+    /// Solo el borde de más: el derecho, o el de abajo.
+    End,
+    /// Nada: en este eje no se ajusta. Un manejador lateral no toca el otro.
+    None,
+}
+
+/// Qué se agarra en cada eje.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "snap.ts"))]
+pub struct Grips {
+    /// En el eje horizontal.
+    pub x: Grip,
+    /// En el eje vertical.
+    pub y: Grip,
+}
+
+impl Grips {
+    /// Lo que se agarra al arrastrar: la caja entera en los dos ejes.
+    pub fn whole() -> Self {
+        Grips {
+            x: Grip::Whole,
+            y: Grip::Whole,
+        }
+    }
+}
+
 /// De dónde sale una guía.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "snap.ts"))]
@@ -112,20 +157,25 @@ pub struct Guide {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[cfg_attr(test, derive(ts_rs::TS), ts(export, export_to = "snap.ts"))]
 pub struct Snapped {
-    /// Cuánto hay que correrlo hacia la derecha, en mm. 0 si no engancha.
+    /// Cuánto hay que correr lo que se agarra hacia la derecha, en mm. 0 si
+    /// no engancha.
     pub dx: f64,
     /// Cuánto hay que correrlo hacia abajo, en mm. 0 si no engancha.
     pub dy: f64,
+    /// La caja ya ajustada. Al arrastrar es la de antes corrida `dx` y
+    /// `dy`; al redimensionar, la que deja el borde enganchado en su sitio.
+    pub rect: MmRect,
     /// Las guías que justifican ese desplazamiento.
     pub guides: Vec<Guide>,
 }
 
 impl Snapped {
     /// Sin ajuste: el elemento se queda donde lo dejó el ratón.
-    fn none() -> Self {
+    pub fn none(moving: MmRect) -> Self {
         Snapped {
             dx: 0.0,
             dy: 0.0,
+            rect: moving,
             guides: Vec::new(),
         }
     }
@@ -143,14 +193,25 @@ pub fn neighbours(boxes: &[LayoutBox], page: usize, moving: &str) -> Vec<MmRect>
         .collect()
 }
 
-/// A dónde se ajusta `moving`, que es dónde lo ha dejado el ratón.
+/// A dónde se ajusta `moving`, que es la caja donde la ha dejado el ratón.
 ///
 /// `others` son las cajas de los demás elementos de la página
-/// ([`neighbours`]), y `page` el tamaño del papel.
-pub fn snap(moving: MmRect, others: &[MmRect], page: &PageSize, settings: &Settings) -> Snapped {
+/// ([`neighbours`]), `page` el tamaño del papel y `grips` qué se está
+/// moviendo: la caja entera al arrastrar ([`Grips::whole`]), o el borde del
+/// manejador al redimensionar.
+///
+/// `dx` y `dy` son cuánto hay que correr eso que se agarra, no siempre la
+/// caja entera: con [`Grip::End`] en x, `dx` es lo que crece el ancho.
+pub fn snap(
+    moving: MmRect,
+    others: &[MmRect],
+    page: &PageSize,
+    settings: &Settings,
+    grips: Grips,
+) -> Snapped {
     let tolerance = settings.tolerance();
     if tolerance <= 0.0 {
-        return Snapped::none();
+        return Snapped::none(moving);
     }
     let paper = MmRect {
         x: 0.0,
@@ -159,19 +220,39 @@ pub fn snap(moving: MmRect, others: &[MmRect], page: &PageSize, settings: &Setti
         h: page.unit.to_millimeters(page.height),
     };
 
-    let dx = delta(Axis::X, moving, others, paper, settings.margin, tolerance);
-    let dy = delta(Axis::Y, moving, others, paper, settings.margin, tolerance);
-    let moved = MmRect {
-        x: moving.x + dx,
-        y: moving.y + dy,
-        ..moving
-    };
+    let dx = delta(
+        Axis::X,
+        moving,
+        others,
+        paper,
+        settings.margin,
+        tolerance,
+        grips.x,
+    );
+    let dy = delta(
+        Axis::Y,
+        moving,
+        others,
+        paper,
+        settings.margin,
+        tolerance,
+        grips.y,
+    );
+    let moved = place(moving, grips, dx, dy);
 
-    let mut found = guides(Axis::X, moved, others, paper, settings.margin);
-    found.extend(guides(Axis::Y, moved, others, paper, settings.margin));
+    let mut found = guides(Axis::X, moved, others, paper, settings.margin, grips.x);
+    found.extend(guides(
+        Axis::Y,
+        moved,
+        others,
+        paper,
+        settings.margin,
+        grips.y,
+    ));
     Snapped {
         dx,
         dy,
+        rect: moved,
         guides: dedupe(found),
     }
 }
@@ -294,6 +375,63 @@ impl Axis {
     }
 }
 
+/// La caja ya ajustada: correr la entera la mueve; correr un borde cambia
+/// el tamaño y deja el de enfrente donde estaba.
+fn place(rect: MmRect, grips: Grips, dx: f64, dy: f64) -> MmRect {
+    let x = shift(
+        Span {
+            start: rect.x,
+            size: rect.w,
+        },
+        grips.x,
+        dx,
+    );
+    let y = shift(
+        Span {
+            start: rect.y,
+            size: rect.h,
+        },
+        grips.y,
+        dy,
+    );
+    MmRect {
+        x: x.start,
+        y: y.start,
+        w: x.size,
+        h: y.size,
+    }
+}
+
+/// El tramo después de correr lo que se agarra de él.
+fn shift(span: Span, grip: Grip, delta: f64) -> Span {
+    match grip {
+        Grip::Whole => Span {
+            start: span.start + delta,
+            ..span
+        },
+        Grip::Start => Span {
+            start: span.start + delta,
+            size: span.size - delta,
+        },
+        Grip::End => Span {
+            size: span.size + delta,
+            ..span
+        },
+        Grip::None => span,
+    }
+}
+
+/// Las posiciones del elemento que se ajustan en este eje: las tres de la
+/// caja entera, o la del borde que se agarra.
+fn positions(span: Span, grip: Grip) -> Vec<f64> {
+    match grip {
+        Grip::Whole => span.edges().to_vec(),
+        Grip::Start => vec![span.start],
+        Grip::End => vec![span.end()],
+        Grip::None => Vec::new(),
+    }
+}
+
 /// Las posiciones de la página a las que se ajusta un eje, con lo que son.
 fn paper_lines(length: f64, margin: Option<f64>) -> Vec<(f64, GuideKind)> {
     let mut lines = vec![
@@ -317,31 +455,34 @@ fn delta(
     paper: MmRect,
     margin: Option<f64>,
     tolerance: f64,
+    grip: Grip,
 ) -> f64 {
     let moving = axis.see(moving);
     let others: Vec<Seen> = others.iter().map(|rect| axis.see(*rect)).collect();
+    let mine = positions(moving.along, grip);
     let mut candidates: Vec<f64> = Vec::new();
 
     // Los bordes y los centros de los demás elementos.
     for other in &others {
-        for mine in moving.along.edges() {
+        for one in &mine {
             for theirs in other.along.edges() {
-                candidates.push(theirs - mine);
+                candidates.push(theirs - one);
             }
         }
     }
     // Los de la página y los márgenes.
     for (at, _) in paper_lines(axis.see(paper).along.size, margin) {
-        for mine in moving.along.edges() {
-            candidates.push(at - mine);
+        for one in &mine {
+            candidates.push(at - one);
         }
     }
     // Los espaciados que ya hay.
-    candidates.extend(spacings(moving, &others));
+    candidates.extend(spacings(moving, &others, grip));
 
     candidates
         .into_iter()
-        .filter(|delta| delta.abs() <= tolerance)
+        // Un ajuste que dejaría el elemento del revés no es un ajuste.
+        .filter(|delta| delta.abs() <= tolerance && shift(moving.along, grip, *delta).size >= 0.0)
         .min_by(|one, another| one.abs().total_cmp(&another.abs()))
         .unwrap_or(0.0)
 }
@@ -351,7 +492,10 @@ fn delta(
 ///
 /// La fila son los elementos que se solapan con él en el eje perpendicular:
 /// solo con esos tiene sentido hablar de un espaciado.
-fn spacings(moving: Seen, others: &[Seen]) -> Vec<f64> {
+fn spacings(moving: Seen, others: &[Seen], grip: Grip) -> Vec<f64> {
+    if grip == Grip::None {
+        return Vec::new();
+    }
     let row = row_of(moving, others);
     let gaps: Vec<f64> = row
         .windows(2)
@@ -359,19 +503,33 @@ fn spacings(moving: Seen, others: &[Seen]) -> Vec<f64> {
         .filter(|gap| *gap > SAME)
         .collect();
 
+    // Un hueco por la derecha lo fija el borde de más, y uno por la
+    // izquierda el de menos: con un borde agarrado solo vale el suyo.
+    let (after, before) = match grip {
+        Grip::Whole => (true, true),
+        Grip::Start => (false, true),
+        Grip::End => (true, false),
+        Grip::None => (false, false),
+    };
     let mut candidates = Vec::new();
     for neighbour in &row {
         for gap in &gaps {
-            // A esa distancia por la derecha del vecino, y por la izquierda.
-            candidates.push(neighbour.along.end() + gap - moving.along.start);
-            candidates.push(neighbour.along.start - gap - moving.along.size - moving.along.start);
+            if after {
+                candidates.push(neighbour.along.start - gap - moving.along.end());
+            }
+            if before {
+                candidates.push(neighbour.along.end() + gap - moving.along.start);
+            }
         }
     }
-    // Centrado entre dos, con el mismo hueco a cada lado.
-    for pair in row.windows(2) {
-        let free = pair[1].along.start - pair[0].along.end() - moving.along.size;
-        if free > SAME {
-            candidates.push(pair[0].along.end() + free / 2.0 - moving.along.start);
+    // Centrado entre dos, con el mismo hueco a cada lado. Eso solo tiene
+    // sentido moviendo la caja entera.
+    if grip == Grip::Whole {
+        for pair in row.windows(2) {
+            let free = pair[1].along.start - pair[0].along.end() - moving.along.size;
+            if free > SAME {
+                candidates.push(pair[0].along.end() + free / 2.0 - moving.along.start);
+            }
         }
     }
     candidates
@@ -396,16 +554,21 @@ fn guides(
     others: &[MmRect],
     paper: MmRect,
     margin: Option<f64>,
+    grip: Grip,
 ) -> Vec<Guide> {
+    if grip == Grip::None {
+        return Vec::new();
+    }
     let moving = axis.see(moved);
     let others: Vec<Seen> = others.iter().map(|rect| axis.see(*rect)).collect();
     let paper = axis.see(paper);
+    let mine = positions(moving.along, grip);
     let mut found = Vec::new();
 
     for other in &others {
-        for mine in moving.along.edges() {
+        for one in &mine {
             for theirs in other.along.edges() {
-                if (theirs - mine).abs() <= SAME {
+                if (theirs - one).abs() <= SAME {
                     let span = moving.across.union(other.across);
                     found.push(Guide {
                         line: axis.across(theirs, span.start, span.end()),
@@ -416,12 +579,7 @@ fn guides(
         }
     }
     for (at, kind) in paper_lines(paper.along.size, margin) {
-        if moving
-            .along
-            .edges()
-            .iter()
-            .any(|mine| (at - mine).abs() <= SAME)
-        {
+        if mine.iter().any(|one| (at - one).abs() <= SAME) {
             found.push(Guide {
                 line: axis.across(at, 0.0, paper.across.size),
                 kind,
@@ -536,7 +694,12 @@ mod tests {
     }
 
     fn at(moving: MmRect, others: &[MmRect]) -> Snapped {
-        snap(moving, others, &a4(), &canvas())
+        snap(moving, others, &a4(), &canvas(), Grips::whole())
+    }
+
+    /// Redimensionar: se agarra un solo borde, y el otro eje no se ajusta.
+    fn pulling(moving: MmRect, others: &[MmRect], grips: Grips) -> Snapped {
+        snap(moving, others, &a4(), &canvas(), grips)
     }
 
     /// Dónde acaba el elemento, redondeado a la micra.
@@ -594,11 +757,11 @@ mod tests {
         let moving = rect(36.0, 100.0, 10.0, 10.0);
 
         // A 1 px/mm, 6 px son 6 mm y los 4 de diferencia enganchan.
-        let far = snap(moving, &other, &a4(), &Settings::at(1.0));
+        let far = snap(moving, &other, &a4(), &Settings::at(1.0), Grips::whole());
         assert_eq!(far.dx, 4.0);
 
         // A 4 px/mm son 1,5 mm y ya no.
-        let near = snap(moving, &other, &a4(), &Settings::at(4.0));
+        let near = snap(moving, &other, &a4(), &Settings::at(4.0), Grips::whole());
         assert_eq!(near.dx, 0.0);
 
         // Y se puede cambiar sin tocar el zoom.
@@ -611,6 +774,7 @@ mod tests {
                 scale: 4.0,
                 margin: None,
             },
+            Grips::whole(),
         );
         assert_eq!(wide.dx, 4.0);
     }
@@ -652,16 +816,22 @@ mod tests {
         };
         let moving = rect(18.0, 100.0, 10.0, 10.0);
 
-        let with = snap(moving, &[], &a4(), &settings);
+        let with = snap(moving, &[], &a4(), &settings, Grips::whole());
         assert_eq!(with.dx, 2.0);
         assert_eq!(kinds(&with), vec![GuideKind::Margin]);
 
         // Sin márgenes en el lienzo no hay nada a lo que engancharse ahí.
-        let without = snap(moving, &[], &a4(), &canvas());
+        let without = snap(moving, &[], &a4(), &canvas(), Grips::whole());
         assert_eq!(without.dx, 0.0);
 
         // También al margen de la derecha: 210 - 20 = 190.
-        let right = snap(rect(179.0, 100.0, 10.0, 10.0), &[], &a4(), &settings);
+        let right = snap(
+            rect(179.0, 100.0, 10.0, 10.0),
+            &[],
+            &a4(),
+            &settings,
+            Grips::whole(),
+        );
         assert_eq!(right.dx + 189.0, 190.0);
     }
 
@@ -819,7 +989,13 @@ mod tests {
             scale: 0.0,
             ..canvas()
         };
-        let snapped = snap(rect(2.0, 2.0, 10.0, 10.0), &[], &a4(), &settings);
+        let snapped = snap(
+            rect(2.0, 2.0, 10.0, 10.0),
+            &[],
+            &a4(),
+            &settings,
+            Grips::whole(),
+        );
         assert_eq!((snapped.dx, snapped.dy), (0.0, 0.0));
         assert!(snapped.guides.is_empty());
     }
@@ -832,8 +1008,125 @@ mod tests {
             unit: Unit::In,
         };
         // 8 pulgadas son 203,2 mm: el borde derecho está ahí, no en 8.
-        let snapped = snap(rect(192.0, 50.0, 10.0, 10.0), &[], &inches, &canvas());
+        let snapped = snap(
+            rect(192.0, 50.0, 10.0, 10.0),
+            &[],
+            &inches,
+            &canvas(),
+            Grips::whole(),
+        );
         assert!((snapped.dx - 1.2).abs() < SAME, "{} mm", snapped.dx);
+    }
+
+    /// El criterio de la tarea: el ajuste funciona igual al redimensionar.
+    #[test]
+    fn resizing_snaps_the_edge_you_pull() {
+        let other = rect(100.0, 10.0, 30.0, 80.0);
+        // Se estira el borde derecho, que está a 2 mm del izquierdo del otro.
+        let snapped = pulling(
+            rect(40.0, 30.0, 58.0, 20.0),
+            &[other],
+            Grips {
+                x: Grip::End,
+                y: Grip::None,
+            },
+        );
+        assert_eq!(snapped.dx, 2.0, "el ancho crece 2 mm");
+        assert_eq!(snapped.dy, 0.0, "un manejador lateral no toca el alto");
+        assert_eq!(kinds(&snapped), vec![GuideKind::Element]);
+        // La guía sale del borde ya estirado, no del de antes.
+        assert_eq!(snapped.guides[0].line.x1, 100.0);
+    }
+
+    #[test]
+    fn resizing_does_not_snap_by_the_edge_that_stays() {
+        // El borde izquierdo está a 2 mm del de la otra caja, pero no se
+        // está moviendo: tirando del derecho no engancha nada.
+        let other = rect(50.0, 10.0, 30.0, 80.0);
+        let snapped = pulling(
+            rect(48.0, 30.0, 10.0, 20.0),
+            &[other],
+            Grips {
+                x: Grip::End,
+                y: Grip::None,
+            },
+        );
+        assert_eq!(snapped.dx, 0.0);
+        assert!(snapped.guides.is_empty());
+    }
+
+    #[test]
+    fn pulling_the_left_edge_moves_it_and_the_other_stays() {
+        let other = rect(20.0, 10.0, 30.0, 80.0);
+        let moving = rect(18.0, 30.0, 40.0, 20.0);
+        let snapped = pulling(
+            moving,
+            &[other],
+            Grips {
+                x: Grip::Start,
+                y: Grip::None,
+            },
+        );
+        assert_eq!(snapped.dx, 2.0);
+        // El de enfrente se queda: x 18 → 20 y ancho 40 → 38.
+        assert_eq!((snapped.rect.x, snapped.rect.w), (20.0, 38.0));
+        assert_eq!(moving.w, 40.0, "la caja de entrada no se toca");
+    }
+
+    #[test]
+    fn a_corner_snaps_in_both_axes() {
+        let other = rect(100.0, 60.0, 30.0, 30.0);
+        let snapped = pulling(
+            rect(40.0, 30.0, 58.0, 28.0),
+            &[other],
+            Grips {
+                x: Grip::End,
+                y: Grip::End,
+            },
+        );
+        assert_eq!((snapped.dx, snapped.dy), (2.0, 2.0));
+    }
+
+    #[test]
+    fn a_snap_that_would_turn_the_box_inside_out_is_no_snap() {
+        // Tirando del borde derecho hasta pasarse del izquierdo: el único
+        // candidato cerca dejaría el ancho en negativo.
+        let other = rect(10.0, 10.0, 5.0, 80.0);
+        let snapped = pulling(
+            rect(12.0, 30.0, 0.5, 20.0),
+            &[other],
+            Grips {
+                x: Grip::End,
+                y: Grip::None,
+            },
+        );
+        assert!(snapped.dx >= -0.5, "ancho no negativo: {}", snapped.dx);
+    }
+
+    #[test]
+    fn resizing_also_matches_the_spacing_of_the_row() {
+        // Dos cajas de la fila están separadas 10 mm: estirando la tercera
+        // hasta 10 mm de la cuarta, engancha.
+        let others = [
+            rect(10.0, 50.0, 20.0, 20.0),
+            rect(40.0, 50.0, 20.0, 20.0),
+            rect(80.0, 50.0, 20.0, 20.0),
+        ];
+        let snapped = pulling(
+            rect(62.0, 50.0, 6.0, 20.0),
+            &others,
+            Grips {
+                x: Grip::End,
+                y: Grip::None,
+            },
+        );
+        assert_eq!(snapped.dx, 2.0, "el borde derecho acaba en 70");
+        assert!(
+            snapped
+                .guides
+                .iter()
+                .any(|guide| guide.kind == GuideKind::Spacing)
+        );
     }
 
     /// Una caja del layout con su `bounds`, para probar [`neighbours`].

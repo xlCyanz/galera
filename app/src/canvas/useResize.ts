@@ -7,7 +7,11 @@
  * un único `Op::Resize`, y la vista previa se queda hasta que llega lo
  * compilado con el cambio. Los cálculos están en `resizeGeometry.ts`.
  *
- * - Shift mantiene la proporción; Alt redimensiona desde el centro.
+ * - Shift mantiene la proporción; Alt redimensiona desde el centro. Con
+ *   cualquiera de los dos no se ajusta a las guías: manda la forma que se
+ *   está imponiendo, no el enganche.
+ * - ⌘ desactiva el ajuste mientras se tenga pulsado. Un elemento girado
+ *   tampoco se ajusta: lo que se ve no es su caja, sino la que la contiene.
  * - Esc cancela.
  * - Si el alto lo decide Typst (`h: null`), los manejadores laterales solo
  *   cambian el ancho y el alto sigue siendo automático; los demás lo fijan.
@@ -18,9 +22,12 @@ import { applyOp } from "../commands";
 import { useCompilationStore } from "../store/compilation";
 import { useDocumentStore } from "../store/document";
 import { useLayoutStore } from "../store/layout";
+import type { Guide } from "../types/snap";
 import { roundMm } from "./dragGeometry";
 import type { ResizeHandle } from "./handleGeometry";
 import { type Box, changesHeight, resizeBox } from "./resizeGeometry";
+import { gripsFor, snapOff, snapSettings } from "./snapping";
+import { useSnap } from "./useSnap";
 
 export type ResizeState =
   | { phase: "idle" }
@@ -39,6 +46,8 @@ const idle: ResizeState = { phase: "idle" };
 
 export interface Resize {
   state: ResizeState;
+  /** Las guías del ajuste, mientras se redimensiona. */
+  guides: Guide[];
   /**
    * Empieza a redimensionar.
    *
@@ -53,12 +62,22 @@ function same(a: Box, b: Box): boolean {
   return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 }
 
-/** @param pxPerMm La escala del lienzo, o `null` si no hay página. */
-export function useResize(pxPerMm: number | null): Resize {
+/**
+ * @param pxPerMm La escala del lienzo, o `null` si no hay página.
+ * @param page La página visible, contando desde 0.
+ */
+export function useResize(pxPerMm: number | null, page: number): Resize {
   const [state, setState] = useState<ResizeState>(idle);
   const origin = useRef({ x: 0, y: 0 });
   const pointer = useRef({ x: 0, y: 0 });
-  const keys = useRef({ shift: false, alt: false });
+  const keys = useRef({ shift: false, alt: false, meta: false });
+  const snapping = useSnap();
+
+  // Lo que se ve: la caja que sale del ratón, o la enganchada si ya ha
+  // contestado el núcleo para ella.
+  const snapped = state.phase === "idle" ? null : snapping.at(state.box);
+  const box: Box | null =
+    state.phase === "idle" ? null : snapped === null ? state.box : { ...state.box, ...snapped.rect };
 
   const update = useEffectEvent(() => {
     if (state.phase !== "resizing" || pxPerMm === null) {
@@ -66,25 +85,45 @@ export function useResize(pxPerMm: number | null): Resize {
     }
     const dx = (pointer.current.x - origin.current.x) / pxPerMm;
     const dy = (pointer.current.y - origin.current.y) / pxPerMm;
-    const box = resizeBox(state.start, state.handle, dx, dy, {
+    const pulled = resizeBox(state.start, state.handle, dx, dy, {
       keepRatio: keys.current.shift,
       fromCenter: keys.current.alt,
     });
-    setState({ ...state, box });
-  });
-
-  const commit = useEffectEvent(() => {
-    if (state.phase !== "resizing") {
+    setState({ ...state, box: pulled });
+    // Con ⌘, con la proporción fija, desde el centro o con el elemento
+    // girado —su caja y la que se ve no son la misma—, no se ajusta.
+    if (
+      keys.current.meta ||
+      keys.current.shift ||
+      keys.current.alt ||
+      state.start.rotation !== 0
+    ) {
+      snapping.clear();
       return;
     }
-    const { id, handle, box, start, autoHeight } = state;
+    snapping.ask(page, state.id, pulled, gripsFor(state.handle), snapSettings(pxPerMm));
+  });
+
+  const stop = () => {
+    snapping.clear();
+    setState(idle);
+  };
+
+  const commit = useEffectEvent(() => {
+    if (state.phase !== "resizing" || box === null) {
+      return;
+    }
+    const { id, handle, start, autoHeight } = state;
     if (same(box, start)) {
-      setState(idle);
+      stop();
       return;
     }
     // Con alto automático, un lateral no lo fija.
     const h = autoHeight && !changesHeight(handle) ? null : box.h;
-    setState({ ...state, phase: "committing", revision: null });
+    // Lo que se manda es lo que se veía, enganche incluido; a partir de
+    // aquí el ajuste ya no pinta nada y las guías se van.
+    setState({ ...state, phase: "committing", box, revision: null });
+    snapping.clear();
     applyOp({
       op: "resize",
       id,
@@ -101,7 +140,7 @@ export function useResize(pxPerMm: number | null): Resize {
             : current,
         );
       })
-      .catch(() => setState(idle));
+      .catch(() => stop());
   });
 
   const resizing = state.phase === "resizing";
@@ -111,16 +150,16 @@ export function useResize(pxPerMm: number | null): Resize {
     }
     const move = (event: PointerEvent) => {
       pointer.current = { x: event.clientX, y: event.clientY };
-      keys.current = { shift: event.shiftKey, alt: event.altKey };
+      keys.current = { shift: event.shiftKey, alt: event.altKey, meta: snapOff(event) };
       update();
     };
     const up = () => commit();
     const key = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        setState(idle);
-      } else if (event.key === "Shift" || event.key === "Alt") {
-        keys.current = { shift: event.shiftKey, alt: event.altKey };
+        stop();
+      } else if (event.key === "Shift" || event.key === "Alt" || event.key === "Meta") {
+        keys.current = { shift: event.shiftKey, alt: event.altKey, meta: snapOff(event) };
         update();
       }
     };
@@ -147,16 +186,18 @@ export function useResize(pxPerMm: number | null): Resize {
     }
     const revision = state.revision;
     if ([layoutRevision, failedRevision].some((arrived) => arrived !== null && arrived >= revision)) {
-      setState(idle);
+      stop();
     }
   }, [state, layoutRevision, failedRevision]);
 
   return {
-    state,
+    state: state.phase === "idle" || box === null ? state : { ...state, box },
+    guides: snapped?.guides ?? [],
     start: (id, handle, box, autoHeight, clientX, clientY) => {
       origin.current = { x: clientX, y: clientY };
       pointer.current = { x: clientX, y: clientY };
-      keys.current = { shift: false, alt: false };
+      keys.current = { shift: false, alt: false, meta: false };
+      snapping.clear();
       setState({ phase: "resizing", id, handle, start: box, box, autoHeight });
     },
   };
