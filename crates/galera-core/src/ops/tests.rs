@@ -1237,3 +1237,140 @@ fn text_of(document: &Document, id: &str) -> String {
         .map(|(text, _)| text)
         .collect()
 }
+
+/// Varios comandos como uno: un único paso del historial.
+#[test]
+fn a_batch_applies_every_command_in_order() {
+    let document = apply_and_check_undo(&Op::Batch {
+        ops: vec![
+            Op::Move {
+                id: "r1".into(),
+                dx: 5.0,
+                dy: 0.0,
+            },
+            Op::Move {
+                id: "t1".into(),
+                dx: 5.0,
+                dy: 0.0,
+            },
+        ],
+    });
+    assert_eq!(element(&document, "r1").base().expect("caja").x, 15.0);
+    assert_eq!(element(&document, "t1").base().expect("caja").x, 25.0);
+}
+
+/// Lo que importa de un compuesto: o entra todo, o no entra nada.
+#[test]
+fn a_batch_that_fails_halfway_changes_nothing() {
+    let original = document();
+    let error = Op::Batch {
+        ops: vec![
+            Op::Move {
+                id: "r1".into(),
+                dx: 5.0,
+                dy: 0.0,
+            },
+            Op::Move {
+                id: "fantasma".into(),
+                dx: 5.0,
+                dy: 0.0,
+            },
+        ],
+    }
+    .apply(&original)
+    .expect_err("el segundo no existe");
+
+    assert!(matches!(error, OpError::ElementNotFound { .. }));
+    assert_eq!(document(), original, "el primero tampoco se ha aplicado");
+}
+
+/// Se deshacen del último al primero: lo contrario de como entraron.
+#[test]
+fn a_batch_undoes_backwards() {
+    let original = document();
+    let applied = Op::Batch {
+        ops: vec![
+            Op::Rename {
+                id: "r1".into(),
+                to: "primero".into(),
+            },
+            Op::Rename {
+                id: "primero".into(),
+                to: "segundo".into(),
+            },
+        ],
+    }
+    .apply(&original)
+    .expect("se aplica");
+    assert!(applied.document.element("segundo").is_some());
+
+    let back = applied.undo.apply(&applied.document).expect("se deshace");
+    assert_eq!(back.document, original);
+}
+
+#[test]
+fn a_batch_is_named_by_what_it_does() {
+    let moves = |count: usize| Op::Batch {
+        ops: (0..count)
+            .map(|index| Op::Move {
+                id: format!("r{index}"),
+                dx: 1.0,
+                dy: 0.0,
+            })
+            .collect(),
+    };
+    assert_eq!(moves(3).describe(), "Mover 3 elementos");
+    // Con uno solo, lo que diga ese.
+    assert_eq!(moves(1).describe(), "Mover r0");
+    assert_eq!(Op::Batch { ops: vec![] }.describe(), "No hacer nada");
+
+    let mixed = Op::Batch {
+        ops: vec![
+            Op::Move {
+                id: "r1".into(),
+                dx: 1.0,
+                dy: 0.0,
+            },
+            Op::Rename {
+                id: "t1".into(),
+                to: "otro".into(),
+            },
+        ],
+    };
+    assert_eq!(mixed.describe(), "Cambiar 2 elementos");
+}
+
+/// El elemento de un compuesto solo existe si todos son el mismo.
+#[test]
+fn a_batch_of_several_elements_is_of_none_of_them() {
+    let same = Op::Batch {
+        ops: vec![
+            Op::Move {
+                id: "r1".into(),
+                dx: 1.0,
+                dy: 0.0,
+            },
+            Op::Rotate {
+                id: "r1".into(),
+                rotation: 10.0,
+            },
+        ],
+    };
+    assert_eq!(same.element_id(), Some("r1"));
+
+    let several = Op::Batch {
+        ops: vec![
+            Op::Move {
+                id: "r1".into(),
+                dx: 1.0,
+                dy: 0.0,
+            },
+            Op::Move {
+                id: "t1".into(),
+                dx: 1.0,
+                dy: 0.0,
+            },
+        ],
+    };
+    assert_eq!(several.element_id(), None);
+}

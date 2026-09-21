@@ -1411,3 +1411,15 @@ body {
   stroke-width: 3;
   stroke-linejoin: round;
 }
+
+/* El rectángulo de selección que se arrastra por el lienzo
+   (`canvas/Marquee.tsx`). */
+.marquee {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  border: 1px solid var(--ruler-pointer);
+  background: color-mix(in srgb, var(--ruler-pointer) 12%, transparent);
+  pointer-events: none;
+}

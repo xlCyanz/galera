@@ -116,7 +116,7 @@ describe("la herramienta activa en el lienzo", () => {
     await settle();
     expect(useDocumentStore.getState().scroll).toEqual({ x: 60, y: 30 });
     expect(hitTests).toBe(0);
-    expect(useDocumentStore.getState().selectedElement).toBe("r1");
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
   });
 
   it("con una que crea elementos, el clic no selecciona ni arrastra lo seleccionado", async () => {
@@ -125,7 +125,7 @@ describe("la herramienta activa en el lienzo", () => {
     pointer("pointerdown", 100, 100);
     await settle();
     expect(hitTests).toBe(0);
-    expect(useDocumentStore.getState().selectedElement).toBe("r1");
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
   });
 
   it("Escape vuelve a la de selección sin deseleccionar; otro Escape deselecciona", () => {
@@ -134,11 +134,11 @@ describe("la herramienta activa en el lienzo", () => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
     });
     expect(useToolStore.getState().tool).toBe("select");
-    expect(useDocumentStore.getState().selectedElement).toBe("r1");
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
     act(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
     });
-    expect(useDocumentStore.getState().selectedElement).toBeNull();
+    expect(useDocumentStore.getState().selection).toEqual([]);
   });
 });
 

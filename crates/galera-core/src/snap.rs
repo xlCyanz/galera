@@ -181,14 +181,18 @@ impl Snapped {
     }
 }
 
-/// Las cajas con las que puede ajustarse el elemento `moving`: las de su
-/// página, sin la suya.
+/// Las cajas con las que puede ajustarse lo que se mueve: las de su página,
+/// sin las suyas.
+///
+/// `moving` son los elementos que se están moviendo —uno al arrastrar, o
+/// varios con una multiselección—: ninguno se ajusta a sí mismo ni a otro
+/// del grupo, que se mueve con él.
 ///
 /// Se usa la caja ya girada ([`LayoutBox::bounds`]), que es la que se ve.
-pub fn neighbours(boxes: &[LayoutBox], page: usize, moving: &str) -> Vec<MmRect> {
+pub fn neighbours(boxes: &[LayoutBox], page: usize, moving: &[String]) -> Vec<MmRect> {
     boxes
         .iter()
-        .filter(|layout_box| layout_box.page == page && layout_box.id != moving)
+        .filter(|layout_box| layout_box.page == page && !moving.contains(&layout_box.id))
         .map(|layout_box| layout_box.bounds)
         .collect()
 }
@@ -973,13 +977,13 @@ mod tests {
     }
 
     #[test]
-    fn neighbours_leaves_out_the_one_that_moves_and_the_other_pages() {
+    fn neighbours_leaves_out_what_moves_and_the_other_pages() {
         let boxes = [
             layout("a", 0, rect(10.0, 10.0, 20.0, 20.0)),
             layout("b", 0, rect(50.0, 10.0, 20.0, 20.0)),
             layout("c", 1, rect(90.0, 10.0, 20.0, 20.0)),
         ];
-        let found = neighbours(&boxes, 0, "a");
+        let found = neighbours(&boxes, 0, &["a".to_owned()]);
         assert_eq!(found, vec![rect(50.0, 10.0, 20.0, 20.0)]);
     }
 

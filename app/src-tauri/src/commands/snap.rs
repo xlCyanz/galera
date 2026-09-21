@@ -21,8 +21,10 @@ use crate::state::AppState;
 /// acabaría pegándose a todo.
 const MAX_THRESHOLD_PX: f64 = 48.0;
 
-/// A dónde se ajusta la caja `rect` del elemento `id` en la página `page`,
-/// en mm.
+/// A dónde se ajusta la caja `rect` en la página `page`, en mm.
+///
+/// `ids` son los elementos que se están moviendo: ninguno cuenta como algo
+/// a lo que engancharse, ni siquiera entre ellos con una multiselección.
 ///
 /// - `grips`: qué se está moviendo en cada eje, la caja entera al arrastrar
 ///   o el borde del manejador al redimensionar.
@@ -33,20 +35,20 @@ const MAX_THRESHOLD_PX: f64 = 48.0;
 #[tauri::command]
 pub async fn snap(
     page: usize,
-    id: String,
+    ids: Vec<String>,
     rect: MmRect,
     grips: Grips,
     settings: Settings,
     state: State<'_, AppState>,
 ) -> Result<Snapped, CommandError> {
-    Ok(snap_in(&state, page, &id, rect, grips, settings))
+    Ok(snap_in(&state, page, &ids, rect, grips, settings))
 }
 
 /// La parte de [`snap`] que no depende de Tauri, para poder probarla.
 fn snap_in(
     state: &AppState,
     page: usize,
-    id: &str,
+    ids: &[String],
     moving: MmRect,
     grips: Grips,
     settings: Settings,
@@ -79,7 +81,7 @@ fn snap_in(
     let Some(size) = document.pages.get(page).map(|one| one.size.clone()) else {
         return Snapped::none(moving);
     };
-    let others = snap::neighbours(&compiled.layout(), page, id);
+    let others = snap::neighbours(&compiled.layout(), page, ids);
     snap::snap(moving, &others, &size, &settings, grips)
 }
 
@@ -136,7 +138,14 @@ mod tests {
             x: target.x + 2.0,
             ..target
         };
-        let snapped = snap_in(&state, 0, "i1", moving, Grips::whole(), canvas());
+        let snapped = snap_in(
+            &state,
+            0,
+            &["i1".to_owned()],
+            moving,
+            Grips::whole(),
+            canvas(),
+        );
 
         assert_eq!(snapped.dx, -2.0);
         assert!(!snapped.guides.is_empty());
@@ -151,7 +160,14 @@ mod tests {
             x: target.x + 1.0,
             ..target
         };
-        let snapped = snap_in(&state, 0, "i1", moving, Grips::whole(), canvas());
+        let snapped = snap_in(
+            &state,
+            0,
+            &["i1".to_owned()],
+            moving,
+            Grips::whole(),
+            canvas(),
+        );
         assert_ne!(snapped.dx, 0.0, "se engancha a otra cosa, no a sí misma");
     }
 
@@ -164,7 +180,14 @@ mod tests {
             w: 20.0,
             h: 20.0,
         };
-        let snapped = snap_in(&state, 0, "nuevo", moving, Grips::whole(), canvas());
+        let snapped = snap_in(
+            &state,
+            0,
+            &["nuevo".to_owned()],
+            moving,
+            Grips::whole(),
+            canvas(),
+        );
 
         assert_eq!(snapped.dx, -1.0);
         assert!(
@@ -186,7 +209,7 @@ mod tests {
             x: Grip::End,
             y: Grip::None,
         };
-        let snapped = snap_in(&state, 0, "i1", moving, grips, canvas());
+        let snapped = snap_in(&state, 0, &["i1".to_owned()], moving, grips, canvas());
 
         assert_eq!(snapped.dx, 2.0, "el borde derecho acaba en 105");
         assert_eq!(snapped.dy, 0.0, "un manejador lateral no toca el alto");
@@ -204,7 +227,14 @@ mod tests {
             w: 10.0,
             h: 10.0,
         };
-        let snapped = snap_in(&state, 0, "r1", moving, Grips::whole(), canvas());
+        let snapped = snap_in(
+            &state,
+            0,
+            &["r1".to_owned()],
+            moving,
+            Grips::whole(),
+            canvas(),
+        );
         assert_eq!((snapped.dx, snapped.dy), (0.0, 0.0));
         assert!(snapped.guides.is_empty());
     }
@@ -218,7 +248,14 @@ mod tests {
             w: 10.0,
             h: 10.0,
         };
-        let snapped = snap_in(&state, 9, "r1", moving, Grips::whole(), canvas());
+        let snapped = snap_in(
+            &state,
+            9,
+            &["r1".to_owned()],
+            moving,
+            Grips::whole(),
+            canvas(),
+        );
         assert_eq!((snapped.dx, snapped.dy), (0.0, 0.0));
     }
 
@@ -231,7 +268,14 @@ mod tests {
             w: 10.0,
             h: 10.0,
         };
-        let snapped = snap_in(&state, 0, "r1", moving, Grips::whole(), canvas());
+        let snapped = snap_in(
+            &state,
+            0,
+            &["r1".to_owned()],
+            moving,
+            Grips::whole(),
+            canvas(),
+        );
         assert_eq!((snapped.dx, snapped.dy), (0.0, 0.0));
     }
 
@@ -250,7 +294,14 @@ mod tests {
             scale: 2.0,
             margin: None,
         };
-        let snapped = snap_in(&state, 0, "nuevo", moving, Grips::whole(), settings);
+        let snapped = snap_in(
+            &state,
+            0,
+            &["nuevo".to_owned()],
+            moving,
+            Grips::whole(),
+            settings,
+        );
         // Con el techo son 24 mm: lo que haya más lejos no tira de él.
         assert!(snapped.dx.abs() <= MAX_THRESHOLD_PX / 2.0, "{}", snapped.dx);
     }

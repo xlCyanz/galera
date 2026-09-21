@@ -1,6 +1,10 @@
 /**
- * Redimensionar el elemento seleccionado con sus ocho manejadores, con el
- * mismo esquema optimista que mover (`useDrag.ts`).
+ * Redimensionar lo seleccionado con sus ocho manejadores, con el mismo
+ * esquema optimista que mover (`useDrag.ts`).
+ *
+ * Con varios elementos se estira **la caja conjunta**, y el núcleo reparte
+ * el estirón entre ellos (`scale_group`): un solo comando, una sola
+ * compilación y un solo paso del historial.
  *
  * Mientras se arrastra no se recompila: el contorno y los manejadores se
  * dibujan ya con la caja nueva, con sus medidas al lado. Al soltar se manda
@@ -18,7 +22,7 @@
  */
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
-import { applyOp } from "../commands";
+import { applyOp, scaleGroup } from "../commands";
 import { useCompilationStore } from "../store/compilation";
 import { useDocumentStore } from "../store/document";
 import { useLayoutStore } from "../store/layout";
@@ -31,10 +35,20 @@ import { useSnap } from "./useSnap";
 
 export type ResizeState =
   | { phase: "idle" }
-  | { phase: "resizing"; id: string; handle: ResizeHandle; start: Box; box: Box; autoHeight: boolean }
+  | {
+      phase: "resizing";
+      id: string;
+      /** Todos los que se estiran: uno, o los de la multiselección. */
+      ids: string[];
+      handle: ResizeHandle;
+      start: Box;
+      box: Box;
+      autoHeight: boolean;
+    }
   | {
       phase: "committing";
       id: string;
+      ids: string[];
       handle: ResizeHandle;
       start: Box;
       box: Box;
@@ -51,10 +65,19 @@ export interface Resize {
   /**
    * Empieza a redimensionar.
    *
-   * @param box La caja del elemento, tal como la midió Typst.
+   * @param ids Lo que se estira: un elemento, o todos los de la
+   *   multiselección, y entonces `box` es la caja conjunta.
+   * @param box La caja, tal como la midió Typst.
    * @param autoHeight Si el documento deja el alto a Typst (`h: null`).
    */
-  start: (id: string, handle: ResizeHandle, box: Box, autoHeight: boolean, clientX: number, clientY: number) => void;
+  start: (
+    ids: readonly string[],
+    handle: ResizeHandle,
+    box: Box,
+    autoHeight: boolean,
+    clientX: number,
+    clientY: number,
+  ) => void;
 }
 
 /** Si la caja no ha cambiado: soltar entonces no es un cambio. */
@@ -101,7 +124,7 @@ export function useResize(pxPerMm: number | null, page: number): Resize {
       snapping.clear();
       return;
     }
-    snapping.ask(page, state.id, pulled, gripsFor(state.handle), snapSettings(pxPerMm));
+    snapping.ask(page, state.ids, pulled, gripsFor(state.handle), snapSettings(pxPerMm));
   });
 
   const stop = () => {
@@ -113,7 +136,7 @@ export function useResize(pxPerMm: number | null, page: number): Resize {
     if (state.phase !== "resizing" || box === null) {
       return;
     }
-    const { id, handle, start, autoHeight } = state;
+    const { id, ids, handle, start, autoHeight } = state;
     if (same(box, start)) {
       stop();
       return;
@@ -124,14 +147,25 @@ export function useResize(pxPerMm: number | null, page: number): Resize {
     // aquí el ajuste ya no pinta nada y las guías se van.
     setState({ ...state, phase: "committing", box, revision: null });
     snapping.clear();
-    applyOp({
-      op: "resize",
-      id,
-      x: roundMm(box.x),
-      y: roundMm(box.y),
-      w: roundMm(box.w),
-      h: h === null ? null : roundMm(h),
-    })
+    const rect = (one: Box) => ({
+      x: roundMm(one.x),
+      y: roundMm(one.y),
+      w: roundMm(one.w),
+      h: roundMm(one.h),
+    });
+    // Con varios, el núcleo reparte el estirón entre ellos.
+    const change =
+      ids.length > 1
+        ? scaleGroup(ids, rect(start), rect(box))
+        : applyOp({
+            op: "resize",
+            id,
+            x: roundMm(box.x),
+            y: roundMm(box.y),
+            w: roundMm(box.w),
+            h: h === null ? null : roundMm(h),
+          });
+    change
       .then((applied) => {
         useDocumentStore.getState().applyEdit(applied);
         setState((current) =>
@@ -193,12 +227,16 @@ export function useResize(pxPerMm: number | null, page: number): Resize {
   return {
     state: state.phase === "idle" || box === null ? state : { ...state, box },
     guides: snapped?.guides ?? [],
-    start: (id, handle, box, autoHeight, clientX, clientY) => {
+    start: (ids, handle, box, autoHeight, clientX, clientY) => {
+      const id = ids[0];
+      if (id === undefined) {
+        return;
+      }
       origin.current = { x: clientX, y: clientY };
       pointer.current = { x: clientX, y: clientY };
       keys.current = { shift: false, alt: false, meta: false };
       snapping.clear();
-      setState({ phase: "resizing", id, handle, start: box, box, autoHeight });
+      setState({ phase: "resizing", id, ids: [...ids], handle, start: box, box, autoHeight });
     },
   };
 }

@@ -22,6 +22,7 @@
 //! cualquier otro documento. Aquí solo se rechaza lo que no se puede
 //! aplicar: un id que no existe, una propiedad que el elemento no tiene.
 
+pub mod group;
 pub mod history;
 mod text;
 
@@ -239,6 +240,35 @@ pub enum Op {
         /// La clave nueva.
         to: String,
     },
+
+    /// Varios comandos como uno solo: se aplican en orden y se deshacen
+    /// juntos, del último al primero.
+    ///
+    /// Es lo que hace falta para mover o redimensionar varios elementos a
+    /// la vez: un único cambio del documento, una única compilación y un
+    /// único paso del historial. Si uno falla no se aplica ninguno.
+    Batch {
+        /// Los comandos, en el orden en que se aplican.
+        ops: Vec<Op>,
+    },
+}
+
+/// El nombre de un comando compuesto, para el historial.
+fn describe_batch(ops: &[Op]) -> String {
+    match ops {
+        [] => "No hacer nada".to_owned(),
+        [only] => only.describe(),
+        many if many.iter().all(|op| matches!(op, Op::Move { .. })) => {
+            format!("Mover {} elementos", many.len())
+        }
+        many if many
+            .iter()
+            .all(|op| matches!(op, Op::Resize { .. } | Op::Restore { .. })) =>
+        {
+            format!("Redimensionar {} elementos", many.len())
+        }
+        many => format!("Cambiar {} elementos", many.len()),
+    }
 }
 
 /// Una propiedad que se puede cambiar con [`Op::SetProperty`], con su valor.
@@ -442,6 +472,7 @@ impl Op {
             Op::RenameVariable { from, to } => format!("Renombrar la variable {from} a {to}"),
             Op::AddFont { path, .. } => format!("Añadir la fuente {}", file_name(path)),
             Op::RemoveFont { path } => format!("Quitar la fuente {}", file_name(path)),
+            Op::Batch { ops } => describe_batch(ops),
         }
     }
 
@@ -470,6 +501,13 @@ impl Op {
             | Op::RenameAsset { .. }
             | Op::AddFont { .. }
             | Op::RemoveFont { .. } => None,
+            // Solo si todos son del mismo elemento.
+            Op::Batch { ops } => {
+                let first = ops.first()?.element_id()?;
+                ops.iter()
+                    .all(|op| op.element_id() == Some(first))
+                    .then_some(first)
+            }
         }
     }
 
@@ -487,6 +525,16 @@ impl Op {
 
     fn apply_in_place(&self, document: &mut Document) -> Result<Op, OpError> {
         match self {
+            Op::Batch { ops } => {
+                let mut undos = Vec::with_capacity(ops.len());
+                for op in ops {
+                    undos.push(op.apply_in_place(document)?);
+                }
+                // Se deshacen en el orden contrario al que se aplicaron.
+                undos.reverse();
+                Ok(Op::Batch { ops: undos })
+            }
+
             Op::Move { id, dx, dy } => edit(document, id, |element| {
                 match element {
                     Element::Line { x, y, x2, y2, .. } => {

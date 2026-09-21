@@ -170,7 +170,7 @@ describe("redimensionar con los manejadores", () => {
     await release();
     expect(ops).toHaveLength(0);
     expect(width()).toBeCloseTo(60 * PX_PER_MM, 6);
-    expect(useDocumentStore.getState().selectedElement).toBe("r1");
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
   });
 
   it("Shift mantiene la proporción y Alt redimensiona desde el centro", async () => {
@@ -215,6 +215,6 @@ describe("redimensionar con los manejadores", () => {
     grab("n");
     await release();
     expect(ops).toHaveLength(0);
-    expect(useDocumentStore.getState().selectedElement).toBe("r1");
+    expect(useDocumentStore.getState().selection).toEqual(["r1"]);
   });
 });

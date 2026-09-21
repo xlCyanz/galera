@@ -13,7 +13,7 @@
 //! Los elementos bloqueados se quitan antes (`hit::selectable`), mirando el
 //! documento actual: bloquear vale en cuanto se bloquea.
 
-use galera_core::layout::hit;
+use galera_core::layout::{MmRect, hit};
 use tauri::State;
 
 use crate::commands::CommandError;
@@ -48,6 +48,41 @@ pub async fn element_at(
         tolerance,
         below.as_deref(),
     ))
+}
+
+/// Los elementos de `page` que toca el rectángulo de selección, en mm, de
+/// abajo arriba.
+///
+/// Se puede arrastrar en cualquier dirección: un ancho o un alto negativos
+/// valen. Los bloqueados no se cogen, igual que con el clic.
+#[tauri::command]
+pub async fn elements_in(
+    page: usize,
+    rect: MmRect,
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, CommandError> {
+    Ok(elements_in_in(&state, page, rect))
+}
+
+/// La parte de [`elements_in`] que no depende de Tauri, para poder probarla.
+fn elements_in_in(state: &AppState, page: usize, rect: MmRect) -> Vec<String> {
+    if ![rect.x, rect.y, rect.w, rect.h]
+        .iter()
+        .all(|value| value.is_finite())
+    {
+        return Vec::new();
+    }
+    let Some(compiled) = state.last_good_compilation() else {
+        return Vec::new();
+    };
+    let Some((_, document)) = state.open_document() else {
+        return Vec::new();
+    };
+    let boxes = hit::selectable(compiled.layout(), &document);
+    hit::inside(&boxes, page, rect)
+        .into_iter()
+        .map(|found| found.id.clone())
+        .collect()
 }
 
 /// La parte de [`element_at`] que no depende de Tauri, para poder probarla.
@@ -197,5 +232,71 @@ mod tests {
             element_at_in(&state, 0, 170.0, 40.0, 0.0, None).as_deref(),
             Some("sello")
         );
+    }
+
+    /// El criterio de la tarea: el rectángulo coge lo que toca.
+    #[test]
+    fn a_rectangle_takes_the_elements_it_touches() {
+        let state = compiled("informe");
+        // La banda de arriba (0,0 210×15) y nada más.
+        let band = MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 210.0,
+            h: 20.0,
+        };
+        assert_eq!(elements_in_in(&state, 0, band), vec!["r1".to_owned()]);
+
+        // Toda la página: todos, de abajo arriba.
+        let whole = MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 210.0,
+            h: 297.0,
+        };
+        assert_eq!(
+            elements_in_in(&state, 0, whole),
+            vec![
+                "r1".to_owned(),
+                "t1".to_owned(),
+                "i1".to_owned(),
+                "c1".to_owned()
+            ]
+        );
+    }
+
+    #[test]
+    fn a_rectangle_on_an_empty_spot_takes_nothing() {
+        let state = compiled("informe");
+        let empty = MmRect {
+            x: 150.0,
+            y: 270.0,
+            w: 20.0,
+            h: 20.0,
+        };
+        assert!(elements_in_in(&state, 0, empty).is_empty());
+    }
+
+    #[test]
+    fn a_rectangle_without_a_compilation_takes_nothing() {
+        let rect = MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 210.0,
+            h: 297.0,
+        };
+        assert!(elements_in_in(&AppState::default(), 0, rect).is_empty());
+    }
+
+    #[test]
+    fn nonsense_numbers_take_nothing() {
+        let state = compiled("informe");
+        let rect = MmRect {
+            x: f64::NAN,
+            y: 0.0,
+            w: 10.0,
+            h: 10.0,
+        };
+        assert!(elements_in_in(&state, 0, rect).is_empty());
     }
 }

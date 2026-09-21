@@ -53,6 +53,40 @@ export function inspectorFields(element: Element, measured: LayoutBox | null): F
   };
 }
 
+/** Un campo con varios elementos seleccionados. */
+export interface GroupField {
+  /** El valor común, o `null` si no lo hay (o todavía no se sabe). */
+  value: number | null;
+  /** Si no es el mismo en todos: el campo sale como «Mixto». */
+  mixed: boolean;
+  /** Si se puede editar en alguno de ellos. */
+  editable: boolean;
+}
+
+/**
+ * Los cinco campos de varios elementos a la vez: lo común, y lo que no
+ * coincide marcado como mixto.
+ *
+ * @param measured Las cajas que midió Typst, por id.
+ */
+export function groupFields(
+  elements: readonly Element[],
+  measured: Readonly<Record<string, LayoutBox>>,
+): Record<FieldName, GroupField> {
+  const each = elements.map((element) => inspectorFields(element, measured[element.id] ?? null));
+  const of = (name: FieldName): GroupField => {
+    const values = each.map((fields) => fields[name].value);
+    const [first = null, ...rest] = values;
+    const mixed = rest.some((value) => value !== first);
+    return {
+      value: mixed ? null : first,
+      mixed,
+      editable: each.some((fields) => fields[name].editable),
+    };
+  };
+  return { x: of("x"), y: of("y"), w: of("w"), h: of("h"), rotation: of("rotation") };
+}
+
 /**
  * El comando que deja el campo `field` de `element` en `value`, o `null` si
  * no hay nada que cambiar (o el campo no se edita).

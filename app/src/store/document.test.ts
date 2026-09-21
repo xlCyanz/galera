@@ -228,7 +228,7 @@ describe("replaceDocument", () => {
       currentPage: 1,
       zoom: 2,
       scroll: { x: 10, y: 20 },
-      selectedElement: "c1",
+      selection: ["c1"],
       root: "/proyectos/Informe",
     });
     expect(store().document?.meta.title).toBe("Cambiado");
@@ -244,6 +244,6 @@ describe("replaceDocument", () => {
     store().select("c1");
 
     store().replaceDocument(project("Informe", 1).document);
-    expect(store()).toMatchObject({ currentPage: 0, selectedElement: null });
+    expect(store()).toMatchObject({ currentPage: 0, selection: [] });
   });
 });

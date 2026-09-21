@@ -52,8 +52,14 @@ export interface DocumentState {
    * error. Hasta que haya selección (Fase 2), es la forma de señalarlo.
    */
   highlightedElement: string | null;
-  /** El elemento seleccionado, o `null` si no hay ninguno. */
-  selectedElement: string | null;
+  /**
+   * Los elementos seleccionados, en el orden en que se fueron añadiendo.
+   * Vacío si no hay ninguno.
+   *
+   * Casi toda la interfaz trabaja con uno solo (`useSelectedElement`); lo
+   * que sabe de varios es el lienzo, el inspector y el panel de capas.
+   */
+  selection: string[];
   /** Qué se desharía y rehacería ahora, según el backend: «Mover r1». */
   history: EditHistory;
   /** El `.galera` al que se guarda, o `null` si el proyecto es una carpeta. */
@@ -107,8 +113,12 @@ export interface DocumentState {
   focusElement: (id: string) => boolean;
   /** Quita el resaltado. */
   clearHighlight: () => void;
-  /** Selecciona un elemento, o ninguno con `null`. */
+  /** Selecciona un elemento y solo ese, o ninguno con `null`. */
   select: (id: string | null) => void;
+  /** Selecciona varios: reemplaza lo que hubiera. */
+  selectMany: (ids: readonly string[]) => void;
+  /** Añade o quita uno de la selección: ⇧ + clic. */
+  toggleSelected: (id: string) => void;
   /** El proyecto se ha guardado: dónde, y ya no hay cambios pendientes. */
   saved: (saved: SavedProject) => void;
 }
@@ -130,7 +140,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   scroll: origin,
   rulersVisible: true,
   highlightedElement: null,
-  selectedElement: null,
+  selection: [],
   history: noHistory,
   archive: null,
   dirty: false,
@@ -143,7 +153,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
       currentPage: 0,
       scroll: origin,
       highlightedElement: null,
-      selectedElement: null,
+      selection: [],
       history: noHistory,
       archive: opened.archive,
       dirty: false,
@@ -156,7 +166,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
       currentPage: 0,
       scroll: origin,
       highlightedElement: null,
-      selectedElement: null,
+      selection: [],
       history: noHistory,
       archive: null,
       dirty: false,
@@ -202,7 +212,7 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
       return {
         document,
         currentPage: clampPage(state.currentPage, document.pages.length),
-        selectedElement: exists(state.selectedElement) ? state.selectedElement : null,
+        selection: state.selection.filter((id) => exists(id)),
         highlightedElement: exists(state.highlightedElement) ? state.highlightedElement : null,
       };
     }),
@@ -230,7 +240,16 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
 
   clearHighlight: () => set({ highlightedElement: null }),
 
-  select: (id) => set({ selectedElement: id }),
+  select: (id) => set({ selection: id === null ? [] : [id] }),
+
+  selectMany: (ids) => set({ selection: [...ids] }),
+
+  toggleSelected: (id) =>
+    set((state) => ({
+      selection: state.selection.includes(id)
+        ? state.selection.filter((one) => one !== id)
+        : [...state.selection, id],
+    })),
 }));
 
 /** Un zoom dentro de los límites. */
@@ -265,8 +284,15 @@ export const useZoom = () => useDocumentStore((state) => state.zoom);
 export const useScroll = () => useDocumentStore((state) => state.scroll);
 /** Si se ven las reglas. */
 export const useRulersVisible = () => useDocumentStore((state) => state.rulersVisible);
-/** El elemento seleccionado. */
-export const useSelectedElement = () => useDocumentStore((state) => state.selectedElement);
+/**
+ * El elemento seleccionado, o `null` si no hay ninguno **o hay varios**: lo
+ * que solo vale para uno (los manejadores, escribir en un texto, el
+ * inspector de un elemento) se apaga con una multiselección.
+ */
+export const useSelectedElement = () =>
+  useDocumentStore((state) => (state.selection.length === 1 ? (state.selection[0] ?? null) : null));
+/** Todos los elementos seleccionados. */
+export const useSelection = () => useDocumentStore((state) => state.selection);
 /** El elemento resaltado. */
 export const useHighlightedElement = () => useDocumentStore((state) => state.highlightedElement);
 /** Cuántas veces se ha pedido llevar el lienzo a un elemento. */

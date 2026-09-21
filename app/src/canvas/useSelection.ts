@@ -6,7 +6,11 @@
  * (`element_at`), que mira las cajas de la compilación que se ve.
  *
  * - Clic: selecciona el elemento de más arriba bajo el puntero.
- * - Clic en una zona vacía: deselecciona.
+ * - Clic en una zona vacía: deselecciona, y arrastrar desde ahí dibuja el
+ *   rectángulo de selección (`useMarquee.ts`).
+ * - ⇧ + clic: añade el elemento a la selección, o lo quita si ya estaba.
+ * - Clic sobre algo que ya está seleccionado con más cosas: no cambia la
+ *   selección, para poder arrastrar el grupo entero.
  * - Alt o ⌘ + clic: atraviesa hacia el elemento que hay debajo del
  *   seleccionado, y del último vuelve al primero.
  *
@@ -14,8 +18,8 @@
  * que llega después de otro clic se descarta.
  *
  * Si el botón sigue pulsado cuando llega la respuesta, se empieza a
- * arrastrar el elemento desde donde se pulsó: pulsar y arrastrar un
- * elemento sin seleccionar lo selecciona y lo mueve de una vez.
+ * arrastrar lo que haya seleccionado desde donde se pulsó: pulsar y
+ * arrastrar un elemento sin seleccionar lo selecciona y lo mueve de una vez.
  */
 import { type PointerEvent, useEffect, useRef } from "react";
 
@@ -40,13 +44,16 @@ export function wantsToGoThrough(event: { altKey: boolean; metaKey: boolean }): 
  * @param transform Dónde está la página visible y a qué escala, o `null` si
  *   no hay página.
  * @param page La página visible, contando desde 0.
- * @param onPressed Si el botón sigue pulsado al saber qué elemento es: el
- *   elemento y el punto de la pantalla donde se pulsó.
+ * @param onPressed Si el botón sigue pulsado al saber qué elemento es: lo
+ *   que queda seleccionado y el punto de la pantalla donde se pulsó.
+ * @param onEmpty Si se pulsó donde no hay nada: el punto de la pantalla y si
+ *   se pedía sumar a la selección (⇧).
  */
 export function useSelection(
   transform: CanvasTransform | null,
   page: number,
-  onPressed?: (id: string, clientX: number, clientY: number) => void,
+  onPressed?: (ids: string[], clientX: number, clientY: number) => void,
+  onEmpty?: (clientX: number, clientY: number, additive: boolean) => void,
 ): (event: PointerEvent<HTMLElement>) => void {
   const latest = useRef(0);
   const pressed = useRef(false);
@@ -68,19 +75,40 @@ export function useSelection(
     const area = event.currentTarget.getBoundingClientRect();
     const point = toDocument(transform, event.clientX - area.left, event.clientY - area.top);
     const tolerance = HIT_TOLERANCE_PX / transform.pxPerMm;
-    const { selectedElement, select } = useDocumentStore.getState();
-    const below = wantsToGoThrough(event) ? selectedElement : null;
+    const { selection, select, toggleSelected } = useDocumentStore.getState();
+    // Atravesar solo tiene sentido con un único elemento debajo.
+    const below = wantsToGoThrough(event) && selection.length === 1 ? (selection[0] ?? null) : null;
 
     const request = ++latest.current;
-    const { clientX, clientY } = event;
+    const { clientX, clientY, shiftKey } = event;
     pressed.current = true;
     void elementAt(page, point.x, point.y, tolerance, below)
       .then((id) => {
-        if (request === latest.current) {
-          select(id);
-          if (id !== null && pressed.current) {
-            onPressed?.(id, clientX, clientY);
+        if (request !== latest.current) {
+          return;
+        }
+        if (id === null) {
+          // En vacío: se deselecciona, salvo que se esté sumando con ⇧.
+          if (!shiftKey) {
+            select(null);
           }
+          if (pressed.current) {
+            onEmpty?.(clientX, clientY, shiftKey);
+          }
+          return;
+        }
+        if (shiftKey) {
+          toggleSelected(id);
+          return;
+        }
+        // Pulsar dentro de una selección de varios la deja como está: lo
+        // que se quiere es arrastrarla entera.
+        if (!selection.includes(id) || selection.length === 1) {
+          select(id);
+        }
+        const now = useDocumentStore.getState().selection;
+        if (pressed.current && now.length > 0) {
+          onPressed?.([...now], clientX, clientY);
         }
       })
       .catch(() => {

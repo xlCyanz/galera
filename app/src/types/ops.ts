@@ -227,7 +227,11 @@ from: string,
 /**
  * La clave nueva.
  */
-to: string, };
+to: string, } | { "op": "batch", 
+/**
+ * Los comandos, en el orden en que se aplican.
+ */
+ops: Array<Op>, };
 
 /**
  * Una propiedad que se puede cambiar con [`Op::SetProperty`], con su valor.

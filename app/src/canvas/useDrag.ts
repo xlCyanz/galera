@@ -1,10 +1,11 @@
 /**
- * Mover el elemento seleccionado arrastrándolo, de forma optimista.
+ * Mover lo seleccionado arrastrándolo, de forma optimista.
  *
  * Durante el arrastre **no se recompila nada**: se mueve una copia recortada
  * del render que ya se ve (`DragGhost.tsx`) y el contorno. Así el arrastre va
- * fluido aunque compilar tarde. Al soltar se manda un único
- * `Op::Move { dx, dy }` al núcleo, que recompila una vez.
+ * fluido aunque compilar tarde. Al soltar se manda un único comando al
+ * núcleo, que recompila una vez: un `move`, o un `batch` de movimientos si
+ * se arrastran varios elementos a la vez.
  *
  * Entre soltar y que llegue la compilación nueva, la copia se queda donde se
  * soltó: el elemento no vuelve un momento a su sitio antiguo. Se quita en
@@ -30,18 +31,19 @@ import { useLayoutStore } from "../store/layout";
 import type { MmRect } from "../types/layout";
 import type { Guide } from "../types/snap";
 import { type Delta, dragDelta, isStill, roundMm } from "./dragGeometry";
+import { boxesOf, groupBox, moveOp } from "./group";
 import { WHOLE, snapOff, snapSettings } from "./snapping";
 import { useSnap } from "./useSnap";
 
 export type DragState =
   | { phase: "idle" }
-  /** Arrastrando: el elemento y cuánto se ha movido, en mm. */
-  | { phase: "dragging"; id: string; delta: Delta }
+  /** Arrastrando: los elementos y cuánto se han movido, en mm. */
+  | { phase: "dragging"; ids: string[]; delta: Delta }
   /**
    * Soltado: esperando a que el núcleo aplique el cambio (`revision` null)
    * y a que llegue su compilación.
    */
-  | { phase: "committing"; id: string; delta: Delta; revision: number | null };
+  | { phase: "committing"; ids: string[]; delta: Delta; revision: number | null };
 
 const idle: DragState = { phase: "idle" };
 
@@ -49,8 +51,8 @@ export interface Drag {
   state: DragState;
   /** Las guías del ajuste, mientras se arrastra. */
   guides: Guide[];
-  /** Empieza a arrastrar `id` desde ese punto de la pantalla. */
-  start: (id: string, clientX: number, clientY: number) => void;
+  /** Empieza a arrastrar esos elementos desde ese punto de la pantalla. */
+  start: (ids: readonly string[], clientX: number, clientY: number) => void;
 }
 
 /**
@@ -63,7 +65,7 @@ export function useDrag(pxPerMm: number | null, page: number): Drag {
   const pointer = useRef({ x: 0, y: 0 });
   const shift = useRef(false);
   const meta = useRef(false);
-  /** La caja del elemento al empezar: sobre ella se pregunta el ajuste. */
+  /** La caja de lo que se mueve al empezar: sobre ella se pregunta el ajuste. */
   const from = useRef<MmRect | null>(null);
   const snapping = useSnap();
 
@@ -92,7 +94,7 @@ export function useDrag(pxPerMm: number | null, page: number): Drag {
       snapping.clear();
       return;
     }
-    snapping.ask(page, state.id, rect, WHOLE, snapSettings(pxPerMm));
+    snapping.ask(page, state.ids, rect, WHOLE, snapSettings(pxPerMm));
   });
 
   const stop = () => {
@@ -104,20 +106,20 @@ export function useDrag(pxPerMm: number | null, page: number): Drag {
     if (state.phase !== "dragging") {
       return;
     }
-    const { id } = state;
+    const { ids } = state;
     if (isStill(delta)) {
       stop();
       return;
     }
     // Lo que se manda es lo que se veía, enganche incluido; a partir de
     // aquí el ajuste ya no pinta nada y las guías se van.
-    setState({ phase: "committing", id, delta, revision: null });
+    setState({ phase: "committing", ids, delta, revision: null });
     snapping.clear();
-    applyOp({ op: "move", id, dx: roundMm(delta.dx), dy: roundMm(delta.dy) })
+    applyOp(moveOp(ids, roundMm(delta.dx), roundMm(delta.dy)))
       .then((applied) => {
         useDocumentStore.getState().applyEdit(applied);
         setState((current) =>
-          current.phase === "committing" && current.id === id
+          current.phase === "committing" && current.ids === ids
             ? { ...current, revision: applied.revision }
             : current,
         );
@@ -181,15 +183,16 @@ export function useDrag(pxPerMm: number | null, page: number): Drag {
   return {
     state: state.phase === "idle" ? state : { ...state, delta },
     guides: snapped?.guides ?? [],
-    start: (id, clientX, clientY) => {
+    start: (ids, clientX, clientY) => {
       origin.current = { x: clientX, y: clientY };
       pointer.current = { x: clientX, y: clientY };
       shift.current = false;
       meta.current = false;
-      // La caja que se ve, que es sobre la que se pregunta el ajuste.
-      from.current = useLayoutStore.getState().boxes[id]?.bounds ?? null;
+      // La caja que se ve —la de todos, si son varios—, que es sobre la
+      // que se pregunta el ajuste.
+      from.current = groupBox(boxesOf(useLayoutStore.getState().boxes, ids, page));
       snapping.clear();
-      setState({ phase: "dragging", id, delta: { dx: 0, dy: 0 } });
+      setState({ phase: "dragging", ids: [...ids], delta: { dx: 0, dy: 0 } });
     },
   };
 }

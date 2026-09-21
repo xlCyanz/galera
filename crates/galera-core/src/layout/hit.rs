@@ -21,10 +21,15 @@
 //!
 //! [`element_at`] da el elemento de más arriba o, pidiendo atravesar, el que
 //! está debajo del que ya se tiene; [`hits`] da todos, de arriba abajo.
+//!
+//! # Con un rectángulo
+//!
+//! [`inside`] es lo mismo para la multiselección: los elementos que toca el
+//! rectángulo que se arrastra por el lienzo.
 
 use std::collections::HashSet;
 
-use super::LayoutBox;
+use super::{LayoutBox, MmRect};
 use crate::model::Document;
 
 /// Las cajas que se pueden acertar con el ratón: todas menos las de los
@@ -79,6 +84,43 @@ pub fn element_at<'a>(
         .and_then(|id| found.iter().position(|layout_box| layout_box.id == id))
         .map_or(0, |index| (index + 1) % found.len());
     found.get(next).copied()
+}
+
+/// Los elementos de `page` que toca el rectángulo `(x, y, w, h)` en mm, de
+/// abajo arriba, que es el orden en el que están en la página.
+///
+/// **Basta con tocarlos**: no hace falta encerrarlos, como en cualquier
+/// editor de diseño. Lo que se mira es la caja que se ve
+/// ([`LayoutBox::bounds`]), ya girada; una línea cuenta por la caja de sus
+/// extremos, no por su trazo.
+///
+/// Los elementos bloqueados se quitan antes con [`selectable`], igual que
+/// con el clic.
+pub fn inside(boxes: &[LayoutBox], page: usize, area: MmRect) -> Vec<&LayoutBox> {
+    let area = normalize(area);
+    boxes
+        .iter()
+        .filter(|layout_box| layout_box.page == page && overlaps(&layout_box.bounds, &area))
+        .collect()
+}
+
+/// El mismo rectángulo con ancho y alto positivos: se arrastra en las
+/// cuatro direcciones.
+fn normalize(area: MmRect) -> MmRect {
+    MmRect {
+        x: area.x.min(area.x + area.w),
+        y: area.y.min(area.y + area.h),
+        w: area.w.abs(),
+        h: area.h.abs(),
+    }
+}
+
+/// Si dos rectángulos se tocan. Rozarse por el borde cuenta.
+fn overlaps(one: &MmRect, another: &MmRect) -> bool {
+    one.x <= another.x + another.w
+        && another.x <= one.x + one.w
+        && one.y <= another.y + another.h
+        && another.y <= one.y + one.h
 }
 
 /// Si el punto cae en el elemento.
@@ -349,5 +391,94 @@ mod tests {
         // Donde está el rectángulo oculto solo queda el fondo, y bloqueado.
         assert_eq!(at(&boxes, 60.0, 40.0), None);
         assert!(boxes.iter().all(|b| b.id != "borrador" && b.id != "guia"));
+    }
+
+    /// El criterio de la tarea: el rectángulo se queda con lo que toca.
+    #[test]
+    fn a_rectangle_takes_what_it_touches() {
+        let boxes = [
+            rect("a", 10.0, 10.0, 20.0, 20.0),
+            rect("b", 50.0, 10.0, 20.0, 20.0),
+            rect("c", 10.0, 50.0, 20.0, 20.0),
+        ];
+        let taken = |x: f64, y: f64, w: f64, h: f64| {
+            inside(&boxes, 0, MmRect { x, y, w, h })
+                .into_iter()
+                .map(|found| found.id.as_str())
+                .collect::<Vec<_>>()
+        };
+
+        // Encerrando los dos de arriba.
+        assert_eq!(taken(0.0, 0.0, 80.0, 40.0), vec!["a", "b"]);
+        // Rozando una esquina de `a` basta.
+        assert_eq!(taken(0.0, 0.0, 10.0, 10.0), vec!["a"]);
+        // Justo antes de tocarla, no.
+        assert_eq!(taken(0.0, 0.0, 9.0, 9.0), Vec::<&str>::new());
+        // Un rectángulo dentro de un elemento también lo toma.
+        assert_eq!(taken(15.0, 15.0, 2.0, 2.0), vec!["a"]);
+    }
+
+    #[test]
+    fn a_rectangle_dragged_backwards_is_the_same_rectangle() {
+        let boxes = [rect("a", 10.0, 10.0, 20.0, 20.0)];
+        let backwards = MmRect {
+            x: 40.0,
+            y: 40.0,
+            w: -35.0,
+            h: -35.0,
+        };
+        assert_eq!(inside(&boxes, 0, backwards).len(), 1);
+    }
+
+    #[test]
+    fn a_rectangle_only_takes_from_its_own_page() {
+        let mut other = rect("b", 10.0, 10.0, 20.0, 20.0);
+        other.page = 1;
+        let boxes = [rect("a", 10.0, 10.0, 20.0, 20.0), other];
+        let area = MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 100.0,
+            h: 100.0,
+        };
+        let taken: Vec<&str> = inside(&boxes, 1, area)
+            .into_iter()
+            .map(|found| found.id.as_str())
+            .collect();
+        assert_eq!(taken, vec!["b"]);
+    }
+
+    /// El criterio de la tarea: los bloqueados se respetan, igual que con
+    /// el clic.
+    #[test]
+    fn a_rectangle_does_not_take_what_is_locked() {
+        let document = crate::Document::from_json_str(
+            r##"{
+              "version": 1,
+              "meta": { "title": "x" },
+              "pages": [ { "id": "p1", "size": { "width": 210, "height": 297 }, "elements": [
+                { "id": "a", "type": "rect", "x": 10, "y": 10, "w": 20, "h": 20, "fill": "#000000" },
+                { "id": "b", "type": "rect", "x": 50, "y": 10, "w": 20, "h": 20, "fill": "#000000",
+                  "locked": true }
+              ] } ]
+            }"##,
+        )
+        .expect("es un documento");
+        let boxes = vec![
+            rect("a", 10.0, 10.0, 20.0, 20.0),
+            rect("b", 50.0, 10.0, 20.0, 20.0),
+        ];
+        let area = MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 100.0,
+            h: 100.0,
+        };
+        let unlocked = selectable(boxes, &document);
+        let taken: Vec<&str> = inside(&unlocked, 0, area)
+            .into_iter()
+            .map(|found| found.id.as_str())
+            .collect();
+        assert_eq!(taken, vec!["a"]);
     }
 }

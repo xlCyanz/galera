@@ -48,27 +48,43 @@ export interface BoxHandlesProps {
   onResizeStart?: (handle: ResizeHandle, event: PointerEvent<HTMLElement>) => void;
   /** Se ha pulsado el manejador de rotación. */
   onRotateStart?: (event: PointerEvent<HTMLElement>) => void;
+  /**
+   * Si se puede girar. La caja conjunta de una multiselección no: girar
+   * varios elementos a la vez no es girar cada uno sobre su centro.
+   */
+  rotatable?: boolean;
 }
 
 /** Los ocho de redimensionado y el de rotación, por encima del borde superior. */
-export function BoxHandles({ width, height, rotation, onResizeStart, onRotateStart }: BoxHandlesProps) {
+export function BoxHandles({
+  width,
+  height,
+  rotation,
+  onResizeStart,
+  onRotateStart,
+  rotatable = true,
+}: BoxHandlesProps) {
   return (
     <>
-      <div
-        className="rotate-stem"
-        style={{ left: width / 2, top: -ROTATE_HANDLE_OFFSET, height: ROTATE_HANDLE_OFFSET }}
-      />
-      <div
-        className="handle rotate-handle"
-        data-handle="rotate"
-        style={{ ...at(width / 2, -ROTATE_HANDLE_OFFSET), cursor: "grab" }}
-        onPointerDown={(event) => {
-          keepFromCanvas(event);
-          if (event.button === 0) {
-            onRotateStart?.(event);
-          }
-        }}
-      />
+      {rotatable && (
+        <>
+          <div
+            className="rotate-stem"
+            style={{ left: width / 2, top: -ROTATE_HANDLE_OFFSET, height: ROTATE_HANDLE_OFFSET }}
+          />
+          <div
+            className="handle rotate-handle"
+            data-handle="rotate"
+            style={{ ...at(width / 2, -ROTATE_HANDLE_OFFSET), cursor: "grab" }}
+            onPointerDown={(event) => {
+              keepFromCanvas(event);
+              if (event.button === 0) {
+                onRotateStart?.(event);
+              }
+            }}
+          />
+        </>
+      )}
       {RESIZE_HANDLES.map((handle) => {
         const position = HANDLE_POSITION[handle];
         return (

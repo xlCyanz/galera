@@ -9,6 +9,8 @@
 //! Cada comando se apunta en el historial del documento abierto, y
 //! [`undo`] y [`redo`] lo recorren (ver `galera_core::ops::history`).
 
+use galera_core::layout::MmRect;
+use galera_core::ops::group;
 use galera_core::{Document, Op};
 use serde::Serialize;
 use tauri::State;
@@ -74,6 +76,42 @@ fn apply_in(state: &AppState, op: &Op, group: Option<&str>) -> Result<AppliedOp,
         .apply(op, group)
         .ok_or(CommandError::NothingOpen)??
         .into())
+}
+
+/// Lleva varios elementos de la caja conjunta `from` a la caja `to`, en mm,
+/// como un único cambio del documento.
+///
+/// Es lo que hace falta al redimensionar una multiselección: qué le toca a
+/// cada elemento lo reparte el núcleo (`galera_core::ops::group`), y todo
+/// entra como un solo paso del historial y una sola compilación.
+///
+/// # Errores
+///
+/// [`CommandError::NothingOpen`] si no hay documento, o el error del núcleo
+/// si algún id no existe (`kind: "op"`); entonces no cambia nada.
+#[tauri::command]
+pub async fn scale_group(
+    ids: Vec<String>,
+    from: MmRect,
+    to: MmRect,
+    state: State<'_, AppState>,
+    queue: State<'_, CompileQueue>,
+) -> Result<AppliedOp, CommandError> {
+    let applied = scale_group_in(&state, &ids, from, to)?;
+    queue.request();
+    Ok(applied)
+}
+
+/// La parte de [`scale_group`] que no depende de Tauri, para poder probarla.
+fn scale_group_in(
+    state: &AppState,
+    ids: &[String],
+    from: MmRect,
+    to: MmRect,
+) -> Result<AppliedOp, CommandError> {
+    let (_, document) = state.open_document().ok_or(CommandError::NothingOpen)?;
+    let op = group::scale(&document, ids, from, to).map_err(galera_core::GaleraError::from)?;
+    apply_in(state, &op, None)
 }
 
 /// Deshace el último paso del historial y pide compilar. `null` si no hay
@@ -229,5 +267,73 @@ mod tests {
             apply_in(&AppState::default(), &Op::Delete { id: "r1".into() }, None),
             Err(CommandError::NothingOpen)
         ));
+    }
+
+    /// El criterio de la tarea: redimensionar el grupo escala posiciones y
+    /// tamaños, y entra como un solo paso.
+    #[test]
+    fn scaling_a_group_is_one_step_of_the_history() {
+        let state = opened();
+        // La banda de arriba (0,0 210×15) y el texto (20,30 170 de ancho):
+        // su caja conjunta va de (0,0) a (190, …). Se estira al doble de
+        // ancho desde el mismo sitio.
+        let from = MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 190.0,
+            h: 100.0,
+        };
+        let to = MmRect { w: 380.0, ..from };
+        let ids = ["r1".to_owned(), "t1".to_owned()];
+
+        let applied = scale_group_in(&state, &ids, from, to).expect("se aplica");
+        assert_eq!(applied.revision, 2, "una sola revisión para los dos");
+        assert_eq!(applied.description, "Redimensionar 2 elementos");
+
+        let band = applied
+            .document
+            .element("r1")
+            .and_then(|one| one.base())
+            .expect("caja");
+        assert_eq!((band.x, band.w), (0.0, 420.0));
+        let text = applied
+            .document
+            .element("t1")
+            .and_then(|one| one.base())
+            .expect("caja");
+        assert_eq!((text.x, text.w), (40.0, 340.0));
+    }
+
+    #[test]
+    fn scaling_a_group_with_an_id_that_is_not_there_changes_nothing() {
+        let state = opened();
+        let rect = MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 10.0,
+            h: 10.0,
+        };
+        let error =
+            scale_group_in(&state, &["fantasma".to_owned()], rect, rect).expect_err("no está");
+        assert_eq!(error.kind(), "op");
+        let (_, document) = state.open_document().expect("sigue abierto");
+        let band = document
+            .element("r1")
+            .and_then(|one| one.base())
+            .expect("caja");
+        assert_eq!((band.x, band.w), (0.0, 210.0), "nada se ha movido");
+    }
+
+    #[test]
+    fn scaling_a_group_without_a_document_says_so() {
+        let rect = MmRect {
+            x: 0.0,
+            y: 0.0,
+            w: 10.0,
+            h: 10.0,
+        };
+        let error = scale_group_in(&AppState::default(), &["r1".to_owned()], rect, rect)
+            .expect_err("no hay documento");
+        assert_eq!(error.kind(), "nothing_open");
     }
 }

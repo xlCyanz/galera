@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { LayoutBox } from "../types/layout";
 import type { Element } from "../types/model";
-import { fieldOp, inspectorFields } from "./inspectorFields";
+import { fieldOp, groupFields, inspectorFields } from "./inspectorFields";
 
 const rect: Element = { type: "rect", id: "r1", x: 30, y: 40, w: 60, h: 20, rotation: 15, fill: "#ff0000", stroke: null, radius: 0 };
 const text: Element = {
@@ -31,6 +31,37 @@ describe("inspectorFields", () => {
     expect([fields.x.value, fields.y.value, fields.w.value, fields.h.value]).toEqual([20, 20, 30, 40]);
     expect(fields.x.editable && fields.rotation.editable).toBe(true);
     expect(fields.w.editable || fields.h.editable).toBe(false);
+  });
+});
+
+describe("groupFields", () => {
+  const other: Element = { ...rect, id: "r2", x: 30, y: 100, w: 60, h: 20, rotation: 15 };
+
+  /** El criterio de la tarea: lo común se ve, lo distinto sale como mixto. */
+  it("enseña lo común y marca lo distinto", () => {
+    const fields = groupFields([rect, other], {});
+    expect(fields.x).toEqual({ value: 30, mixed: false, editable: true });
+    expect(fields.w).toEqual({ value: 60, mixed: false, editable: true });
+    expect(fields.rotation.value).toBe(15);
+    expect(fields.y).toEqual({ value: null, mixed: true, editable: true });
+  });
+
+  it("un alto automático no coincide con uno fijo: mixto", () => {
+    const fields = groupFields([rect, text], { t1: measured(7.5) });
+    expect(fields.h.mixed).toBe(true);
+    // El alto de un texto no se edita, pero el del rectángulo sí.
+    expect(fields.h.editable).toBe(true);
+  });
+
+  it("con una línea, el tamaño no se puede editar en ella pero sí en las demás", () => {
+    expect(groupFields([line], {}).w.editable).toBe(false);
+    expect(groupFields([line, rect], {}).w.editable).toBe(true);
+  });
+
+  it("con uno solo es lo mismo que sus campos", () => {
+    const fields = groupFields([rect], {});
+    expect(fields.x).toEqual({ value: 30, mixed: false, editable: true });
+    expect(fields.h.value).toBe(20);
   });
 });
 

@@ -102,6 +102,11 @@ teclas van al texto y no a las herramientas:
   dibuja, `Esc` cancela **ese gesto** y `⇧` lo restringe (proporción, ángulos
   de 45°, movimiento recto). No son atajos: son parte del gesto, y solo
   valen mientras dura.
+- **La multiselección.** `⇧` + clic añade un elemento a la selección o lo
+  quita, en el lienzo y en el panel de capas. Arrastrar desde una zona
+  vacía dibuja el rectángulo de selección, que coge lo que toca (con `⇧`,
+  sumando a lo que ya hubiera); `Esc` lo cancela. Con varios seleccionados
+  el lienzo enseña una sola caja: se mueve y se estira, pero no se gira.
 - **El ajuste a las guías.** Al mover y al redimensionar, el elemento se
   engancha a los bordes y los centros de los demás, a los de la página y a
   los espaciados que ya hay, y salen las guías con las distancias.

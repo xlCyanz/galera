@@ -153,7 +153,7 @@ describe("crear formas", () => {
     expect(ops).toHaveLength(1);
     expect(ops[0]).toMatchObject({ op: "create", page: "p1", index: null });
     expect(ops[0]!.element).toMatchObject({ type: "rect", id: "rect-1", x: 20, y: 30, w: 40, h: 25, fill: "#cbd5e1" });
-    expect(useDocumentStore.getState().selectedElement).toBe("rect-1");
+    expect(useDocumentStore.getState().selection).toEqual(["rect-1"]);
     expect(useToolStore.getState().tool).toBe("select");
     expect(useDocumentStore.getState().history.undo).toBe("Crear rect-1");
 
@@ -227,7 +227,7 @@ describe("crear texto", () => {
       h: null,
       style: { font: "Inter", size: 14, color: "#333333" },
     });
-    expect(useDocumentStore.getState().selectedElement).toBe("text-1");
+    expect(useDocumentStore.getState().selection).toEqual(["text-1"]);
     expect(useToolStore.getState().tool).toBe("select");
   });
 
@@ -264,7 +264,7 @@ describe("crear texto", () => {
     expect(useDocumentStore.getState().document?.fonts).toEqual(["fonts/Inter-Regular.ttf"]);
     expect(ops).toHaveLength(1);
     expect(ops[0]!.element).toMatchObject({ type: "text", x: 20, y: 30, w: DEFAULT_SIZE.text.w, style: { font: "Inter", size: 12 } });
-    expect(useDocumentStore.getState().selectedElement).toBe("text-1");
+    expect(useDocumentStore.getState().selection).toEqual(["text-1"]);
   });
 
   it("Cancelar o Esc cierran el aviso sin crear nada", async () => {
@@ -295,7 +295,7 @@ describe("crear un bloque de código", () => {
     expect(preview()!.dataset.shape).toBe("code");
     await up();
     expect(ops[0]!.element).toMatchObject({ type: "code", id: "code-1", x: 20, y: 30, w: 80, h: 40 });
-    expect(useDocumentStore.getState().selectedElement).toBe("code-1");
+    expect(useDocumentStore.getState().selection).toEqual(["code-1"]);
     expect(useToolStore.getState().tool).toBe("select");
   });
 });
