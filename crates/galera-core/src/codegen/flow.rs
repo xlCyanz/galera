@@ -270,7 +270,7 @@ fn split(text: &str) -> Vec<Piece<'_>> {
 
     while at < text.len() {
         let rest = &text[at..];
-        let word_end = rest.find(char::is_whitespace).map_or(rest.len(), |end| end);
+        let word_end = rest.find(char::is_whitespace).unwrap_or(rest.len());
         let space_end = rest[word_end..]
             .find(|c: char| !c.is_whitespace())
             .map_or(rest.len(), |end| word_end + end);
