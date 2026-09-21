@@ -42,6 +42,11 @@ pub fn uses(document: &Document, name: &str) -> Vec<String> {
         .filter(|element| match element {
             Element::Text { content, .. } => content.iter().any(|run| run.text.contains(&needle)),
             Element::Code { source, .. } => source.contains(&needle),
+            Element::Table { rows, .. } => rows.iter().any(|row| {
+                row.cells
+                    .iter()
+                    .any(|cell| cell.content.iter().any(|run| run.text.contains(&needle)))
+            }),
             _ => false,
         })
         .map(|element| element.id().to_owned())
@@ -70,6 +75,18 @@ pub fn rename_in(document: &mut Document, from: &str, to: &str) -> usize {
                     if source.contains(needle) {
                         *source = source.replace(needle, replacement);
                         *changed += 1;
+                    }
+                }
+                Element::Table { rows, .. } => {
+                    for row in rows {
+                        for cell in &mut row.cells {
+                            for run in &mut cell.content {
+                                if run.text.contains(needle) {
+                                    run.text = run.text.replace(needle, replacement);
+                                    *changed += 1;
+                                }
+                            }
+                        }
                     }
                 }
                 Element::Group { children, .. } => {

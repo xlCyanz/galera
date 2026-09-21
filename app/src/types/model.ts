@@ -6,6 +6,19 @@
 export type Align = "left" | "center" | "right" | "justify";
 
 /**
+ * Cuánto mide una columna.
+ */
+export type ColumnWidth = { "width": "auto" } | { "width": "fixed", 
+/**
+ * Cuánto, en milímetros.
+ */
+mm: number, } | { "width": "fraction", 
+/**
+ * Cuántas partes.
+ */
+fr: number, };
+
+/**
  * Estilo de un trazo que no es continuo.
  */
 export type Dash = "dashed" | "dotted" | "dash-dotted";
@@ -383,6 +396,76 @@ hidden?: boolean,
  * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
  * el panel de capas.
  */
+locked?: boolean, } | { "type": "table", 
+/**
+ * Las columnas, de izquierda a derecha, con lo que mide cada una.
+ */
+columns: Array<ColumnWidth>, 
+/**
+ * Las filas, de arriba abajo, con sus celdas.
+ */
+rows: Array<TableRow>, 
+/**
+ * Estilo del texto de las celdas que no digan otro.
+ */
+style: TextStyle, 
+/**
+ * Borde de las celdas, o `None` para una tabla sin líneas.
+ */
+stroke?: Stroke, 
+/**
+ * Lo que se deja entre el borde de una celda y su texto, en
+ * milímetros.
+ */
+inset: number, 
+/**
+ * Color de fondo de las celdas que no digan otro.
+ */
+fill?: string, 
+/**
+ * Identificador único dentro del documento.
+ *
+ * Es también la etiqueta `<el-ID>` que el codegen deja en el código
+ * Typst para poder encontrar el elemento en el layout compilado.
+ */
+id: string, 
+/**
+ * Distancia desde el borde izquierdo de la página, en milímetros.
+ */
+x: number, 
+/**
+ * Distancia desde el borde superior de la página, en milímetros.
+ */
+y: number, 
+/**
+ * Ancho, en milímetros.
+ */
+w: number, 
+/**
+ * Alto en milímetros, o `None` para que lo mida Typst.
+ *
+ * La altura automática es lo normal en textos e imágenes: lo que ocupan
+ * depende de la composición, y solo Typst la conoce (principio 3).
+ */
+h: number | null, 
+/**
+ * Rotación en grados, en sentido horario, alrededor del centro.
+ */
+rotation: number, 
+/**
+ * Nombre que se enseña en el panel en vez del que se deduce del
+ * elemento.
+ */
+name?: string, 
+/**
+ * Si está oculto: no se emite en el código Typst, así que ni se dibuja
+ * ni se exporta.
+ */
+hidden?: boolean, 
+/**
+ * Si está bloqueado: no se puede seleccionar en el lienzo, solo desde
+ * el panel de capas.
+ */
 locked?: boolean, } | { "type": "flow", 
 /**
  * A qué flujo pertenece: una clave de [`Document::flows`].
@@ -706,6 +789,47 @@ width: number,
  * el JSON: los documentos de antes se leen y se guardan igual.
  */
 dash?: Dash, };
+
+/**
+ * Una celda.
+ */
+export type TableCell = { 
+/**
+ * Su texto, partido en tramos con el mismo formato, como el de un
+ * bloque de texto.
+ */
+content: Array<Run>, 
+/**
+ * Cuántas columnas ocupa, contando la suya.
+ */
+colspan: number, 
+/**
+ * Cuántas filas ocupa, contando la suya.
+ */
+rowspan: number, 
+/**
+ * Color de fondo, `#RRGGBB` o `#RRGGBBAA`. Sin él, el de su fila.
+ */
+fill?: string, 
+/**
+ * Alineación del texto dentro de la celda. Sin ella, la de la tabla.
+ */
+align?: Align, };
+
+/**
+ * Una fila de la tabla.
+ */
+export type TableRow = { 
+/**
+ * Sus celdas, de izquierda a derecha. Las que tape una celda combinada
+ * de más arriba o de más a la izquierda no se escriben.
+ */
+cells: Array<TableCell>, 
+/**
+ * Color de fondo de la fila, `#RRGGBB` o `#RRGGBBAA`. Sin él, el de la
+ * tabla.
+ */
+fill?: string, };
 
 /**
  * Estilo de un bloque de texto completo.

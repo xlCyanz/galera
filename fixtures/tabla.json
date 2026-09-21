@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "meta": { "title": "Tabla" },
+  "fonts": ["fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf"],
+  "variables": { "trimestre": { "kind": "text", "value": "T1 2026" } },
+  "pages": [
+    {
+      "id": "p1",
+      "size": { "width": 210, "height": 297, "unit": "mm" },
+      "elements": [
+        { "id": "tb1", "type": "table", "x": 20, "y": 30, "w": 170, "h": null,
+          "columns": [
+            { "width": "auto" },
+            { "width": "fraction", "fr": 1 },
+            { "width": "fraction", "fr": 2 },
+            { "width": "fixed", "mm": 25 }
+          ],
+          "rows": [
+            { "fill": "#1e40af",
+              "cells": [
+                { "content": [{ "text": "Ventas de {{trimestre}}", "bold": true }],
+                  "colspan": 4, "align": "center" }
+              ] },
+            { "fill": "#F1F5F9",
+              "cells": [
+                { "content": [{ "text": "Mes" }] },
+                { "content": [{ "text": "Zona" }] },
+                { "content": [{ "text": "Responsable" }] },
+                { "content": [{ "text": "Total" }], "align": "right" }
+              ] },
+            { "cells": [
+                { "content": [{ "text": "Enero" }], "rowspan": 2 },
+                { "content": [{ "text": "Norte" }] },
+                { "content": [{ "text": "Ana *Ruiz*" }] },
+                { "content": [{ "text": "12 500" }], "align": "right" }
+              ] },
+            { "cells": [
+                { "content": [{ "text": "Sur" }] },
+                { "content": [{ "text": "Luis #Prado" }] },
+                { "content": [{ "text": "9 750" }], "align": "right" }
+              ] },
+            { "cells": [
+                { "content": [{ "text": "Total", "bold": true }], "colspan": 3 },
+                { "content": [{ "text": "22 250", "bold": true }], "align": "right",
+                  "fill": "#FEF3C7" }
+              ] }
+          ],
+          "style": { "font": "Inter", "size": 10, "color": "#1F2733", "align": "left", "leading": 0.65 },
+          "stroke": { "color": "#94A3B8", "width": 0.2 },
+          "inset": 2 },
+        { "id": "tb2", "type": "table", "x": 20, "y": 120, "w": 100, "h": null,
+          "columns": [{ "width": "auto" }, { "width": "auto" }],
+          "rows": [
+            { "cells": [{ "content": [{ "text": "Sin bordes" }] },
+                        { "content": [{ "text": "ni relleno" }] }] }
+          ],
+          "style": { "font": "Inter", "size": 10, "color": "#1F2733" },
+          "stroke": null,
+          "inset": 0 }
+      ]
+    }
+  ]
+}

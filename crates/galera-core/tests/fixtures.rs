@@ -31,6 +31,7 @@ const FIXTURES: &[&str] = &[
     "listas",
     "multipagina",
     "rectangulo",
+    "tabla",
     "texto",
     "variables",
 ];
