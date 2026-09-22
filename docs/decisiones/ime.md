@@ -81,6 +81,12 @@ que hay dos formas de usar el campo, y que la buena no es la que parecía:
 - Lleva el registro de eventos, con `inputType`, `data`, si llegaron a
   medias de una composición y cuánto tardó la última tecla. «Copiar el
   registro» lo deja en el portapapeles para pegarlo en la issue.
+- Trae **los ocho casos de la sesión**, cada uno con «funciona» y «falla».
+  Marcar uno guarda cómo estaban el modelo, el espejo y los doce últimos
+  eventos en ese momento; volver a marcar lo mismo lo desmarca. «Copiar el
+  informe» saca una tabla en Markdown con los ocho —los que no se probaron
+  salen como pendientes— y, debajo, los eventos de los que fallaron. Esa
+  tabla es la que va a la issue y la que sustituye a la de aquí abajo.
 
 Cómo abrirlo:
 
@@ -118,8 +124,20 @@ Nada de esto se puede afirmar sin un teclado de verdad:
 | ⌫ sobre un emoji y sobre una letra con tilde | pendiente |
 | Flechas y ⇧ + flecha | pendiente |
 
-Se prueba con `VITE_SPIKE=ime pnpm tauri dev` y se anota aquí el resultado,
-con el registro de eventos de lo que falle.
+Cómo se hace, en cinco minutos:
+
+1. `VITE_SPIKE=ime pnpm tauri dev`, que abre el spike **dentro del webview de
+   la aplicación**, que es el que cuenta. En un navegador normal el resultado
+   no vale: el webview de macOS es otro.
+2. Probar los casos de arriba a abajo, marcando cada uno en la página según
+   salga. Lo que se marca se queda con los dos textos y los últimos eventos.
+3. «Copiar el informe» y pegarlo en la issue.
+4. Traer aquí la tabla del informe, en lugar de esta, y escribir debajo la
+   conclusión: si el campo invisible sirve o hay que ir a la opción 4.
+
+Un caso que falle no cierra el spike por sí solo: lo que decide es si el
+**modelo y el espejo se separan**. Que un `inputType` salga «sin manejar» en
+el registro es trabajo para `input.ts`, no un fallo del enfoque.
 
 ## Consecuencias
 

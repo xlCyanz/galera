@@ -24,42 +24,23 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { type Composition, type Field, apply } from "./input";
+import {
+  CHECKS,
+  type Entry,
+  KEPT_EVENTS,
+  type CheckResult,
+  markdown,
+  quote as quoted,
+} from "./report";
 import "./ime.css";
-
-/** Una línea del registro de eventos. */
-type Entry = {
-  id: number;
-  /** Milisegundos desde que se abrió la página. */
-  at: number;
-  /** `keydown`, `beforeinput`, `compositionupdate`… */
-  type: string;
-  /** El `inputType`, si el evento lo trae. */
-  inputType: string | null;
-  /** El texto del evento, si trae. */
-  data: string | null;
-  /** Si el evento llegó a medias de una composición. */
-  composing: boolean;
-  /** Qué se hizo con él. */
-  outcome: "aplicado" | "sin manejar" | "nota";
-};
-
-/** Lo que hay que probar a mano, que es lo que pide la issue. */
-const CHECKS = [
-  "Teclado español: tilde con tecla muerta (´ + a), diéresis (¨ + u), ñ y ç",
-  "Emojis desde el panel del sistema (control + comando + espacio)",
-  "Otro sistema de entrada: japonés (にほん → 日本), chino o coreano",
-  "Dictado del sistema (fn fn) escribiendo una frase entera",
-  "Pegar desde otra aplicación, texto de varias líneas incluido",
-  "Cortar, arrastrar y soltar texto, y deshacer del sistema (⌘Z)",
-  "Borrar con ⌫ un emoji y una letra con tilde",
-  "Teclas de flecha para mover el cursor y ⇧ + flecha para seleccionar",
-];
 
 export function Ime() {
   const [field, setField] = useState<Field>({ text: "", start: 0, end: 0 });
   const [composition, setComposition] = useState<Composition>(null);
   const [log, setLog] = useState<Entry[]>([]);
   const [mirror, setMirror] = useState("");
+  /** Cómo quedó cada caso al probarlo, por su id. */
+  const [results, setResults] = useState<Record<string, CheckResult>>({});
   /** Lo que tardó el último cambio desde que se pulsó la tecla. */
   const [latency, setLatency] = useState<number | null>(null);
 
@@ -190,7 +171,32 @@ export function Ime() {
     };
   }, []);
 
+  /**
+   * Marca un caso y se queda con la foto del momento: los dos textos y los
+   * últimos eventos. Volver a marcarlo lo sustituye; marcar el mismo
+   * resultado dos veces lo quita, por si se marcó sin querer.
+   */
+  const mark = (id: string, verdict: CheckResult["verdict"]) =>
+    setResults((current) => {
+      if (current[id]?.verdict === verdict) {
+        const { [id]: _, ...rest } = current;
+        return rest;
+      }
+      return {
+        ...current,
+        [id]: {
+          verdict,
+          model: field.text,
+          mirror,
+          // El registro se guarda del más nuevo al más viejo; en el informe
+          // se lee al revés.
+          events: log.slice(0, KEPT_EVENTS).reverse(),
+        },
+      };
+    });
+
   const same = mirror === field.text;
+  const done = Object.keys(results).length;
 
   return (
     <main className="spike">
@@ -233,9 +239,9 @@ export function Ime() {
         </p>
         <dl>
           <dt>Modelo</dt>
-          <dd>{quote(field.text)}</dd>
+          <dd>{quoted(field.text)}</dd>
           <dt>Espejo</dt>
-          <dd>{quote(mirror)}</dd>
+          <dd>{quoted(mirror)}</dd>
           <dt>Selección</dt>
           <dd>
             {field.start}–{field.end}
@@ -248,12 +254,52 @@ export function Ime() {
       </section>
 
       <section className="spike-checks">
-        <h2>Qué hay que probar</h2>
+        <h2>
+          Qué hay que probar <span className="spike-count">{done} de {CHECKS.length}</span>
+        </h2>
+        <p className="spike-hint">
+          Prueba un caso y márcalo. Al marcarlo se guarda cómo estaban el modelo, el espejo y los
+          últimos eventos, que es lo que hace falta para contar qué pasó.
+        </p>
         <ul>
-          {CHECKS.map((check) => (
-            <li key={check}>{check}</li>
-          ))}
+          {CHECKS.map((check) => {
+            const result = results[check.id];
+            return (
+              <li key={check.id} data-check={check.id} data-verdict={result?.verdict ?? "pendiente"}>
+                <span className="spike-check-title">{check.title}</span>
+                <span className="spike-check-buttons">
+                  <button
+                    type="button"
+                    aria-pressed={result?.verdict === "ok"}
+                    onClick={() => mark(check.id, "ok")}
+                  >
+                    funciona
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={result?.verdict === "fail"}
+                    onClick={() => mark(check.id, "fail")}
+                  >
+                    falla
+                  </button>
+                </span>
+              </li>
+            );
+          })}
         </ul>
+        <button
+          type="button"
+          onClick={() =>
+            void navigator.clipboard.writeText(
+              markdown(results, {
+                agent: navigator.userAgent,
+                date: new Date().toISOString().slice(0, 10),
+              }),
+            )
+          }
+        >
+          Copiar el informe
+        </button>
       </section>
 
       <section className="spike-log">
@@ -277,7 +323,7 @@ export function Ime() {
                   {entry.composing ? " ⏳" : ""}
                 </td>
                 <td>{entry.inputType ?? ""}</td>
-                <td>{entry.data === null ? "" : quote(entry.data)}</td>
+                <td>{entry.data === null ? "" : quoted(entry.data)}</td>
                 <td>{entry.outcome === "nota" ? "" : entry.outcome}</td>
               </tr>
             ))}
@@ -292,11 +338,6 @@ export function Ime() {
  * portapapeles del propio evento. */
 function textOf(event: InputEvent): string | null {
   return event.dataTransfer?.getData("text/plain") ?? null;
-}
-
-/** El texto entre comillas y con los saltos de línea a la vista. */
-function quote(text: string): string {
-  return `«${text.replace(/\n/gu, "⏎")}»`;
 }
 
 /** El registro en texto plano, para pegarlo en la issue. */

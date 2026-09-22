@@ -103,7 +103,56 @@ body {
 }
 
 .spike-checks ul {
-  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.5rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.spike-checks li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.5rem;
+  border-left: 3px solid #cbd5e0;
+  border-radius: 2px;
+  background: #f7fafc;
+}
+
+.spike-checks li[data-verdict="ok"] {
+  border-left-color: #1a7f4b;
+}
+
+.spike-checks li[data-verdict="fail"] {
+  border-left-color: #c53030;
+  background: #fff5f5;
+}
+
+.spike-check-buttons {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+}
+
+.spike-check-buttons button[aria-pressed="true"] {
+  border-color: currentcolor;
+  background: #1f2733;
+  color: #fff;
+}
+
+.spike-count {
+  font-size: 0.8em;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.spike-hint {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.85em;
+  opacity: 0.8;
 }
 
 .spike-log table {
