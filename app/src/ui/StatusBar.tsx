@@ -6,10 +6,10 @@
  * abre solo cuando aparece un error nuevo. Mientras hay errores, el lienzo
  * sigue enseñando la última compilación buena (ver `store/compilation.ts`).
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { formatZoom } from "../canvas/zoom";
-import { compilationStatusText } from "../format";
+import { SLOW_COMPILATION_MS, compilationAnnouncement, compilationStatusText } from "../format";
 import {
   useCompilationError,
   useCompilationMs,
@@ -36,6 +36,32 @@ export function StatusBar() {
   const { errors } = countIssues(issues);
   const summary = issuesSummary(issues);
   const [panelOpen, setPanelOpen] = useState(false);
+  // Lo que se dice al lector de pantalla, en una región que está siempre y
+  // solo cambia de texto (F8-03, #90). Ver `compilationAnnouncement`.
+  const [spoken, setSpoken] = useState("");
+  const settled = useRef<typeof status>("idle");
+  const slow = useRef(false);
+  useEffect(() => {
+    if (status === "compiling") {
+      // Solo si tarda: una compilación de cada tecla no se anuncia.
+      const timer = setTimeout(() => {
+        slow.current = true;
+        setSpoken("Compilando…");
+      }, SLOW_COMPILATION_MS);
+      return () => clearTimeout(timer);
+    }
+    const said = compilationAnnouncement(settled.current, status, summary);
+    if (said !== null) {
+      setSpoken(said);
+    } else if (slow.current && status === "ready") {
+      // Se dijo que se compilaba: se dice también que acabó.
+      setSpoken("Compilado");
+    }
+    slow.current = false;
+    if (status === "ready" || status === "error") {
+      settled.current = status;
+    }
+  }, [status, summary]);
 
   // Un error nuevo abre el panel; si se arregla, se cierra.
   useEffect(() => {
@@ -46,8 +72,10 @@ export function StatusBar() {
     <>
       {panelOpen && issues.length > 0 && <ErrorPanel issues={issues} />}
       <footer className="status-bar">
-        <span className={`status-compilation is-${status}`} role="status">
-          {compilationStatusText(status, ms, reused)}
+        {/* Lo que se ve cambia en cada tecla; lo que se oye va aparte. */}
+        <span className={`status-compilation is-${status}`}>{compilationStatusText(status, ms, reused)}</span>
+        <span className="visually-hidden" role="status">
+          {spoken}
         </span>
         {summary !== null && (
           <button

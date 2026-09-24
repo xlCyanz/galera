@@ -20,6 +20,20 @@ body {
   color: var(--ink);
 }
 
+/* Lo que se dice al lector de pantalla y no se ve: sigue en el árbol de
+   accesibilidad, a diferencia de `display: none` (F8-03, #90). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* El foco se ve siempre que se llega con el teclado (F8-02, #89). Un solo
    anillo para toda la interfaz; lo que necesite otro lo dice en su propia
    regla. Quitarlo con `outline: none` solo vale donde el foco se enseña de
@@ -623,7 +637,7 @@ body {
 .format-link {
   width: 12rem;
   padding: 0.15rem 0.35rem;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-border);
   border-radius: 4px;
   font: inherit;
 }
@@ -689,6 +703,20 @@ body {
   50.01%,
   100% {
     opacity: 0;
+  }
+}
+
+/* Con el movimiento reducido del sistema no se mueve nada que no haga falta
+   (F8-03, #90). El cursor del texto deja de parpadear y se queda encendido:
+   sin animación vale su opacidad de siempre, que es la de verlo. La regla
+   es general a propósito, para lo que se anime más adelante. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -1118,7 +1146,7 @@ body {
   width: 22px;
   height: 22px;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--control-border);
   border-radius: 4px;
   background: var(--surface);
   color: var(--ink);
@@ -1768,7 +1796,7 @@ body {
   min-height: 0;
   max-height: 22rem;
   overflow: auto;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-border);
   border-radius: 4px;
   font-size: 0.75rem;
 }
@@ -1911,7 +1939,7 @@ body {
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.5rem;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-border);
   border-radius: 6px;
 }
 

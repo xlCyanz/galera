@@ -209,6 +209,61 @@ describe("los colores de la interfaz", () => {
     }
   });
 
+  /**
+   * F8-03 (#90): contraste mínimo de 4,5:1 en texto y 3:1 en controles, en
+   * los dos temas. Son las combinaciones que de verdad salen en la
+   * interfaz: cada tinta sobre los fondos donde se escribe.
+   */
+  it("el texto contrasta 4,5:1 y los controles 3:1, en los dos temas", () => {
+    const light = definitions(block(tokens, ":root {"));
+    const dark = new Map([...light, ...definitions(block(tokens, ':root[data-theme="dark"]'))]);
+
+    const text: Array<[string, string[]]> = [
+      ["--ink", ["--bg", "--surface", "--surface-hover"]],
+      ["--ink-muted", ["--bg", "--surface"]],
+      ["--accent", ["--bg", "--surface"]],
+      ["--success", ["--bg", "--surface"]],
+      ["--danger", ["--bg", "--surface"]],
+      ["--warning", ["--bg", "--surface"]],
+      ["--on-accent", ["--accent"]],
+      ["--on-notice", ["--notice"]],
+      ["--on-caution", ["--caution"]],
+      ["--on-danger-soft", ["--danger-soft"]],
+      ["--on-popover", ["--popover"]],
+      ["--ruler-ink", ["--ruler"]],
+      ["--code-comment", ["--surface"]],
+      ["--code-keyword", ["--surface"]],
+      ["--code-string", ["--surface"]],
+      ["--code-number", ["--surface"]],
+      ["--code-property", ["--surface"]],
+      ["--code-label", ["--surface"]],
+    ];
+    const controls: Array<[string, string[]]> = [
+      ["--control-border", ["--bg", "--surface"]],
+      ["--accent", ["--bg", "--surface"]],
+    ];
+
+    for (const [theme, values] of [
+      ["claro", light],
+      ["oscuro", dark],
+    ] as const) {
+      for (const [pairs, minimum] of [
+        [text, 4.5],
+        [controls, 3],
+      ] as const) {
+        for (const [ink, backgrounds] of pairs) {
+          for (const background of backgrounds) {
+            const ratio = contrast(values.get(ink) ?? "", values.get(background) ?? "");
+            expect(
+              ratio,
+              `${theme}: ${ink} sobre ${background} da ${ratio.toFixed(2)}:1, y hace falta ${minimum}:1`,
+            ).toBeGreaterThanOrEqual(minimum);
+          }
+        }
+      }
+    }
+  });
+
   it("nadie quita el foco visible, salvo donde se enseña de otra forma", () => {
     // El campo invisible del texto: el foco se ve en el cursor que dibuja el
     // lienzo. Y el contorno de una línea, que no recibe el foco.
@@ -220,6 +275,18 @@ describe("los colores de la interfaz", () => {
         expect(allowed.has(selector), `${path}: ${selector} quita el foco visible`).toBe(true);
       }
     }
+  });
+
+  /** F8-03 (#90): se respeta la preferencia de movimiento reducido. */
+  it("con el movimiento reducido no se anima nada", () => {
+    const styles = (stylesheets["styles.css"] ?? "").replace(/\/\*[\s\S]*?\*\//gu, "");
+    const start = styles.indexOf("@media (prefers-reduced-motion: reduce)");
+    expect(start, "styles.css atiende prefers-reduced-motion").toBeGreaterThanOrEqual(0);
+    const rule = styles.slice(start, styles.indexOf("\n}\n", start));
+    expect(rule).toContain("animation: none !important");
+    expect(rule).toContain("transition: none !important");
+    // Y la regla es para todo, no para lo que se anime hoy.
+    expect(rule).toMatch(/\*,\s*\*::before,\s*\*::after/u);
   });
 
   /** El criterio de la tarea: el documento no cambia de color. */

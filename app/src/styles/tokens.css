@@ -70,6 +70,10 @@
   --surface-hover: #f1f5f9;
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
+  /* El borde que dice dónde acaba un control hecho aquí —un campo, un
+     botón sin fondo propio—: 3:1 con el fondo (WCAG 1.4.11). Los de
+     arriba son de contenedores, que no lo necesitan. */
+  --control-border: #64748b;
   --accent: #2563eb;
   --on-accent: #ffffff;
   /* El anillo del foco: tiene que contrastar 3:1 con todo fondo (WCAG
@@ -80,7 +84,7 @@
   --focus-ring-on-popover: #60a5fa;
   --success: #15803d;
   --danger: #b91c1c;
-  --warning: #ca8a04;
+  --warning: #a16207;
   --danger-soft: #fef2f2;
   --on-danger-soft: #7f1d1d;
   --notice: #fef3c7;
@@ -93,7 +97,7 @@
   --on-popover: #f4f4f5;
   --workspace: #e5e7eb;
   --ruler: #f4f4f5;
-  --ruler-ink: #71717a;
+  --ruler-ink: #52525b;
   --shadow-soft: rgb(0 0 0 / 12%);
   --shadow: rgb(0 0 0 / 20%);
   --shadow-strong: rgb(0 0 0 / 40%);
@@ -102,7 +106,7 @@
   /* El resaltado del código Typst (`ui/typstHighlight.ts`). */
   --code-comment: #64748b;
   --code-keyword: #7c3aed;
-  --code-string: #16a34a;
+  --code-string: #15803d;
   --code-number: #b45309;
   --code-property: #2563eb;
   --code-label: #db2777;
@@ -118,6 +122,7 @@
   --surface-hover: #3f3f46;
   --border: #3f3f46;
   --border-strong: #52525b;
+  --control-border: #71717a;
   --accent: #60a5fa;
   --on-accent: #0b1220;
   --focus-ring: #60a5fa;
@@ -162,6 +167,7 @@
     --surface-hover: #3f3f46;
     --border: #3f3f46;
     --border-strong: #52525b;
+    --control-border: #71717a;
     --accent: #60a5fa;
     --on-accent: #0b1220;
     --focus-ring: #60a5fa;
