@@ -19,6 +19,7 @@ import {
 } from "../store/compilation";
 import { useCurrentPage, usePageCount, useZoom } from "../store/document";
 import { ErrorPanel } from "./ErrorPanel";
+import { ThemeSelect } from "./ThemeSelect";
 import { countIssues, issuesOf, issuesSummary } from "./issues";
 
 export function StatusBar() {
@@ -67,6 +68,7 @@ export function StatusBar() {
             <span className="status-zoom">{formatZoom(zoom)}</span>
           </>
         )}
+        <ThemeSelect />
       </footer>
     </>
   );

@@ -20,5 +20,7 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Las pruebas que leen el disco con Node las comprueba tsconfig.node.json.
+  "exclude": ["src/**/*.node.test.ts"]
 }

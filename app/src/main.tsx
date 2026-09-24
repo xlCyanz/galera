@@ -2,7 +2,13 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
+import { applyTheme, storedTheme } from "./theme";
+import "./styles/tokens.css";
 import "./styles.css";
+
+// El tema va antes de pintar nada: si no, la interfaz saldría un instante
+// con el del sistema y luego cambiaría.
+applyTheme(storedTheme());
 
 const root = document.getElementById("root");
 if (root === null) {

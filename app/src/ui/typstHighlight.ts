@@ -50,12 +50,12 @@ export const typstTokens = StreamLanguage.define({
 
 /** Los colores, que salen de las variables CSS de la aplicación. */
 export const typstHighlightStyle = HighlightStyle.define([
-  { tag: tags.comment, color: "var(--code-comment, #64748b)", fontStyle: "italic" },
-  { tag: tags.keyword, color: "var(--code-keyword, #7c3aed)" },
-  { tag: tags.string, color: "var(--code-string, #16a34a)" },
-  { tag: tags.number, color: "var(--code-number, #b45309)" },
-  { tag: tags.propertyName, color: "var(--code-property, #2563eb)" },
-  { tag: tags.labelName, color: "var(--code-label, #db2777)" },
+  { tag: tags.comment, color: "var(--code-comment)", fontStyle: "italic" },
+  { tag: tags.keyword, color: "var(--code-keyword)" },
+  { tag: tags.string, color: "var(--code-string)" },
+  { tag: tags.number, color: "var(--code-number)" },
+  { tag: tags.propertyName, color: "var(--code-property)" },
+  { tag: tags.labelName, color: "var(--code-label)" },
 ]);
 
 /** El resaltado entero, listo para las extensiones del editor. */

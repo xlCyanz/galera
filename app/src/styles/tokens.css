@@ -1,0 +1,187 @@
+/* Los colores de la interfaz, todos aquí.
+
+   Ningún otro archivo de estilos escribe un color a mano: usa uno de estos
+   tokens (lo comprueba `tokens.node.test.ts`). Así el tema oscuro es cambiar
+   este archivo, y no buscar colores sueltos por toda la interfaz.
+
+   # Tres temas, dos definiciones
+
+   - Claro: `:root`, sin nada más.
+   - Oscuro: `:root[data-theme="dark"]`, cuando se elige a mano.
+   - Del sistema: sin `data-theme`, y entonces manda
+     `prefers-color-scheme`.
+
+   Los valores del oscuro están escritos dos veces —una para cada forma de
+   llegar a él— porque CSS no deja compartir un bloque entre un selector y
+   una consulta de medios. La prueba comprueba que las dos copias dicen lo
+   mismo.
+
+   # Lo que no cambia con el tema
+
+   El papel es blanco siempre, y todo lo que se dibuja sobre él —manejadores,
+   guías, marcas de celdas y de zonas— también se queda como está: lo que se
+   ve tiene que ser lo que se exporta (principio 2). Esos tokens están solo
+   en `:root`, y los temas no los tocan.
+
+   # Lo que no es de la interfaz
+
+   Los colores con los que nace un elemento nuevo —el relleno de un
+   rectángulo, el borde— no están aquí: son del documento, se escriben en
+   él y salen en el PDF, así que no pueden depender del tema
+   (`canvas/createGeometry.ts`, `ui/shapeFields.ts`).
+
+   Provisional: los valores concretos llegarán con el brief de diseño
+   (F1-13, #29). Lo que queda es la estructura. */
+
+:root {
+  color-scheme: light;
+
+  /* ---- Lo que no cambia con el tema ---- */
+
+  /* El papel, y las miniaturas y vistas previas que enseñan documentos. */
+  --paper: #ffffff;
+  /* El damero que enseña lo transparente. */
+  --checker-a: #e5e7eb;
+  --checker-b: #ffffff;
+  /* El selector de color: su rueda es aritmética, no tema. */
+  --wheel-white: #ffffff;
+  --wheel-black: #000000;
+  --wheel-hues: red, yellow, lime, aqua, blue, magenta, red;
+  --swatch-none: #dc2626;
+  /* Sobre el papel: manejadores, guías, zonas de flujo y celdas. */
+  --handle-fill: #ffffff;
+  --flow: #6366f1;
+  --flow-soft: rgb(99 102 241 / 12%);
+  --on-flow: #ffffff;
+  --cell-guide: #94a3b8;
+  --snap: #e0218a;
+  --snap-margin: #7b61ff;
+  --snap-halo: #ffffff;
+  /* Un tinte neutro que sirve igual sobre claro y sobre oscuro. */
+  --hover-tint: rgb(127 127 127 / 15%);
+  --chip-edge: rgb(127 127 127 / 60%);
+
+  /* ---- Lo que cambia con el tema: claro ---- */
+
+  --bg: #ffffff;
+  --ink: #1f2733;
+  --ink-muted: #64748b;
+  --surface: #ffffff;
+  --surface-hover: #f1f5f9;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --accent: #2563eb;
+  --on-accent: #ffffff;
+  --success: #15803d;
+  --danger: #b91c1c;
+  --warning: #ca8a04;
+  --danger-soft: #fef2f2;
+  --on-danger-soft: #7f1d1d;
+  --notice: #fef3c7;
+  --notice-border: #f59e0b;
+  --on-notice: #1f2733;
+  --caution: #fffaf0;
+  --caution-border: #c05621;
+  --on-caution: #7b341e;
+  --popover: #27272a;
+  --on-popover: #f4f4f5;
+  --workspace: #e5e7eb;
+  --ruler: #f4f4f5;
+  --ruler-ink: #71717a;
+  --shadow-soft: rgb(0 0 0 / 12%);
+  --shadow: rgb(0 0 0 / 20%);
+  --shadow-strong: rgb(0 0 0 / 40%);
+  --shadow-menu: rgb(15 23 42 / 18%);
+  --backdrop: rgb(0 0 0 / 45%);
+  /* El resaltado del código Typst (`ui/typstHighlight.ts`). */
+  --code-comment: #64748b;
+  --code-keyword: #7c3aed;
+  --code-string: #16a34a;
+  --code-number: #b45309;
+  --code-property: #2563eb;
+  --code-label: #db2777;
+}
+
+/* ---- Oscuro, elegido a mano ---- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #18181b;
+  --ink: #e4e4e7;
+  --ink-muted: #a1a1aa;
+  --surface: #27272a;
+  --surface-hover: #3f3f46;
+  --border: #3f3f46;
+  --border-strong: #52525b;
+  --accent: #60a5fa;
+  --on-accent: #0b1220;
+  --success: #4ade80;
+  --danger: #f87171;
+  --warning: #facc15;
+  --danger-soft: #3b1414;
+  --on-danger-soft: #fecaca;
+  --notice: #3a2e0b;
+  --notice-border: #b45309;
+  --on-notice: #fde68a;
+  --caution: #3a200b;
+  --caution-border: #c2410c;
+  --on-caution: #fed7aa;
+  --popover: #3f3f46;
+  --on-popover: #f4f4f5;
+  --workspace: #27272a;
+  --ruler: #18181b;
+  --ruler-ink: #a1a1aa;
+  --shadow-soft: rgb(0 0 0 / 30%);
+  --shadow: rgb(0 0 0 / 45%);
+  --shadow-strong: rgb(0 0 0 / 60%);
+  --shadow-menu: rgb(0 0 0 / 50%);
+  --backdrop: rgb(0 0 0 / 60%);
+  --code-comment: #a1a1aa;
+  --code-keyword: #c4b5fd;
+  --code-string: #86efac;
+  --code-number: #fdba74;
+  --code-property: #93c5fd;
+  --code-label: #f9a8d4;
+}
+
+/* ---- Oscuro, porque lo dice el sistema ---- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #18181b;
+    --ink: #e4e4e7;
+    --ink-muted: #a1a1aa;
+    --surface: #27272a;
+    --surface-hover: #3f3f46;
+    --border: #3f3f46;
+    --border-strong: #52525b;
+    --accent: #60a5fa;
+    --on-accent: #0b1220;
+    --success: #4ade80;
+    --danger: #f87171;
+    --warning: #facc15;
+    --danger-soft: #3b1414;
+    --on-danger-soft: #fecaca;
+    --notice: #3a2e0b;
+    --notice-border: #b45309;
+    --on-notice: #fde68a;
+    --caution: #3a200b;
+    --caution-border: #c2410c;
+    --on-caution: #fed7aa;
+    --popover: #3f3f46;
+    --on-popover: #f4f4f5;
+    --workspace: #27272a;
+    --ruler: #18181b;
+    --ruler-ink: #a1a1aa;
+    --shadow-soft: rgb(0 0 0 / 30%);
+    --shadow: rgb(0 0 0 / 45%);
+    --shadow-strong: rgb(0 0 0 / 60%);
+    --shadow-menu: rgb(0 0 0 / 50%);
+    --backdrop: rgb(0 0 0 / 60%);
+    --code-comment: #a1a1aa;
+    --code-keyword: #c4b5fd;
+    --code-string: #86efac;
+    --code-number: #fdba74;
+    --code-property: #93c5fd;
+    --code-label: #f9a8d4;
+  }
+}
