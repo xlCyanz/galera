@@ -14,8 +14,8 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 9 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 7 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 5 |
-| [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 0 |
-| **Total** | **95** | **84** |
+| [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 1 |
+| **Total** | **95** | **85** |
 
 
 ---
@@ -203,7 +203,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 
 | Estado | Tarea | Issue | Depende de |
 |:--:|---|:--:|---|
-| ⬜ | **F8-01** — Modo oscuro de la interfaz | [#88](https://github.com/xlCyanz/galera/issues/88) | #29 |
+| ✅ | **F8-01** — Modo oscuro de la interfaz | [#88](https://github.com/xlCyanz/galera/issues/88) | #29 |
 | ⬜ | **F8-02** — Navegación por teclado y gestión del foco | [#89](https://github.com/xlCyanz/galera/issues/89) | #53 |
 | ⬜ | **F8-03** — Accesibilidad: roles, nombres y contraste | [#90](https://github.com/xlCyanz/galera/issues/90) | #89, #88 |
 | ⬜ | **F8-04** — Rendimiento con documentos de 50 páginas | [#91](https://github.com/xlCyanz/galera/issues/91) | #65, #58 |
