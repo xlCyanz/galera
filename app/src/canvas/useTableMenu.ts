@@ -36,6 +36,8 @@ export interface TableMenuControl {
   onContextMenu: (event: MouseEvent<HTMLElement>) => void;
   /** Cierra el menú. */
   close: () => void;
+  /** Lo abre sobre una celda sin puntero: ⇧F10 o la tecla de menú. */
+  openAt: (at: TableMenuAt) => void;
 }
 
 export function useTableMenu(
@@ -77,5 +79,5 @@ export function useTableMenu(
     setMenu(null);
   };
 
-  return { menu, onContextMenu, close: () => setMenu(null) };
+  return { menu, onContextMenu, close: () => setMenu(null), openAt: setMenu };
 }

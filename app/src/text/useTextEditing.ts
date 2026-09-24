@@ -48,6 +48,11 @@ export interface TextEditing {
    * hace nada más con ese clic.
    */
   onPointerDown: (event: PointerEvent<HTMLElement>) => boolean;
+  /**
+   * Entra a escribir en ese elemento, sin puntero: lo que hace Intro sobre
+   * lo seleccionado (F8-02). Devuelve si era algo donde se escribe.
+   */
+  enter: (id: string) => boolean;
 }
 
 /**
@@ -282,6 +287,72 @@ export function useTextEditing(transform: CanvasTransform | null, page: number):
     return true;
   };
 
+  /**
+   * Entra a escribir en el elemento `id`: un bloque de texto, el flujo de
+   * una zona o una celda de una tabla. Devuelve si había dónde escribir.
+   *
+   * `point` es dónde se pulsó, en mm de la página. En una tabla dice en qué
+   * celda se entra; sin él —desde el teclado—, se entra en la primera.
+   */
+  const enter = (id: string, point: { x: number; y: number } | null): boolean => {
+    const element = useDocumentStore
+      .getState()
+      .document?.pages.flatMap((one) => one.elements)
+      .find((candidate) => candidate.id === id);
+    if (element === undefined) {
+      return false;
+    }
+    // Una zona no lleva texto: lo lleva su flujo, y se escribe entero.
+    if (element.type === "flow") {
+      const runs = runsOf(useDocumentStore.getState().document, { kind: "flow", name: element.flow });
+      if (runs === null) {
+        return false;
+      }
+      useDocumentStore.getState().select(id);
+      const text = textOf(runs);
+      useEditingStore.getState().editFlow(element.flow, byteIndex(text, text.length));
+      return true;
+    }
+    // Una tabla no lleva texto: lo llevan sus celdas, y se entra en la que
+    // esté bajo el puntero, o en la primera.
+    if (element.type === "table") {
+      const cells = useLayoutStore.getState().cells.filter((one) => one.table === id);
+      let cell = cells[0] ?? null;
+      if (point !== null) {
+        const box = useLayoutStore.getState().boxes[id];
+        if (box === undefined) {
+          return false;
+        }
+        const local = unrotate(box, point.x, point.y);
+        cell = cellAt(cells, page, local.x, local.y, id);
+      }
+      if (cell === null) {
+        return false;
+      }
+      const runs = runsOf(useDocumentStore.getState().document, {
+        kind: "cell",
+        table: id,
+        row: cell.row,
+        column: cell.column,
+      });
+      if (runs === null) {
+        return false;
+      }
+      useDocumentStore.getState().select(id);
+      const text = textOf(runs);
+      useEditingStore.getState().editCell(id, cell.row, cell.column, byteIndex(text, text.length));
+      return true;
+    }
+    if (element.type !== "text") {
+      return false;
+    }
+    useDocumentStore.getState().select(id);
+    // El cursor entra al final, contado en bytes como el núcleo.
+    const text = textOf(element.content);
+    useEditingStore.getState().edit(id, byteIndex(text, text.length));
+    return true;
+  };
+
   const onDoubleClick = (event: MouseEvent<HTMLElement>) => {
     if (event.button !== 0 || transform === null) {
       return;
@@ -296,70 +367,14 @@ export function useTextEditing(transform: CanvasTransform | null, page: number):
     const below = useDocumentStore.getState().enteredGroup;
     void elementAt(page, point.x, point.y, HIT_TOLERANCE_PX / transform.pxPerMm, below)
       .then((id) => {
-        if (id === null) {
-          return;
+        if (id !== null) {
+          enter(id, point);
         }
-        const element = useDocumentStore
-          .getState()
-          .document?.pages.flatMap((one) => one.elements)
-          .find((candidate) => candidate.id === id);
-        if (element === undefined) {
-          return;
-        }
-        // Una zona no lleva texto: lo lleva su flujo, y se escribe entero.
-        if (element.type === "flow") {
-          const runs = runsOf(
-            useDocumentStore.getState().document,
-            { kind: "flow", name: element.flow },
-          );
-          if (runs === null) {
-            return;
-          }
-          useDocumentStore.getState().select(id);
-          const text = textOf(runs);
-          useEditingStore.getState().editFlow(element.flow, byteIndex(text, text.length));
-          return;
-        }
-        // Una tabla no lleva texto: lo llevan sus celdas, y se entra en la
-        // que esté bajo el puntero.
-        if (element.type === "table") {
-          const box = useLayoutStore.getState().boxes[id];
-          if (box === undefined) {
-            return;
-          }
-          const local = unrotate(box, point.x, point.y);
-          const cell = cellAt(useLayoutStore.getState().cells, page, local.x, local.y, id);
-          if (cell === null) {
-            return;
-          }
-          const runs = runsOf(useDocumentStore.getState().document, {
-            kind: "cell",
-            table: id,
-            row: cell.row,
-            column: cell.column,
-          });
-          if (runs === null) {
-            return;
-          }
-          useDocumentStore.getState().select(id);
-          const text = textOf(runs);
-          useEditingStore
-            .getState()
-            .editCell(id, cell.row, cell.column, byteIndex(text, text.length));
-          return;
-        }
-        if (element.type !== "text") {
-          return;
-        }
-        useDocumentStore.getState().select(id);
-        // El cursor entra al final, contado en bytes como el núcleo.
-        const text = textOf(element.content);
-        useEditingStore.getState().edit(id, byteIndex(text, text.length));
       })
       .catch(() => {
         // Sin respuesta del núcleo no se entra a escribir.
       });
   };
 
-  return { onDoubleClick, onPointerDown };
+  return { onDoubleClick, onPointerDown, enter: (id) => enter(id, null) };
 }

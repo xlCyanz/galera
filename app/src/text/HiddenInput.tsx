@@ -116,6 +116,10 @@ export interface HiddenInputProps {
   transform: CanvasTransform;
 }
 
+/** Adonde puede ir el foco sin dejar de escribir: lo que trabaja sobre el
+ * texto que se escribe. */
+const KEEPS_EDITING = ".table-menu, .format-bar";
+
 export function HiddenInput({ target, box, transform }: HiddenInputProps) {
   // Con qué nombre se agrupan los cambios en el historial y se etiqueta el
   // campo: el id del bloque, o el del flujo.
@@ -361,6 +365,18 @@ export function HiddenInput({ target, box, transform }: HiddenInputProps) {
         // En una tabla, el tabulador pasa a la celda siguiente. Dentro de
         // una lista, cambia el nivel. Fuera de las dos no hace nada: sacar
         // el foco del texto sería peor.
+        // ⌥F10 lleva el foco a la barra de formato, que es como se llega a
+        // una barra de herramientas sin ratón; Esc desde ella vuelve aquí.
+        // Así el color y el enlace no son solo del ratón (F8-02, #89).
+        if (event.altKey && event.key === "F10") {
+          const first = document.querySelector<HTMLElement>(".format-bar button");
+          if (first !== null) {
+            event.preventDefault();
+            event.stopPropagation();
+            first.focus();
+          }
+          return;
+        }
         if (event.key === "Tab") {
           event.preventDefault();
           event.stopPropagation();
@@ -452,7 +468,16 @@ export function HiddenInput({ target, box, transform }: HiddenInputProps) {
           void runHistory(history);
         }
       }}
-      onBlur={() => useEditingStore.getState().stop()}
+      onBlur={(event) => {
+        // Salir del texto deja de escribirlo, salvo si el foco va a algo
+        // que trabaja sobre él: el menú de la tabla o la barra de formato.
+        // Desde ahí, Esc devuelve el foco aquí y se sigue escribiendo
+        // (F8-02, #89).
+        if (event.relatedTarget instanceof Element && event.relatedTarget.closest(KEEPS_EDITING) !== null) {
+          return;
+        }
+        useEditingStore.getState().stop();
+      }}
     />
   );
 }

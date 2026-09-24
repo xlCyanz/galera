@@ -9,6 +9,7 @@
  */
 import { type PointerEvent, useEffect, useRef, useState } from "react";
 
+import { useDialogFocus } from "../hooks/useDialogFocus";
 import { useRecentColors } from "../store/recentColors";
 import { type Hsv, formatColor, hsToWheel, hsvToRgb, parseColor, rgbToHsv, wheelToHs } from "./colorMath";
 import { MIXED, type Mixed } from "./shapeFields";
@@ -66,8 +67,11 @@ export function ColorPicker({ label, value, allowNone = false, onCommit }: Color
   const root = useRef<HTMLDivElement>(null);
   const wheel = useRef<HTMLDivElement>(null);
 
-  // Cerrar al pulsar fuera o con Esc.
+  // Cerrar al pulsar fuera. Esc, el foco y el tabulador los lleva
+  // `useDialogFocus`: al cerrar, el foco vuelve a la muestra de color.
   const isOpen = open !== null;
+  const popover = useRef<HTMLDivElement>(null);
+  useDialogFocus(popover, { active: isOpen, onEscape: () => setOpen(null) });
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -77,19 +81,8 @@ export function ColorPicker({ label, value, allowNone = false, onCommit }: Color
         setOpen(null);
       }
     };
-    const key = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        setOpen(null);
-      }
-    };
     window.addEventListener("pointerdown", outside, true);
-    window.addEventListener("keydown", key, true);
-    return () => {
-      window.removeEventListener("pointerdown", outside, true);
-      window.removeEventListener("keydown", key, true);
-    };
+    return () => window.removeEventListener("pointerdown", outside, true);
   }, [isOpen]);
 
   const commit = (color: string | null) => {
@@ -134,6 +127,8 @@ export function ColorPicker({ label, value, allowNone = false, onCommit }: Color
       </button>
       {open !== null && (
         <div
+          ref={popover}
+          tabIndex={-1}
           className="color-popover"
           role="dialog"
           aria-label={`Color de ${label.toLowerCase()}`}

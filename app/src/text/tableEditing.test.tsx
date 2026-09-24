@@ -371,3 +371,86 @@ describe("la rejilla desde el lienzo", () => {
     expect(ops[1]).toMatchObject({ op: "set_column_width", column: 1, width: { width: "fixed", mm: 30 } });
   });
 });
+
+describe("el menú de la tabla con el teclado", () => {
+  const menuItems = () => [...container.querySelectorAll<HTMLElement>('.table-menu [role="menuitem"]')];
+
+  async function key(target: HTMLElement, name: string, shiftKey = false) {
+    await act(async () => {
+      target.dispatchEvent(new KeyboardEvent("keydown", { key: name, shiftKey, bubbles: true, cancelable: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  /** El criterio de la tarea: ninguna función es solo del ratón. El menú
+   * era el botón derecho. */
+  it("⇧F10 escribiendo en una celda abre el menú, con el foco dentro", async () => {
+    await enter();
+    const field = input()!;
+    field.focus();
+    await key(field, "F10", true);
+
+    expect(container.querySelector(".table-menu")).not.toBeNull();
+    expect(document.activeElement).toBe(menuItems()[0]);
+  });
+
+  it("las flechas recorren las opciones dando la vuelta", async () => {
+    await enter();
+    await key(input()!, "ContextMenu");
+    const items = menuItems();
+
+    await key(document.activeElement as HTMLElement, "ArrowDown");
+    expect(document.activeElement).toBe(items[1]);
+    await key(document.activeElement as HTMLElement, "ArrowUp");
+    await key(document.activeElement as HTMLElement, "ArrowUp");
+    expect(document.activeElement).toBe(items.at(-1));
+  });
+
+  it("Esc lo cierra y el foco vuelve al texto de la celda", async () => {
+    await enter();
+    const field = input()!;
+    field.focus();
+    await key(field, "ContextMenu");
+    await key(document.activeElement as HTMLElement, "Escape");
+
+    expect(container.querySelector(".table-menu")).toBeNull();
+    expect(document.activeElement).toBe(field);
+    // Y se sigue escribiendo en la misma celda.
+    expect(useEditingStore.getState().cell).toEqual({ table: "tb1", row: 0, column: 0 });
+  });
+});
+
+describe("la barra de formato con el teclado", () => {
+  async function key(target: HTMLElement, name: string, modifiers: { altKey?: boolean } = {}) {
+    await act(async () => {
+      target.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true, ...modifiers }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  /** El criterio de la tarea: el color y el enlace de la barra no son solo
+   * del ratón. */
+  it("⌥F10 lleva a la barra, ← y → la recorren y Esc vuelve al texto", async () => {
+    await enter();
+    act(() => useEditingStore.getState().select(0, 3));
+    const field = input()!;
+    field.focus();
+
+    await key(field, "F10", { altKey: true });
+    const buttons = [...container.querySelectorAll<HTMLElement>(".format-bar > button")];
+    expect(buttons.length).toBeGreaterThan(0);
+    expect(document.activeElement).toBe(buttons[0]);
+    // Ir a la barra no deja de escribir.
+    expect(useEditingStore.getState().cell).not.toBeNull();
+
+    await key(buttons[0]!, "ArrowRight");
+    expect(document.activeElement).toBe(buttons[1]);
+    await key(buttons[1]!, "ArrowLeft");
+    await key(buttons[0]!, "ArrowLeft");
+    expect(document.activeElement).not.toBe(buttons[0]);
+
+    await key(document.activeElement as HTMLElement, "Escape");
+    expect(document.activeElement).toBe(field);
+    expect(useEditingStore.getState().cell).toEqual({ table: "tb1", row: 0, column: 0 });
+  });
+});

@@ -141,16 +141,45 @@ export function PagesPanel({ loader = browserImageLoader }: PagesPanelProps = {}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        role="listbox"
+        tabIndex={0}
+        aria-activedescendant={pages[current] === undefined ? undefined : `page-${pages[current].id}`}
         onKeyDown={(event) => {
           if (event.key === "Escape" && drag !== null) {
             event.preventDefault();
             setDrag(null);
+            return;
           }
+          // El teclado (F8-02, #89): ↑ y ↓ cambian de página, Inicio y Fin
+          // van a la primera y a la última, y ⌥↑ y ⌥↓ mueven la página un
+          // puesto, que es lo que hace arrastrarla.
+          const last = pages.length - 1;
+          const page = pages[current];
+          if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+            const to = current + (event.key === "ArrowUp" ? -1 : 1);
+            if (page !== undefined && to >= 0 && to <= last) {
+              run({ op: "reorder_page", id: page.id, index: to });
+              useDocumentStore.getState().setCurrentPage(to);
+            }
+          } else if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+            const to = current + (event.key === "ArrowUp" ? -1 : 1);
+            useDocumentStore.getState().setCurrentPage(Math.min(Math.max(to, 0), last));
+          } else if (event.key === "Home" || event.key === "End") {
+            useDocumentStore.getState().setCurrentPage(event.key === "Home" ? 0 : last);
+          } else {
+            return;
+          }
+          // Que las flechas no muevan además lo seleccionado en el lienzo.
+          event.preventDefault();
+          event.stopPropagation();
         }}
       >
         {pages.map((page, index) => (
           <li
             key={page.id}
+            id={`page-${page.id}`}
+            role="option"
+            aria-selected={index === current}
             data-page={page.id}
             className={[
               "page-row",

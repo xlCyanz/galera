@@ -20,6 +20,23 @@ body {
   color: var(--ink);
 }
 
+/* El foco se ve siempre que se llega con el teclado (F8-02, #89). Un solo
+   anillo para toda la interfaz; lo que necesite otro lo dice en su propia
+   regla. Quitarlo con `outline: none` solo vale donde el foco se enseña de
+   otra forma —el cursor del texto—, y la prueba de los tokens lo vigila. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Los paneles oscuros llevan su propio anillo: el azul general no contrasta
+   lo bastante sobre ellos. */
+.color-popover :focus-visible,
+.close-dialog :focus-visible,
+.shortcuts-help :focus-visible {
+  outline-color: var(--focus-ring-on-popover);
+}
+
 /* Una columna: controles arriba y el lienzo ocupando el resto. */
 .galera {
   box-sizing: border-box;

@@ -73,6 +73,40 @@ export function FormatBar({ runs, lines, transform, onFormat, onLines }: FormatB
       style={{ left: at.x, top: at.y - HEIGHT }}
       // Pulsar la barra no es pulsar el lienzo: no cambia la selección.
       onPointerDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        // Esc vuelve al texto, que sigue abierto; ← y → recorren los botones,
+        // como en cualquier barra de herramientas (F8-02, #89).
+        const back = document.querySelector<HTMLElement>("textarea.text-input");
+        if (event.key === "Escape" && back !== null) {
+          event.preventDefault();
+          event.stopPropagation();
+          back.focus();
+          return;
+        }
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+          return;
+        }
+        const buttons = [...event.currentTarget.querySelectorAll<HTMLElement>(":scope > button, :scope > .color-picker > button")];
+        const now = buttons.indexOf(document.activeElement as HTMLElement);
+        if (now < 0) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        const step = event.key === "ArrowRight" ? 1 : -1;
+        buttons[(now + step + buttons.length) % buttons.length]?.focus();
+      }}
+      onBlur={(event) => {
+        // Si el foco se va de la barra a otro sitio que no es el texto, se
+        // deja de escribir, igual que al salir del texto.
+        const next = event.relatedTarget;
+        if (next instanceof Node && (event.currentTarget.contains(next) || (next instanceof Element && next.matches("textarea.text-input")))) {
+          return;
+        }
+        if (next !== null) {
+          useEditingStore.getState().stop();
+        }
+      }}
     >
       {(["bold", "italic", "underline"] as const).map((what) => (
         <button

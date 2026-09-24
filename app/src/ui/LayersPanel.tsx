@@ -69,6 +69,14 @@ export function LayersPanel() {
   const [drag, setDrag] = useState<RowDrag | null>(null);
   // La fila que se está renombrando, y lo escrito.
   const [renaming, setRenaming] = useState<{ id: string; text: string } | null>(null);
+  /** Si al acabar de renombrar hay que devolver el foco a la lista. */
+  const refocus = useRef(false);
+  useEffect(() => {
+    if (renaming === null && refocus.current) {
+      refocus.current = false;
+      list.current?.focus();
+    }
+  }, [renaming]);
 
   // Lo seleccionado en el lienzo se trae a la vista en la lista.
   useEffect(() => {
@@ -153,6 +161,9 @@ export function LayersPanel() {
       return;
     }
     setRenaming(null);
+    // El foco vuelve a la lista cuando el campo ya no esté: moverlo ahora le
+    // quitaría el foco al campo, y su `onBlur` guardaría el nombre otra vez.
+    refocus.current = true;
     const current = rows.find((row) => row.id === renaming.id);
     const text = renaming.text.trim();
     if (!commit || current === undefined || text === (current.name ?? "")) {
@@ -173,6 +184,78 @@ export function LayersPanel() {
     }
   };
 
+  /**
+   * El teclado en la lista (F8-02, #89): todo lo que se hace con el ratón
+   * tiene su tecla.
+   *
+   * - ↑ y ↓ seleccionan la capa de encima o de debajo; con ⇧, la suman a la
+   *   selección. Inicio y Fin, la primera y la última.
+   * - ⌥↑ y ⌥↓ suben o bajan la capa seleccionada un puesto, que es lo que
+   *   hace arrastrarla.
+   * - Intro o F2 empiezan a renombrarla, como el doble clic.
+   *
+   * Las teclas que atiende no siguen su camino: si no, las flechas moverían
+   * además el elemento en el lienzo.
+   */
+  const onListKey = (event: ReactKeyboardEvent<HTMLOListElement>) => {
+    if (renaming !== null || count === 0) {
+      return;
+    }
+    const { selection: chosen } = useDocumentStore.getState();
+    const active = rows.findIndex((row) => row.id === chosen.at(-1));
+    const at = active < 0 ? 0 : active;
+    const row = rows[at];
+
+    const handled = (() => {
+      if (event.altKey && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+        if (row === undefined || chosen.length !== 1) {
+          return true;
+        }
+        // La lista va de la capa de arriba a la de abajo; el orden del
+        // documento, al revés.
+        const index = row.index + (event.key === "ArrowUp" ? 1 : -1);
+        if (index < 0 || index >= count) {
+          return true;
+        }
+        void applyOp({ op: "reorder", id: row.id, index })
+          .then((applied) => useDocumentStore.getState().applyEdit(applied))
+          .catch(() => undefined);
+        return true;
+      }
+      const target =
+        event.key === "ArrowDown"
+          ? Math.min(at + (active < 0 ? 0 : 1), count - 1)
+          : event.key === "ArrowUp"
+            ? Math.max(at - 1, 0)
+            : event.key === "Home"
+              ? 0
+              : event.key === "End"
+                ? count - 1
+                : null;
+      if (target !== null) {
+        const next = rows[target];
+        if (next !== undefined) {
+          if (event.shiftKey && !chosen.includes(next.id)) {
+            useDocumentStore.getState().toggleSelected(next.id);
+          } else if (!event.shiftKey) {
+            useDocumentStore.getState().select(next.id);
+          }
+        }
+        return true;
+      }
+      if ((event.key === "Enter" || event.key === "F2") && row !== undefined && active >= 0) {
+        setRenaming({ id: row.id, text: row.name ?? row.label });
+        return true;
+      }
+      return false;
+    })();
+
+    if (handled) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+
   // Dónde marcar la línea: encima de una fila, o debajo de la última.
   const target = drag?.moved === true ? reorderIndex(drag.from, drag.gap, count) : null;
   const marker = target === null || drag === null ? null : drag.gap;
@@ -188,6 +271,10 @@ export function LayersPanel() {
           className={drag?.moved === true ? "layers is-dragging" : "layers"}
           role="listbox"
           aria-label="Capas de la página, la de arriba primero"
+          aria-multiselectable="true"
+          tabIndex={0}
+          aria-activedescendant={selected === null ? undefined : `layer-${selected}`}
+          onKeyDown={onListKey}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={() => setDrag(null)}
@@ -205,6 +292,7 @@ export function LayersPanel() {
             return (
               <li
                 key={row.id}
+                id={`layer-${row.id}`}
                 data-layer={row.id}
                 role="option"
                 aria-selected={selection.includes(row.id)}

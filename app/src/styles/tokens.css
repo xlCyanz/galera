@@ -72,6 +72,12 @@
   --border-strong: #cbd5e1;
   --accent: #2563eb;
   --on-accent: #ffffff;
+  /* El anillo del foco: tiene que contrastar 3:1 con todo fondo (WCAG
+     1.4.11), lo comprueba `tokens.node.test.ts`. */
+  --focus-ring: #2563eb;
+  /* Y dentro de los paneles oscuros —el selector de color, los diálogos—,
+     donde el azul de arriba no llega a 3:1. */
+  --focus-ring-on-popover: #60a5fa;
   --success: #15803d;
   --danger: #b91c1c;
   --warning: #ca8a04;
@@ -114,6 +120,8 @@
   --border-strong: #52525b;
   --accent: #60a5fa;
   --on-accent: #0b1220;
+  --focus-ring: #60a5fa;
+  --focus-ring-on-popover: #93c5fd;
   --success: #4ade80;
   --danger: #f87171;
   --warning: #facc15;
@@ -156,6 +164,8 @@
     --border-strong: #52525b;
     --accent: #60a5fa;
     --on-accent: #0b1220;
+    --focus-ring: #60a5fa;
+    --focus-ring-on-popover: #93c5fd;
     --success: #4ade80;
     --danger: #f87171;
     --warning: #facc15;

@@ -58,6 +58,11 @@ export interface Create {
   state: CreateState;
   /** El `pointerdown` del área del lienzo con una herramienta de forma o de texto. */
   onPointerDown: (kind: ShapeKind, event: PointerEvent<HTMLElement>) => void;
+  /**
+   * Crea un elemento del tamaño por defecto con su esquina en `at`, en mm.
+   * Es lo que hace un clic sin arrastrar, para crear sin ratón (F8-02).
+   */
+  createAt: (kind: ShapeKind, at: Point) => void;
   /** En `needsFont`: pide una fuente, la añade y crea el texto. */
   addFont: () => Promise<void>;
   /** En `needsFont`: renuncia a crear el texto. */
@@ -225,6 +230,7 @@ export function useCreate(transform: CanvasTransform | null, page: number): Crea
 
   return {
     state,
+    createAt: (kind, at) => void create(kind, defaultShape(kind, at)),
     onPointerDown: (kind, event) => {
       if (
         event.button !== 0 ||

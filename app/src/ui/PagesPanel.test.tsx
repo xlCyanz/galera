@@ -190,3 +190,43 @@ describe("el panel de páginas", () => {
     expect(ops).toHaveLength(0);
   });
 });
+
+describe("las páginas con el teclado", () => {
+  const list = () => container.querySelector<HTMLElement>(".pages")!;
+  const key = async (name: string, modifiers: { altKey?: boolean } = {}) => {
+    const event = new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true, ...modifiers });
+    await act(async () => {
+      list().dispatchEvent(event);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    return event;
+  };
+
+  /** El criterio de la tarea: el tabulador llega a la lista. */
+  it("la lista recibe el foco y dice qué página está activa", () => {
+    expect(list().tabIndex).toBe(0);
+    expect(list().getAttribute("role")).toBe("listbox");
+    expect(list().getAttribute("aria-activedescendant")).toBe(`page-${rows()[0]!.dataset.page}`);
+  });
+
+  it("↓ y ↑ cambian de página sin salirse de la lista", async () => {
+    await key("ArrowDown");
+    expect(store().currentPage).toBe(1);
+    await key("ArrowDown");
+    expect(store().currentPage).toBe(1);
+    await key("Home");
+    expect(store().currentPage).toBe(0);
+    await key("End");
+    expect(store().currentPage).toBe(1);
+  });
+
+  /** Mover una página era arrastrarla. */
+  it("⌥↓ mueve la página un puesto, y la sigue", async () => {
+    const first = rows()[0]!.dataset.page;
+    const event = await key("ArrowDown", { altKey: true });
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(ops).toEqual([{ op: "reorder_page", id: first, index: 1 }]);
+    expect(store().currentPage).toBe(1);
+  });
+});

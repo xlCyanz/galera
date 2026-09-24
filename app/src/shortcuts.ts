@@ -77,6 +77,7 @@ export const SHORTCUTS = [
     alsoOnOthers: { key: "y", mod: true },
   },
   { id: "deselect", label: "Quitar la selección", group: "Edición", keys: { key: "escape", show: "Esc" } },
+  { id: "selectAll", label: "Seleccionar todo lo de la página", group: "Edición", keys: { key: "a", mod: true } },
   { id: "copy", label: "Copiar", group: "Edición", keys: { key: "c", mod: true } },
   { id: "cut", label: "Cortar", group: "Edición", keys: { key: "x", mod: true } },
   { id: "paste", label: "Pegar", group: "Edición", keys: { key: "v", mod: true } },

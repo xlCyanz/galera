@@ -6,7 +6,9 @@
  * No hay una segunda lista que mantener: lo que se ve aquí es lo mismo que
  * responde al teclado, y `docs/atajos.md` se comprueba contra ello.
  */
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
+
+import { useDialogFocus } from "../hooks/useDialogFocus";
 
 import { useShortcut } from "../hooks/useShortcuts";
 import { GROUPS, SHORTCUTS, type Shortcut, isMac, shortcutLabel } from "../shortcuts";
@@ -18,20 +20,10 @@ export function ShortcutsHelp() {
 
   useShortcut("help", () => setOpen((shown) => !shown));
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const key = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        setOpen(false);
-      }
-    };
-    window.addEventListener("keydown", key, true);
-    return () => window.removeEventListener("keydown", key, true);
-  }, [open]);
+  const dialog = useRef<HTMLDivElement>(null);
+  // El foco entra al abrir, no se sale con el tabulador, Esc cierra y el
+  // foco vuelve a donde estaba.
+  useDialogFocus(dialog, { active: open, onEscape: () => setOpen(false) });
 
   return (
     <>
@@ -47,6 +39,8 @@ export function ShortcutsHelp() {
         // Pulsar el fondo cierra; lo de dentro, no.
         <div className="close-dialog-backdrop" onPointerDown={() => setOpen(false)}>
           <div
+            ref={dialog}
+            tabIndex={-1}
             className="shortcuts-help"
             role="dialog"
             aria-modal="true"
