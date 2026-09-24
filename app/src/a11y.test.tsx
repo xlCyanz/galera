@@ -225,9 +225,12 @@ beforeEach(async () => {
   await settle();
 });
 
-afterEach(() => {
+afterEach(async () => {
   act(() => root.unmount());
   container.remove();
+  // Los escuchadores de eventos de Tauri se sueltan después de desmontar,
+  // en otra vuelta: sin esperarla, lo harían con los simulacros ya quitados.
+  await settle();
   clearMocks();
 });
 
