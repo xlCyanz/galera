@@ -73,7 +73,7 @@ pub use assets::{
 pub use clipboard::{Clip, ClipFile};
 pub use code::{CodeError, check_code};
 pub use codegen::{escape, escape_into};
-pub use compile::cache::Compiler;
+pub use compile::cache::{Compiler, PageUpdate};
 pub use compile::{Compiled, compile, compile_pdf, compile_svg};
 pub use error::{Diagnostic, GaleraError, MAX_PPI, MIN_PPI, Result, Severity};
 pub use export::{Exported, Format, Pages, export, subset, typst_source};

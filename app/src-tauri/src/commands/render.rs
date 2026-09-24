@@ -73,6 +73,15 @@ pub fn request_compilation(queue: State<'_, CompileQueue>) {
     queue.request();
 }
 
+/// La interfaz ha perdido las páginas que tenía —se ha recargado, o le
+/// falta alguna—: se vuelve a compilar y la entrega va entera. Si el
+/// documento no ha cambiado, se reutiliza lo compilado.
+#[tauri::command]
+pub fn resend_pages(state: State<'_, AppState>, queue: State<'_, CompileQueue>) {
+    state.resend_pages();
+    queue.request();
+}
+
 /// La parte de [`render_page`] que no depende de Tauri, para poder probarla.
 fn render(state: &AppState, page: usize) -> Result<RenderedPage, CommandError> {
     let compilation = state.compilation().ok_or(CommandError::NothingOpen)?;

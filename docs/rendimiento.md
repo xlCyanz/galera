@@ -98,52 +98,64 @@ de siete filas, y pie. 425 elementos en total. Mide:
 ### Resultados
 
 Apple M4, macOS 26.6, rustc 1.97.0, binario optimizado (`cargo bench`), 24
-de septiembre de 2026.
+de septiembre de 2026, ya con solo las páginas que cambian en cada entrega
+(#208, abajo).
 
 | Paso | Mediana | p95 | Peor | Presupuesto |
 |---|--:|--:|--:|--:|
-| Abrir | 113,0 ms | 140,7 ms | 140,7 ms | 1 000 ms |
-| **Una tecla** | **25,8 ms** | **28,2 ms** | **29,1 ms** | **50 ms** |
-| · compilar | 7,1 ms | 8,6 ms | 9,1 ms | |
-| · dibujar la página que cambió | 1,5 ms | 2,1 ms | 2,4 ms | |
-| · cajas, flujos y celdas | 4,1 ms | 4,7 ms | 4,9 ms | |
-| · pasarlo a JSON | 10,4 ms | 11,7 ms | 14,2 ms | |
-| Exportar a PDF (900 KB) | 7,2 ms | 14,3 ms | 14,3 ms | 2 000 ms |
+| Abrir | 105,8 ms | 130,9 ms | 130,9 ms | 1 000 ms |
+| **Una tecla** | **13,5 ms** | **15,9 ms** | **18,1 ms** | **50 ms** |
+| · compilar | 6,3 ms | 8,0 ms | 9,4 ms | |
+| · dibujar la página que cambió | 0,8 ms | 0,9 ms | 1,1 ms | |
+| · cajas, flujos y celdas | 3,8 ms | 4,2 ms | 6,2 ms | |
+| · pasarlo a JSON | 0,3 ms | 0,4 ms | 0,4 ms | |
+| Exportar a PDF (900 KB) | 6,4 ms | 11,0 ms | 11,0 ms | 2 000 ms |
 
 | Memoria | Después | Máximo |
 |---|--:|--:|
-| Abrir | 62,3 MB | 147,0 MB |
-| Escribir 40 letras | 65,0 MB | 129,3 MB |
-| Exportar | 63,5 MB | 67,0 MB |
+| Abrir | 62,6 MB | 147,5 MB |
+| Escribir 40 letras | 65,3 MB | 74,8 MB |
+| Exportar | 63,8 MB | 67,3 MB |
 
 - **Abrir** tarda la séptima parte de lo acordado.
-- **Escribir sigue dentro del presupuesto de la Fase 4**, con la mitad de
-  margen: 28,2 ms en el percentil 95. **Solo se vuelve a dibujar la página
-  que se toca** —40 páginas dibujadas en 40 teclas—, y lo vigila
+- **Escribir sigue dentro del presupuesto de la Fase 4**, con más de dos
+  tercios de margen: 15,9 ms en el percentil 95. **Solo se vuelve a dibujar
+  la página que se toca** —40 páginas dibujadas en 40 teclas—, y lo vigila
   `tests/grande.rs`, que corre con el resto de las pruebas.
 - **Exportar** es inmediato: la composición ya está hecha.
 - **La memoria no crece al escribir**: después de 40 letras queda donde
   estaba al abrir, porque `comemo` suelta lo que deja de usarse (ver
   `compile::cache`). El pico de abrir es la primera composición entera.
 
-### Lo que no cabe: 21,6 MB por tecla
+### Lo que no cabía: 21,6 MB por tecla
 
-**Cada tecla manda a la interfaz el SVG de las cincuenta páginas**: 21,6 MB
-de JSON. El núcleo solo vuelve a *dibujar* la que cambió, pero el evento
-lleva todas. Una página con foto ocupa unos 740 KB —la imagen va dentro, en
-base64—, y una sin foto, unos 210 KB de glifos.
+La primera medida encontró que **cada tecla mandaba a la interfaz el SVG de
+las cincuenta páginas**: 21,6 MB de JSON. El núcleo solo volvía a *dibujar*
+la que cambió, pero el evento llevaba todas. Una página con foto ocupa unos
+740 KB —la imagen va dentro, en base64—, y una sin foto, unos 210 KB de
+glifos. Pasarlo a JSON era el 40 % de la tecla, y luego el webview tenía que
+leerlo: solo `JSON.parse` de algo de ese tamaño son unos 14 ms en V8.
 
-Pasarlo a JSON ya es el 40 % de la tecla, y eso es solo el lado de Rust:
-luego el webview tiene que recibirlo y leerlo, y solo `JSON.parse` de algo de
-ese tamaño son unos 14 ms en V8. Con cinco páginas no se notaba; con
-cincuenta, el camino entero de tecla a pantalla probablemente se pasa de los
-50 ms. Está abierto, con las medidas, en
-[#208](https://github.com/xlCyanz/galera/issues/208).
+Desde [#208](https://github.com/xlCyanz/galera/issues/208), el evento lleva
+la **huella** de cada página y el SVG **solo de las que la interfaz no
+tiene** (`Compiler::page_update`); el resto va como `null` y la interfaz lo
+toma de lo que ya tenía en ese sitio. Si le falta alguna —se ha recargado, o
+ignoró un resultado que llegó tarde—, lo ve porque no le cuadra la huella y
+pide `resend_pages`: la siguiente entrega va entera.
 
-Tampoco se mide aquí lo que pasa en el webview al **desplazarse** por las
-miniaturas de cincuenta páginas: eso se comprueba abriendo
-`fixtures/grande.json` con `pnpm tauri dev`, y se anota con la medida de
-tecla a pantalla de #208.
+| | Antes | Después |
+|---|--:|--:|
+| Lo que viaja por tecla | 21,6 MB | 387 KB |
+| Pasarlo a JSON (mediana) | 10,4 ms | 0,3 ms |
+| Una tecla en el núcleo (p95) | 28,2 ms | 15,9 ms |
+| Memoria al escribir (máximo) | 129,3 MB | 74,8 MB |
+
+Lo que queda por tecla es la página que cambió: la 25, con el logotipo y sus
+glifos.
+
+Lo que el banco no mide es lo que pasa en el webview: el tiempo de tecla a
+pantalla y **desplazarse** por las miniaturas de cincuenta páginas. Eso se
+comprueba abriendo `fixtures/grande.json` con `pnpm tauri dev`.
 
 ## Qué vigila que no se estropee
 

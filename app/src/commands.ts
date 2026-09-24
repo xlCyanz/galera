@@ -249,6 +249,14 @@ export function requestCompilation(): Promise<void> {
 }
 
 /**
+ * Pide que la siguiente compilación traiga todas las páginas: a la interfaz
+ * le falta alguna de las que el backend cree que tiene.
+ */
+export function resendPages(): Promise<void> {
+  return invoke<void>("resend_pages");
+}
+
+/**
  * Los eventos de la compilación en segundo plano, emitidos por
  * `src-tauri/src/compile_worker.rs`.
  */
@@ -272,8 +280,13 @@ export interface CompilationFinished {
   reused: boolean;
   /** Los avisos de Typst. */
   diagnostics: Diagnostic[];
-  /** El SVG de cada página. */
-  pages: string[];
+  /** La huella de cada página, en orden: dos páginas con la misma se ven igual. */
+  keys: string[];
+  /**
+   * El SVG de cada página, o `null` si es la misma que había en ese sitio en
+   * la entrega anterior: solo viajan las que cambian (#208).
+   */
+  pages: (string | null)[];
   /** La caja real de cada elemento, de todas las páginas. */
   boxes: LayoutBox[];
   /** Qué rango del texto de su flujo quedó en cada zona. */

@@ -7,10 +7,14 @@
 //! | Evento | Cuándo | Datos |
 //! |---|---|---|
 //! | `compilation:start` | Empieza una compilación | `{ revision }` |
-//! | `compilation:finish` | Ha salido bien | `{ revision, ms, reused, diagnostics, pages, boxes, flows, cells }` |
+//! | `compilation:finish` | Ha salido bien | `{ revision, ms, reused, diagnostics, keys, pages, boxes, flows, cells }` |
 //! | `compilation:error` | Ha fallado | `{ revision, ms, reused, diagnostics, error }` |
 //!
-//! `pages` lleva el SVG de cada página; `boxes`, la caja real de cada
+//! `keys` lleva la huella de cada página y `pages`, su SVG **solo si la
+//! interfaz no la tiene ya**: `null` si es la misma página que había en ese
+//! sitio en la entrega anterior. Con cincuenta páginas, mandarlas todas en
+//! cada tecla eran veinte megas (#208). Si a la interfaz le falta alguna,
+//! pide `resend_pages` y la siguiente entrega va entera. `boxes`, la caja real de cada
 //! elemento; `flows`, qué rango del texto de cada flujo quedó en cada zona;
 //! `cells`, dónde quedó cada celda de cada tabla;
 //! y `error` tiene la forma de cualquier error de un comando
@@ -37,7 +41,7 @@
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 
 use galera_core::{
-    CellBox, Compiled, Diagnostic, Document, FlowRange, GaleraError, LayoutBox, Project,
+    CellBox, Compiled, Diagnostic, Document, FlowRange, GaleraError, LayoutBox, PageUpdate, Project,
 };
 use serde::{Serialize, Serializer};
 use tauri::{AppHandle, Emitter, Runtime};
@@ -141,8 +145,10 @@ pub struct Finished {
     pub reused: bool,
     /// Los avisos de Typst.
     pub diagnostics: Vec<Diagnostic>,
-    /// El SVG de cada página.
-    pub pages: Vec<String>,
+    /// La huella de cada página, y su SVG si la interfaz no la tiene (ver
+    /// `galera_core::Compiler::page_update`). Salen como `keys` y `pages`.
+    #[serde(flatten)]
+    pub pages: PageUpdate,
     /// La caja real de cada elemento, de todas las páginas, tal como la
     /// compuso Typst (ver `galera_core::layout`).
     pub boxes: Vec<LayoutBox>,
@@ -280,8 +286,9 @@ where
                             .unwrap_or_default(),
                     ]
                     .concat(),
-                    // Solo se vuelven a dibujar las páginas que han cambiado.
-                    pages: state.page_svgs(&compiled),
+                    // Solo se vuelven a dibujar las páginas que han cambiado,
+                    // y solo se mandan las que la interfaz no tiene.
+                    pages: state.page_update(&compiled),
                     boxes,
                     flows,
                     cells,
@@ -409,6 +416,66 @@ mod tests {
         assert!(
             svgs.iter()
                 .all(|svg| svg.as_str().is_some_and(|svg| svg.starts_with("<svg")))
+        );
+    }
+
+    /// #208: después de la primera entrega, solo van las páginas que la
+    /// interfaz no tiene; las demás, `null`, con su huella.
+    #[test]
+    fn after_the_first_delivery_only_changed_pages_are_sent() {
+        let state = AppState::default();
+        let (project, document) = fixture("multipagina");
+        let pages = document.pages.len();
+        state.open(project, document);
+        let first = run_once(&state);
+        let first = &first[1].1;
+        assert!(
+            first["pages"]
+                .as_array()
+                .expect("páginas")
+                .iter()
+                .all(|svg| svg.is_string())
+        );
+
+        state
+            .apply(
+                &galera_core::Op::Resize {
+                    id: "banda".to_owned(),
+                    x: 0.0,
+                    y: 0.0,
+                    w: 210.0,
+                    h: Some(40.0),
+                },
+                None,
+            )
+            .expect("hay documento")
+            .expect("se aplica");
+        let second = run_once(&state);
+        let second = &second[1].1;
+        let sent: Vec<usize> = second["pages"]
+            .as_array()
+            .expect("páginas")
+            .iter()
+            .enumerate()
+            .filter_map(|(index, svg)| svg.is_string().then_some(index))
+            .collect();
+        assert_eq!(sent, [0], "solo la página de la banda");
+        assert_eq!(second["keys"].as_array().expect("huellas").len(), pages);
+        assert_eq!(second["keys"][1], first["keys"][1]);
+        assert_ne!(second["keys"][0], first["keys"][0]);
+
+        // Si la interfaz lo pide, la siguiente entrega va entera, sin
+        // cambiar nada.
+        state.resend_pages();
+        let again = run_once(&state);
+        let again = &again[1].1;
+        assert_eq!(again["reused"], true);
+        assert!(
+            again["pages"]
+                .as_array()
+                .expect("páginas")
+                .iter()
+                .all(|svg| svg.is_string())
         );
     }
 
