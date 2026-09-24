@@ -15,6 +15,11 @@ use galera_core::{Document, Project, Severity, codegen, compile};
 /// `document.json` no está: es una copia de `informe.json` para que
 /// `fixtures/` se pueda abrir como proyecto, y
 /// `document_json_is_a_copy_of_informe` comprueba que siguen iguales.
+///
+/// `grande.json` tampoco: son cincuenta páginas de lo que ya cubren los
+/// demás, para medir (ver `tests/grande.rs` y `benches/grande.rs`). Su
+/// instantánea sería un diff enorme cada vez que cambie el codegen, sin
+/// enseñar nada que no enseñen ya las otras.
 const FIXTURES: &[&str] = &[
     "capas",
     "codigo",
@@ -71,7 +76,7 @@ fn every_fixture_has_a_snapshot() {
                 .flatten()
         })
         .collect();
-    on_disk.retain(|name| name != "document");
+    on_disk.retain(|name| name != "document" && name != "grande");
     on_disk.sort();
 
     let listed: Vec<String> = FIXTURES.iter().map(|name| (*name).to_owned()).collect();

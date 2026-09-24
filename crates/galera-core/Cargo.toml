@@ -33,3 +33,8 @@ typst-assets = { workspace = true, features = ["fonts"] }
 [[bench]]
 name = "compile"
 harness = false
+
+# El documento de 50 páginas (`cargo bench -p galera-core --bench grande`).
+[[bench]]
+name = "grande"
+harness = false

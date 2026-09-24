@@ -16,9 +16,10 @@ Documentos de ejemplo que sirven de banco de pruebas para todo el proyecto. Comp
 | `capas.json` | Lo del panel de capas: un fondo con nombre y bloqueado, un rectángulo y una línea ocultos (que no se emiten), un texto con nombre y una elipse con `hidden: false`. |
 | `multipagina.json` | Cinco páginas: mismo tamaño seguido, apaisada, en pulgadas, vacía. |
 | `tabla.json` | Columnas automáticas, proporcionales y fijas; celdas combinadas por filas y por columnas; fondos por fila y por celda; alineación por celda; una tabla sin bordes ni relleno; y contenido con caracteres de marcado, que se escapan. |
+| `grande.json` | Cincuenta páginas A4 con cabecera, título, dos párrafos justificados, una foto o una tabla, y pie: el banco de los documentos grandes (F8-04). No tiene instantánea; lo vigila `tests/grande.rs` y lo mide `benches/grande.rs` (ver [`docs/rendimiento.md`](../docs/rendimiento.md)). |
 | `flujo.json` | Un texto que fluye por tres zonas en dos páginas: dos con alto fijo y una con alto automático, con un tramo en negrita a caballo entre zonas. |
 
-`assets/` tiene imágenes de 1×1 px en los tres formatos, y `fonts/`, las fuentes: ver más abajo.
+`assets/` tiene imágenes de 1×1 px en los tres formatos, un logotipo y una foto de 640×427 (`foto.png`, para `grande.json`), y `fonts/`, las fuentes: ver más abajo.
 
 ## Instantáneas
 
