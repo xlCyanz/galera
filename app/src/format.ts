@@ -44,3 +44,31 @@ export function compilationStatusText(
       return ms === null ? "No compila" : `No compila (${formatMs(ms)})`;
   }
 }
+
+/** Cuánto tiene que tardar una compilación para decir en voz alta que se
+ * está compilando, en milisegundos. */
+export const SLOW_COMPILATION_MS = 1000;
+
+/**
+ * Qué se le dice al lector de pantalla cuando la compilación cambia de
+ * estado (F8-03, #90), o `null` si no hay nada que decir.
+ *
+ * La aplicación compila en cada tecla, así que anunciar cada «compilando» y
+ * cada «compilado» sería no dejar de hablar. Se dice lo que cambia de
+ * verdad: que aparece un error o que se va. `settled` es el último estado en
+ * el que quedó la compilación —listo o con error—, sin contar los
+ * «compilando» de en medio. Lo lento se anuncia aparte, con un temporizador.
+ */
+export function compilationAnnouncement(
+  settled: CompilationStatus,
+  next: CompilationStatus,
+  summary: string | null,
+): string | null {
+  if (next === "error" && settled !== "error") {
+    return summary === null ? "No compila" : `No compila: ${summary}`;
+  }
+  if (next === "ready" && settled === "error") {
+    return "Vuelve a compilar sin errores";
+  }
+  return null;
+}

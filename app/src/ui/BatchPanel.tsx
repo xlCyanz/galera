@@ -289,8 +289,15 @@ export function BatchPanel() {
             </button>
           )}
 
+          {/* Lo que se anuncia al acabar va en una región que ya estaba: si
+              naciera con el resumen, el lector de pantalla no lo diría. */}
+          <p className="visually-hidden" role="status">
+            {outcome === null
+              ? ""
+              : `${outcome.written.length === 1 ? "1 documento generado" : `${outcome.written.length} documentos generados`}${outcome.cancelled ? ", cancelado antes de acabar" : ""}${outcome.failures.length > 0 ? `, ${outcome.failures.length} con problemas` : ""}`}
+          </p>
           {outcome !== null && (
-            <div className="batch-outcome" role="status">
+            <div className="batch-outcome">
               <p>
                 {outcome.written.length === 1
                   ? "1 documento generado"

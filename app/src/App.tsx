@@ -295,11 +295,11 @@ export function App() {
           }}
         />
       )}
-      {notice !== null && (
-        <p role="status" className="ok">
-          {notice}
-        </p>
-      )}
+      {/* Siempre montado: una región que avisa en voz baja solo se anuncia
+          si ya estaba cuando cambia su texto, no si nace con él (F8-03). */}
+      <p role="status" className={notice === null ? "visually-hidden" : "ok"}>
+        {notice ?? ""}
+      </p>
       {error !== null && (
         <p role="alert" className="error">
           {error}

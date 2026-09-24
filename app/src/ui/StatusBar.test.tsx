@@ -1,6 +1,6 @@
 import { act } from "react";
 import { type Root, createRoot } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CompilationFailed, OpenedProject } from "../commands";
 import { useCompilationStore } from "../store/compilation";
@@ -158,5 +158,54 @@ describe("barra de estado", () => {
     );
     expect(text(".issue-message")).toBe("w tiene que ser mayor que cero, y es -3");
     expect(text(".issue-element")).toBe("Ir a «c1»");
+  });
+});
+
+describe("lo que se anuncia de la compilación", () => {
+  const spoken = () => container.querySelector('.status-bar [role="status"]')?.textContent ?? null;
+  const ready = () =>
+    useCompilationStore
+      .getState()
+      .finish({ revision: 1, ms: 5, reused: false, diagnostics: [], pages: ["<svg/>"], boxes: [], flows: [], cells: [] });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** El criterio de la tarea: los cambios de estado se anuncian. La región
+   * está siempre, para que el lector de pantalla oiga cuando cambia. */
+  it("la región que se oye está siempre, aunque no diga nada", () => {
+    expect(spoken()).toBe("");
+  });
+
+  it("un error se dice, y también cuando se va", () => {
+    act(() => useCompilationStore.getState().fail(typstFailure));
+    expect(spoken()).toMatch(/^No compila/u);
+
+    act(() => useCompilationStore.getState().start({ revision: 2 }));
+    act(ready);
+    expect(spoken()).toBe("Vuelve a compilar sin errores");
+  });
+
+  /** Se compila en cada tecla: eso no se anuncia, que si no, no pararía. */
+  it("una compilación rápida no se anuncia", () => {
+    vi.useFakeTimers();
+    act(ready);
+    act(() => useCompilationStore.getState().start({ revision: 2 }));
+    act(() => vi.advanceTimersByTime(200));
+    act(ready);
+    act(() => vi.advanceTimersByTime(2000));
+    expect(spoken()).toBe("");
+  });
+
+  it("una lenta sí: que se está compilando y que acabó", () => {
+    vi.useFakeTimers();
+    act(ready);
+    act(() => useCompilationStore.getState().start({ revision: 2 }));
+    act(() => vi.advanceTimersByTime(1500));
+    expect(spoken()).toBe("Compilando…");
+
+    act(ready);
+    expect(spoken()).toBe("Compilado");
   });
 });
