@@ -27,6 +27,7 @@ En macOS el modificador es ⌘; en Windows y Linux, Ctrl.
 | Deshacer | `⌘Z` | `Ctrl+Z` |
 | Rehacer | `⌘⇧Z` | `Ctrl+Shift+Z` |
 | Quitar la selección | `Esc` | `Esc` |
+| Seleccionar todo lo de la página | `⌘A` | `Ctrl+A` |
 | Copiar | `⌘C` | `Ctrl+C` |
 | Cortar | `⌘X` | `Ctrl+X` |
 | Pegar | `⌘V` | `Ctrl+V` |
@@ -139,6 +140,39 @@ teclas van al texto y no a las herramientas:
   `⇧` y `⌥` al redimensionar también, porque entonces manda la forma.
 - **La barra espaciadora**, mantenida, deja desplazar la página arrastrando.
   Tampoco es un atajo: cuenta mientras está pulsada.
+
+## Sin ratón
+
+Todo lo que se hace con el ratón tiene su camino con el teclado (F8-02,
+[#89](https://github.com/xlCyanz/galera/issues/89)). El tabulador recorre la
+ventana en el orden en que se ve: los botones de arriba, las herramientas, el
+lienzo, los paneles, el inspector y la barra de estado. Donde está el foco se
+ve siempre, con un anillo que contrasta 3:1 con cualquier fondo en los dos
+temas.
+
+- **El lienzo** es una parada del tabulador. Con una herramienta de crear,
+  `Intro` pone el elemento del tamaño por defecto en el centro de la página,
+  como un clic sin arrastrar; con la de imagen, abre el diálogo para
+  elegirla. Con algo seleccionado, `Intro` entra: a escribir en un texto,
+  una zona o una tabla —como el doble clic— o a lo que lleva dentro un
+  grupo. `⌘A` selecciona todo lo de la página, o todo lo del grupo en el que
+  se ha entrado; lo bloqueado y lo oculto se quedan fuera. Las flechas lo
+  mueven, como siempre.
+- **El panel de capas** es una lista: `↑` y `↓` seleccionan la capa de
+  encima o de debajo, y con `⇧` la suman; `Inicio` y `Fin` van a los
+  extremos. `⌥↑` y `⌥↓` suben o bajan la capa un puesto, que es lo que hace
+  arrastrarla, e `Intro` o `F2` la renombran. Mientras el foco está en la
+  lista, las flechas no mueven el elemento en el lienzo.
+- **El panel de páginas**, igual: `↑` y `↓` cambian de página, `Inicio` y
+  `Fin` van a la primera y a la última, y `⌥↑` y `⌥↓` mueven la página.
+- **Escribiendo**, `⌥F10` lleva el foco a la barra de formato —el color y el
+  enlace no son solo del ratón—; `←` y `→` la recorren y `Esc` vuelve al
+  texto, que sigue abierto. En una celda, `⇧F10` o la tecla de menú abren
+  el menú de la tabla; `↑` y `↓` recorren sus opciones y `Esc` vuelve a la
+  celda.
+- **Los diálogos** —exportar, los atajos, los cambios sin guardar, el
+  selector de color— se llevan el foco al abrirse, no lo sueltan con el
+  tabulador, se cierran con `Esc` y lo devuelven a donde estaba.
 
 ## La hoja de atajos en la app
 

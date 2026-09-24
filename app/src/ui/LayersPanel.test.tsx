@@ -239,3 +239,87 @@ describe("ocultar, bloquear y renombrar", () => {
     expect(row("a").querySelector(".layer-label")!.textContent).toBe("Rectángulo");
   });
 });
+
+describe("las capas con el teclado", () => {
+  const key = async (name: string, modifiers: { shiftKey?: boolean; altKey?: boolean } = {}) => {
+    const event = new KeyboardEvent("keydown", { key: name, bubbles: true, cancelable: true, ...modifiers });
+    await act(async () => {
+      list().dispatchEvent(event);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    return event;
+  };
+
+  /** El criterio de la tarea: el tabulador llega a la lista. */
+  it("la lista recibe el foco y dice qué capa está activa", () => {
+    expect(list().tabIndex).toBe(0);
+    act(() => useDocumentStore.getState().select("b"));
+    expect(list().getAttribute("aria-activedescendant")).toBe("layer-b");
+    expect(container.querySelector("#layer-b")).toBe(row("b"));
+  });
+
+  /** El criterio de la tarea: los elementos se seleccionan solo con el
+   * teclado. La lista va de la capa de arriba a la de abajo. */
+  it("las flechas seleccionan la capa de al lado, y ⇧ la suma", async () => {
+    act(() => useDocumentStore.getState().select("c"));
+    await key("ArrowDown");
+    expect(useDocumentStore.getState().selection).toEqual(["b"]);
+
+    await key("ArrowDown", { shiftKey: true });
+    expect(useDocumentStore.getState().selection).toEqual(["b", "a"]);
+
+    await key("Home");
+    expect(useDocumentStore.getState().selection).toEqual(["c"]);
+    await key("End");
+    expect(useDocumentStore.getState().selection).toEqual(["a"]);
+  });
+
+  it("las flechas de la lista no mueven el elemento en el lienzo", async () => {
+    let reached = false;
+    const listener = () => {
+      reached = true;
+    };
+    window.addEventListener("keydown", listener);
+    const event = await key("ArrowDown");
+    window.removeEventListener("keydown", listener);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(reached).toBe(false);
+  });
+
+  /** El criterio de la tarea: ninguna función es solo del ratón. Reordenar
+   * era arrastrar. */
+  it("⌥↑ sube la capa un puesto, como arrastrarla", async () => {
+    act(() => useDocumentStore.getState().select("b"));
+    await key("ArrowUp", { altKey: true });
+
+    expect(ops).toEqual([{ op: "reorder", id: "b", index: 2 }]);
+    expect(order()).toEqual(["b", "c", "a"]);
+  });
+
+  it("⌥↓ en la de abajo del todo no hace nada", async () => {
+    act(() => useDocumentStore.getState().select("a"));
+    await key("ArrowDown", { altKey: true });
+    expect(ops).toEqual([]);
+  });
+
+  /** Renombrar era doble clic. */
+  it("Intro renombra la capa activa, y el foco vuelve a la lista", async () => {
+    act(() => useDocumentStore.getState().select("a"));
+    list().focus();
+    await key("Enter");
+
+    const input = container.querySelector<HTMLInputElement>(".layer-rename");
+    expect(input).not.toBeNull();
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      setter.call(input, "Fondo");
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+      input!.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(ops).toEqual([{ op: "set_property", id: "a", property: { name: "name", value: "Fondo" } }]);
+    expect(document.activeElement).toBe(list());
+  });
+});

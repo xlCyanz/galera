@@ -10,9 +10,10 @@
  * compilación que se está viendo (principio 2). Un rango sí se compone
  * aparte, porque lo que se entrega es ese rango y no el documento.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { errorMessage, exportAs } from "../commands";
+import { useDialogFocus } from "../hooks/useDialogFocus";
 import { useCurrentPage, useOpenDocument } from "../store/document";
 import type { Format, Pages } from "../types/export";
 
@@ -44,6 +45,10 @@ export function ExportDialog({ onClose, onDone }: ExportDialogProps) {
   const [to, setTo] = useState(1);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const dialog = useRef<HTMLDivElement>(null);
+  // El foco entra al abrir, no se sale, Esc cierra sin exportar y el foco
+  // vuelve al botón que lo abrió.
+  useDialogFocus(dialog, { onEscape: onClose });
 
   if (document === null) {
     return null;
@@ -85,7 +90,14 @@ export function ExportDialog({ onClose, onDone }: ExportDialogProps) {
   };
 
   return (
-    <div className="export-dialog" role="dialog" aria-label="Exportar">
+    <div
+      ref={dialog}
+      tabIndex={-1}
+      className="export-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Exportar"
+    >
       <label>
         Formato
         <select

@@ -38,7 +38,7 @@
  * se selecciona desde el panel de capas, su contorno se ve pero no se
  * agarra, y las flechas no lo mueven.
  */
-import { type CSSProperties, useEffect, useEffectEvent, useRef, useState } from "react";
+import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { applyOp, elementAt } from "../commands";
 
@@ -72,6 +72,7 @@ import { SelectionLayer } from "../text/SelectionLayer";
 import type { LayoutBox } from "../types/layout";
 import { linesOf, runsOf } from "../text/target";
 import { FlowChain } from "./FlowChain";
+import { boxOf } from "../text/table";
 import { TableCells } from "./TableCells";
 import { TableMenu } from "./TableMenu";
 import { useTableMenu } from "./useTableMenu";
@@ -90,10 +91,11 @@ import { Rulers } from "./Rulers";
 import { ZoomControls } from "./ZoomControls";
 import { PX_PER_MM, pageSizeInPx, toMillimeters } from "./geometry";
 import { canvasTransform, rectToCanvas, toCanvas, toDocument } from "./transform";
-import { type NudgeBurst, arrowNudge, nudgeBurst, rotatedCorners } from "./dragGeometry";
+import { type NudgeBurst, arrowNudge, nudgeBurst, roundMm, rotatedCorners } from "./dragGeometry";
 import { findElement } from "./elements";
 import { boxesOf, groupBox } from "./group";
-import { groupSelection, isGroup, ungroupSelection } from "./grouping";
+import { elementById, groupSelection, isGroup, ungroupSelection } from "./grouping";
+import { DEFAULT_SIZE } from "./createGeometry";
 import { useCanvasNavigation } from "./useCanvasNavigation";
 import { useDrag } from "./useDrag";
 import { useMarquee } from "./useMarquee";
@@ -350,6 +352,85 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
     return true;
   });
   useShortcut("deselect", onEscape);
+  // ⌘A: todo lo de la página, o todo lo del grupo en el que se ha entrado.
+  // Lo bloqueado y lo oculto no, igual que no se cogen con el ratón.
+  useShortcut("selectAll", () => {
+    const store = useDocumentStore.getState();
+    const onPage = store.document?.pages[currentPage]?.elements;
+    if (store.document === null || onPage === undefined) {
+      return false;
+    }
+    const group = store.enteredGroup === null ? undefined : elementById(store.document, store.enteredGroup);
+    const inside = group?.type === "group" ? group.children : onPage;
+    store.selectMany(
+      inside.filter((element) => element.hidden !== true && element.locked !== true).map((element) => element.id),
+    );
+    return true;
+  });
+
+  /**
+   * Intro sobre el lienzo, sin ratón (F8-02, #89):
+   *
+   * - Con una herramienta de crear, crea el elemento del tamaño por defecto
+   *   en el centro de la página, que es lo que haría un clic sin arrastrar.
+   *   Con la de imagen, abre el diálogo para elegirla.
+   * - Con algo seleccionado, entra: en un texto, una zona o una tabla, a
+   *   escribir, como el doble clic; en un grupo, a lo que lleva dentro.
+   *
+   * Solo cuando el foco está en el propio lienzo: una tecla que se escribe
+   * en un texto también pasa por aquí de camino.
+   */
+  const onCanvasKey = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    // Escribiendo en una celda, ⇧F10 o la tecla de menú abren el menú de su
+    // tabla, que con el ratón es el botón derecho. Llega desde el campo
+    // invisible, así que va antes de mirar quién tiene el foco.
+    if (editingCell !== null && transform !== null && (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))) {
+      const cell = boxOf(useLayoutStore.getState().cells, editingCell.table, editingCell.row, editingCell.column);
+      if (cell !== null) {
+        const corner = toCanvas(transform, cell.x, cell.y + cell.h);
+        tableMenu.openAt({ ...editingCell, x: corner.x, y: corner.y });
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      return;
+    }
+    if (
+      event.target !== event.currentTarget ||
+      event.key !== "Enter" ||
+      event.altKey ||
+      event.metaKey ||
+      event.ctrlKey ||
+      page === undefined
+    ) {
+      return;
+    }
+    const width = toMillimeters(page.size.width, page.size.unit);
+    const height = toMillimeters(page.size.height, page.size.unit);
+    if (tool === "rect" || tool === "ellipse" || tool === "line" || tool === "text" || tool === "code") {
+      const size = DEFAULT_SIZE[tool];
+      create.createAt(tool, { x: roundMm((width - size.w) / 2), y: roundMm((height - size.h) / 2) });
+    } else if (tool === "image") {
+      fileDrop.insertAt({ x: roundMm(width / 2), y: roundMm(height / 2) });
+    } else {
+      const store = useDocumentStore.getState();
+      const id = store.selection.length === 1 ? (store.selection[0] ?? null) : null;
+      const element = id === null || store.document === null ? undefined : elementById(store.document, id);
+      if (id === null || element === undefined) {
+        return;
+      }
+      if (element.type === "group") {
+        const top = element.children.at(-1);
+        if (top === undefined) {
+          return;
+        }
+        store.enterGroup(id);
+        store.select(top.id);
+      } else if (!text.enter(id)) {
+        return;
+      }
+    }
+    event.preventDefault();
+  };
   useShortcut("toggleRulers", () => useDocumentStore.getState().toggleRulers());
 
   const style = { "--px-per-mm": PX_PER_MM * zoom } as CSSProperties;
@@ -372,6 +453,12 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
           ref={viewport}
           className={viewportClass}
           data-tool={tool}
+          // Una parada del tabulador: sin foco no hay teclado en el lienzo.
+          tabIndex={0}
+          role="application"
+          aria-roledescription="lienzo"
+          aria-label={`Lienzo, página ${currentPage + 1}`}
+          onKeyDown={onCanvasKey}
           {...viewportHandlers}
           onDoubleClick={(event) => {
             // Doble clic en un grupo: se entra en él y se coge lo que haya

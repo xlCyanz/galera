@@ -37,6 +37,9 @@ export interface FileDropHandle {
   dismiss: () => void;
   /** Con la herramienta de imagen: pide imágenes y las inserta donde se pulsó. */
   insertFromDialog: (event: PointerEvent<HTMLElement>) => void;
+  /** Lo mismo sin puntero: el diálogo de elegir imágenes, y se ponen con
+   * la esquina en `at`, en mm (F8-02). */
+  insertAt: (at: { x: number; y: number }) => void;
 }
 
 let batches = 0;
@@ -159,6 +162,9 @@ export function useFileDrop(
       if (at === null) {
         return;
       }
+      void run(async () => insert(await chooseImages(), at));
+    },
+    insertAt: (at) => {
       void run(async () => insert(await chooseImages(), at));
     },
   };

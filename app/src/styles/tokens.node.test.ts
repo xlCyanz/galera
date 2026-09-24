@@ -76,6 +76,19 @@ function literalColors(source: string): string[] {
   return found;
 }
 
+/** La luminancia relativa de un `#rrggbb`, según WCAG. */
+function luminance(hex: string): number {
+  const channels = [1, 3, 5].map((at) => Number.parseInt(hex.slice(at, at + 2), 16) / 255);
+  const [r, g, b] = channels.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * (r ?? 0) + 0.7152 * (g ?? 0) + 0.0722 * (b ?? 0);
+}
+
+/** El contraste entre dos colores `#rrggbb`, de 1 a 21. */
+function contrast(one: string, other: string): number {
+  const [light, dark] = [luminance(one), luminance(other)].sort((a, b) => b - a);
+  return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
+}
+
 /** Los tokens que define un bloque de `tokens.css`. */
 function definitions(block: string): Map<string, string> {
   return new Map(
@@ -167,6 +180,44 @@ describe("los colores de la interfaz", () => {
     for (const name of light.keys()) {
       if (!fixed.has(name)) {
         expect(dark.has(name), `${name} no tiene valor oscuro`).toBe(true);
+      }
+    }
+  });
+
+  /** F8-02 (#89): el foco es siempre visible y cumple el contraste
+   * mínimo para lo que no es texto, 3:1 (WCAG 1.4.11). */
+  it("el anillo del foco contrasta 3:1 con todo fondo, en los dos temas", () => {
+    const light = definitions(block(tokens, ":root {"));
+    const dark = new Map([...light, ...definitions(block(tokens, ':root[data-theme="dark"]'))]);
+
+    for (const [theme, values] of [
+      ["claro", light],
+      ["oscuro", dark],
+    ] as const) {
+      // Cada anillo, sobre los fondos donde se usa.
+      for (const [ring, backgrounds] of [
+        ["--focus-ring", ["--bg", "--surface", "--workspace"]],
+        ["--focus-ring-on-popover", ["--popover"]],
+      ] as const) {
+        const color = values.get(ring);
+        expect(color, `${theme}: ${ring}`).toBeDefined();
+        for (const background of backgrounds) {
+          const ratio = contrast(color ?? "", values.get(background) ?? "");
+          expect(ratio, `${theme}: ${ring} sobre ${background} da ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+        }
+      }
+    }
+  });
+
+  it("nadie quita el foco visible, salvo donde se enseña de otra forma", () => {
+    // El campo invisible del texto: el foco se ve en el cursor que dibuja el
+    // lienzo. Y el contorno de una línea, que no recibe el foco.
+    const allowed = new Set([".text-input", ".control-layer.is-line"]);
+    for (const [path, source] of Object.entries(stylesheets)) {
+      const code = source.replace(/\/\*[\s\S]*?\*\//gu, "");
+      for (const match of code.matchAll(/([^{}]+)\{[^{}]*outline:\s*(?:none|0)\b[^{}]*\}/gu)) {
+        const selector = (match[1] ?? "").trim();
+        expect(allowed.has(selector), `${path}: ${selector} quita el foco visible`).toBe(true);
       }
     }
   });

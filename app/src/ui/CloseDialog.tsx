@@ -5,9 +5,10 @@
  * Aquí se pregunta, y según lo que se elija se guarda y se cierra, se cierra
  * sin guardar, o no se cierra.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { closeWindow, errorMessage, onCloseRequested, saveProject } from "../commands";
+import { useDialogFocus } from "../hooks/useDialogFocus";
 import { useDocumentStore } from "../store/document";
 
 export interface CloseDialogProps {
@@ -19,6 +20,7 @@ export function CloseDialog({ subscribe = onCloseRequested }: CloseDialogProps) 
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const dialog = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
@@ -37,6 +39,9 @@ export function CloseDialog({ subscribe = onCloseRequested }: CloseDialogProps) 
       unlisten?.();
     };
   }, [subscribe]);
+
+  // El foco entra al preguntar, no se sale, y Esc es «Cancelar».
+  useDialogFocus(dialog, { active: asking, onEscape: () => setAsking(false) });
 
   if (!asking) {
     return null;
@@ -57,7 +62,14 @@ export function CloseDialog({ subscribe = onCloseRequested }: CloseDialogProps) 
 
   return (
     <div className="close-dialog-backdrop">
-      <div className="close-dialog" role="dialog" aria-modal="true" aria-label="Cambios sin guardar">
+      <div
+        ref={dialog}
+        tabIndex={-1}
+        className="close-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Cambios sin guardar"
+      >
         <p>Hay cambios sin guardar en este proyecto.</p>
         {error !== null && <p className="recovery-error">{error}</p>}
         <div className="actions">
