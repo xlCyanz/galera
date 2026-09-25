@@ -45,6 +45,14 @@ export function compilationStatusText(
   }
 }
 
+/**
+ * Lo que tardó la última tecla en verse, para la barra de estado: «en
+ * pantalla 23 ms». Ver `store/latency.ts`.
+ */
+export function screenLatencyText(ms: number): string {
+  return `en pantalla ${formatMs(ms)}`;
+}
+
 /** Cuánto tiene que tardar una compilación para decir en voz alta que se
  * está compilando, en milisegundos. */
 export const SLOW_COMPILATION_MS = 1000;

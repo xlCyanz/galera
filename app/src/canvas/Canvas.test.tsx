@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { OpenedProject } from "../commands";
 import { useCompilationStore } from "../store/compilation";
+import { useLatencyStore } from "../store/latency";
 import { useDocumentStore } from "../store/document";
 import { Canvas } from "./Canvas";
 import { type ImageLoader, PageSvg } from "./PageSvg";
@@ -184,6 +185,34 @@ describe("Canvas", () => {
     expect(page()?.getAttribute("aria-label")).toBe("Página 2 de 2");
     expect(parseFloat(page()?.style.width ?? "")).toBeCloseTo(816, 6);
     expect(image()?.getAttribute("src")).toBe("blob:0:<svg>carta</svg>");
+  });
+
+  /** #208: la medida de tecla a pantalla acaba cuando se pinta la página
+   * nueva, un fotograma después de enseñarla. */
+  it("pintar una página nueva después de una tecla dice lo que tardó en verse", async () => {
+    const { loader, finish } = controlledLoader();
+    act(() => useDocumentStore.getState().open(project()));
+    act(() => root.render(<Canvas loader={loader} />));
+    useLatencyStore.getState().typed(performance.now());
+    act(() =>
+      useCompilationStore.getState().finish({
+        revision: 2,
+        ms: 1,
+        reused: false,
+        diagnostics: [],
+        keys: [],
+        pages: ["<svg>escrito</svg>", "<svg>2</svg>"],
+        boxes: [],
+        flows: [], cells: [],
+      }),
+    );
+    expect(useLatencyStore.getState().last).toBeNull();
+    await finish("blob:0:<svg>escrito</svg>");
+    await act(async () => {
+      await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+    });
+    expect(useLatencyStore.getState().last).not.toBeNull();
+    expect(useLatencyStore.getState().waitingSince).toBeNull();
   });
 
   it("con errores, sigue enseñando la última compilación buena", async () => {

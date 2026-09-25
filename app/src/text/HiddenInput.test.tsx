@@ -7,6 +7,7 @@ import type { AppliedOp, OpenedProject } from "../commands";
 import { canvasTransform } from "../canvas/transform";
 import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
+import { useLatencyStore } from "../store/latency";
 import type { Glyph, LayoutBox } from "../types/layout";
 import type { Run } from "../types/model";
 import { HiddenInput } from "./HiddenInput";
@@ -465,5 +466,12 @@ describe("subir y bajar de línea", () => {
     const before = useEditingStore.getState().typedAt;
     await type("Hola mundos");
     expect(useEditingStore.getState().typedAt).not.toBe(before);
+  });
+
+  /** #208: cada tecla empieza a contar lo que tarda en verse. */
+  it("escribir pone en marcha la medida de tecla a pantalla", async () => {
+    useLatencyStore.setState(useLatencyStore.getInitialState(), true);
+    await type("Hola mundos");
+    expect(useLatencyStore.getState().waitingSince).not.toBeNull();
   });
 });
