@@ -166,11 +166,33 @@ de 2026:
 | Ir de la página 1 a la 25 | 24 pasos seguidos, sin espera en ninguno |
 | Escribir 19 caracteres seguidos en la página 25 | «Compilado en 15,4 ms» por tecla; el texto de la página, al día en menos de un segundo después de la última tecla, sin quedarse atrás mientras se escribía |
 
-Es una prueba a ojo: la barra de estado dice lo que tarda el núcleo, no el
-camino entero hasta la pantalla, y la app de release no trae las
-herramientas del navegador para medirlo con precisión. Lo que sí se ve es
-que escribir en un documento de cincuenta páginas no se nota distinto de
-hacerlo en uno de una.
+### De la tecla a la pantalla
+
+Desde #208 la app mide ella misma **lo que tarda una tecla en verse**: de la
+pulsación a la página nueva pintada en el lienzo, un fotograma después de
+enseñarla (`store/latency.ts`). La barra de estado lo dice detrás del tiempo
+de compilación: «Compilado en 17,5 ms · en pantalla 54 ms».
+
+Medido en la app de release, escribiendo letra a letra con una pausa entre
+una y otra, en la misma máquina y el mismo día:
+
+| Documento | Teclas | Compilar (mediana) | En pantalla (mediana) | En pantalla (peor) |
+|---|--:|--:|--:|--:|
+| `grande.json`, página 25 (50 páginas) | 11 | 17,5 ms | 54 ms | 62 ms |
+| Una página de `denso.json` | 5 | 12,8 ms | 49 ms | 63 ms |
+
+- **El tamaño del documento ya no cuenta.** Una tecla en la página 25 de
+  cincuenta tarda en verse lo mismo que en un documento de una página: lo
+  que se suma a la compilación, unos 35 ms, es fijo. Antes de #208 cada
+  tecla movía 21,6 MB con cincuenta páginas; ahora, la página que cambió.
+- **Está en el borde del presupuesto de la Fase 4** (50 ms), en los dos
+  casos. Esos 35 ms fijos son el viaje del resultado al webview, decodificar
+  la imagen de la página y esperar al fotograma siguiente para pintarla
+  (hasta 16,7 ms a 60 Hz). Es lo siguiente que habría que mirar si escribir
+  dejara de sentirse fluido.
+- Es **la primera repintada** tras la tecla: si había una compilación de
+  antes en marcha, puede no llevarla todavía, y la medida sale algo corta.
+  Escribiendo con pausa, como aquí, no pasa.
 
 ## Qué vigila que no se estropee
 

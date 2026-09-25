@@ -19,6 +19,7 @@ import { create } from "zustand";
 import { findElement } from "../canvas/elements";
 import type { AppliedOp, OpenedProject, SavedProject } from "../commands";
 import type { Document } from "../types/model";
+import { useLatencyStore } from "./latency";
 
 /** El zoom mínimo: 25 %. */
 export const MIN_ZOOM = 0.25;
@@ -156,7 +157,9 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
   dirty: false,
   focusRequests: 0,
 
-  open: (opened) =>
+  open: (opened) => {
+    // Lo que tardaba una tecla en verse era del documento de antes.
+    useLatencyStore.getState().reset();
     set({
       document: opened.document,
       root: opened.root,
@@ -168,7 +171,8 @@ export const useDocumentStore = create<DocumentState>()((set, get) => ({
       history: noHistory,
       archive: opened.archive,
       dirty: false,
-    }),
+    });
+  },
 
   close: () =>
     set({

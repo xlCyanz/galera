@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CompilationFailed, OpenedProject } from "../commands";
 import { useCompilationStore } from "../store/compilation";
+import { useLatencyStore } from "../store/latency";
 import { useDocumentStore } from "../store/document";
 import { StatusBar } from "./StatusBar";
 
@@ -49,6 +50,7 @@ let root: Root;
 beforeEach(() => {
   useDocumentStore.setState(useDocumentStore.getInitialState(), true);
   useCompilationStore.setState(useCompilationStore.getInitialState(), true);
+  useLatencyStore.setState(useLatencyStore.getInitialState(), true);
   useDocumentStore.getState().open(project);
   container = document.createElement("div");
   root = createRoot(container);
@@ -72,6 +74,24 @@ describe("barra de estado", () => {
     expect(container.textContent).toContain("Página 1 de 2");
     expect(text(".status-zoom")).toBe("100 %");
     expect(container.querySelector(".issues")).toBeNull();
+  });
+
+  /** #208: tras escribir, lo que tardó la tecla en verse. */
+  it("después de escribir, dice también lo que tardó la tecla en verse", () => {
+    act(() =>
+      useCompilationStore
+        .getState()
+        .finish({ revision: 1, ms: 12.34, reused: false, diagnostics: [], keys: [], pages: ["<svg/>"], boxes: [], flows: [], cells: [] }),
+    );
+    act(() => {
+      useLatencyStore.getState().typed(1000);
+      useLatencyStore.getState().painted(1023.4);
+    });
+    expect(text(".status-compilation")).toBe("Compilado en 12,3 ms · en pantalla 23,4 ms");
+
+    // Mientras compila, solo eso.
+    act(() => useCompilationStore.getState().start({ revision: 2 }));
+    expect(text(".status-compilation")).toBe("Compilando…");
   });
 
   it("mientras compila, lo dice", () => {

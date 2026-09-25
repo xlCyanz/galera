@@ -38,7 +38,15 @@
  * se selecciona desde el panel de capas, su contorno se ve pero no se
  * agarra, y las flechas no lo mueven.
  */
-import { type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, useEffect, useEffectEvent, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 
 import { applyOp, elementAt } from "../commands";
 
@@ -63,6 +71,7 @@ import {
   useEditingStore,
 } from "../store/editing";
 import { useElementBox, useLayoutStore, useOverflowing } from "../store/layout";
+import { useLatencyStore } from "../store/latency";
 import { useTool, useToolStore } from "../store/tool";
 import { isShapeTool } from "../ui/tools";
 import { Cursor } from "../text/Cursor";
@@ -221,6 +230,14 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
   const onSelect = useSelection(transform, currentPage, drag.start, marquee.start);
   // La imagen que enseña la hoja, para la copia que se arrastra.
   const [shownUrl, setShownUrl] = useState<string | null>(null);
+  // Cada imagen nueva de la página, pintada un fotograma después de
+  // enseñarla: es el final de lo que tarda una tecla en verse (#208).
+  const onShown = useCallback((url: string | null) => {
+    setShownUrl(url);
+    if (url !== null) {
+      requestAnimationFrame(() => useLatencyStore.getState().painted(performance.now()));
+    }
+  }, []);
   const resize = useResize(transform?.pxPerMm ?? null, currentPage);
   const resized =
     resize.state.phase !== "idle" && selectedBox !== null && resize.state.id === selectedBox.id
@@ -501,7 +518,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
               top={sheet.top}
               svg={pages[currentPage] ?? null}
               label={`Página ${currentPage + 1} de ${document.pages.length}`}
-              onShown={setShownUrl}
+              onShown={onShown}
               {...(loader === undefined ? {} : { loader })}
             />
           )}

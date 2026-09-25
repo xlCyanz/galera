@@ -66,6 +66,7 @@ import { rectToCanvas } from "../canvas/transform";
 import { runHistory } from "../hooks/useUndoRedo";
 import { useDocumentStore } from "../store/document";
 import { useEditingStore } from "../store/editing";
+import { useLatencyStore } from "../store/latency";
 import { useLayoutStore } from "../store/layout";
 import type { LayoutBox } from "../types/layout";
 import { byteIndex, lineMove, textIndex } from "./caret";
@@ -337,6 +338,7 @@ export function HiddenInput({ target, box, transform }: HiddenInputProps) {
         }
         column.current = null;
         useEditingStore.getState().typed();
+        useLatencyStore.getState().typed(performance.now());
         remember();
       }}
       onCompositionStart={() => useEditingStore.getState().setComposing(true)}
@@ -344,6 +346,7 @@ export function HiddenInput({ target, box, transform }: HiddenInputProps) {
         useEditingStore.getState().setComposing(false);
         commit();
         useEditingStore.getState().typed();
+        useLatencyStore.getState().typed(performance.now());
         remember();
       }}
       onPaste={(event) => {

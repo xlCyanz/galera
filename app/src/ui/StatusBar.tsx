@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { formatZoom } from "../canvas/zoom";
-import { SLOW_COMPILATION_MS, compilationAnnouncement, compilationStatusText } from "../format";
+import { SLOW_COMPILATION_MS, compilationAnnouncement, compilationStatusText, screenLatencyText } from "../format";
 import {
   useCompilationError,
   useCompilationMs,
@@ -18,6 +18,7 @@ import {
   useDiagnostics,
 } from "../store/compilation";
 import { useCurrentPage, usePageCount, useZoom } from "../store/document";
+import { useScreenLatency } from "../store/latency";
 import { ErrorPanel } from "./ErrorPanel";
 import { ThemeSelect } from "./ThemeSelect";
 import { countIssues, issuesOf, issuesSummary } from "./issues";
@@ -31,6 +32,7 @@ export function StatusBar() {
   const pageCount = usePageCount();
   const currentPage = useCurrentPage();
   const zoom = useZoom();
+  const latency = useScreenLatency();
 
   const issues = useMemo(() => issuesOf(diagnostics, error), [diagnostics, error]);
   const { errors } = countIssues(issues);
@@ -73,7 +75,10 @@ export function StatusBar() {
       {panelOpen && issues.length > 0 && <ErrorPanel issues={issues} />}
       <footer className="status-bar">
         {/* Lo que se ve cambia en cada tecla; lo que se oye va aparte. */}
-        <span className={`status-compilation is-${status}`}>{compilationStatusText(status, ms, reused)}</span>
+        <span className={`status-compilation is-${status}`}>
+          {compilationStatusText(status, ms, reused)}
+          {status === "ready" && latency !== null && ` · ${screenLatencyText(latency)}`}
+        </span>
         <span className="visually-hidden" role="status">
           {spoken}
         </span>
