@@ -59,7 +59,7 @@ Todo lo que se pone sobre una página es un elemento:
 | **Línea** | Un trazo, continuo, a rayas, de puntos o de raya y punto | `L`: arrastra de un extremo a otro |
 | **Imagen** | Una imagen del proyecto (PNG, JPEG, GIF, WebP o SVG) | `I` y clic, o soltar el archivo sobre la página |
 | **Bloque de código** | Código de Typst escrito a mano, para lo que no tiene herramienta propia | `C` |
-| **Tabla** | Filas y columnas de celdas con texto | Viene en las plantillas: ver abajo |
+| **Tabla** | Filas y columnas de celdas con texto | Herramienta «Tabla» (`B`): arrastra para darle ancho |
 | **Zona de texto** | Un trozo de un texto que fluye | Viene en las plantillas: ver [Texto que fluye](#texto-que-fluye) |
 | **Grupo** | Varios elementos que se mueven y se giran juntos | Selecciónalos y `⌘G` |
 
@@ -150,9 +150,11 @@ inspector, el ancho de cada columna: automático, fijo en milímetros o una
 parte del ancho que sobra. Los bordes de las columnas también se arrastran
 sobre la página.
 
-En esta versión, las tablas vienen hechas en las plantillas, como la de
-«Factura»: todavía no se puede crear una nueva ni combinar celdas desde la
-app.
+Una tabla nueva nace con tres filas y tres columnas iguales, vacía y con un
+borde fino; su alto crece con lo que escribes. Como un texto, necesita una
+fuente en el proyecto. En esta versión todavía no se pueden combinar celdas
+desde la app: las combinadas de una plantilla, como la «Factura», se ven y
+se editan, pero no se crean.
 
 ## Bloque de código
 

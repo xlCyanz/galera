@@ -35,8 +35,10 @@ desde una hoja de cálculo.
   posición que da Typst.
 - Negrita, cursiva, subrayado, color, enlaces y listas con viñetas o
   numeradas.
-- Tablas y textos que fluyen de una zona a otra y de página en página, en
-  las plantillas.
+- Tablas, con su herramienta: filas y columnas que se añaden y se quitan,
+  y columnas automáticas, fijas o proporcionales.
+- Textos que fluyen de una zona a otra y de página en página, en las
+  plantillas.
 
 **Plantillas y lotes**
 
@@ -75,9 +77,11 @@ desde una hoja de cálculo.
 Son las cosas que más se echan de menos. Están apuntadas para las próximas
 versiones.
 
-- **Crear tablas y textos que fluyen** desde la app, y **combinar celdas**:
-  vienen en las plantillas y se pueden copiar de un documento a otro, pero
-  no hay herramienta para hacerlos desde cero.
+- **Crear textos que fluyen** desde la app: vienen en las plantillas y se
+  pueden copiar de un documento a otro, pero no hay herramienta para
+  hacerlos desde cero.
+- **Combinar celdas** de una tabla: las combinadas de una plantilla se ven
+  y se editan, pero no se crean.
 - **Más estilos de fuente** que negrita, cursiva y subrayado: el peso y el
   estilo se eligen con la familia.
 - **Ajustar cómo se encaja una imagen** en su caja: con el ancho y el alto

@@ -50,11 +50,15 @@ en milímetros para un tamaño a medida. Cada página tiene el suyo, y las
 nuevas copian el de la actual. Los elementos no se mueven: lo que quede
 fuera de una página más pequeña, fuera se queda, y no se ve.
 
-**¿Cómo hago una tabla o un texto a dos columnas?**
-En esta versión vienen hechos en las plantillas: la tabla de la «Factura»,
-el texto que fluye del «Boletín a dos columnas» y de la «Carta con
-membrete». Se puede copiar una tabla de un documento a otro con `⌘C` y
-`⌘V`, y luego añadirle o quitarle filas y columnas.
+**¿Cómo hago una tabla?**
+Con la herramienta «Tabla» (`B`): arrastra sobre la página para darle el
+ancho. Sale de tres por tres; con el botón derecho en una celda se añaden o
+se quitan filas y columnas. Combinar celdas todavía no se puede.
+
+**¿Cómo hago un texto a dos columnas?**
+En esta versión, el texto que fluye viene hecho en las plantillas «Boletín
+a dos columnas» y «Carta con membrete», y se puede copiar de un documento a
+otro con `⌘C` y `⌘V`.
 
 ## Sobre los archivos
 

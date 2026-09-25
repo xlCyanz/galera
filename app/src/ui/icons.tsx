@@ -23,6 +23,13 @@ export const TOOL_ICONS: Record<Tool, ReactNode> = {
     </>
   ),
   code: <path d="M7 6l-4 4 4 4M13 6l4 4-4 4" />,
+  // Una rejilla de tres por tres, como la tabla que crea.
+  table: (
+    <>
+      <rect x="3.5" y="4.5" width="13" height="11" rx="0.5" />
+      <path d="M3.5 8.2h13M3.5 11.8h13M7.8 4.5v11M12.2 4.5v11" />
+    </>
+  ),
   hand: (
     <path d="M7 10V5.5a1 1 0 012 0V9m0-4.5V4a1 1 0 012 0v5m0-4a1 1 0 012 0v5m0-3a1 1 0 012 0v5c0 3-2 5-5 5h-1c-2 0-3-1-4-2.5L4.5 12a1 1 0 011.6-1.2L7 12" />
   ),
