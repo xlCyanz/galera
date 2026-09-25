@@ -1,0 +1,173 @@
+name: macOS
+
+# Empaqueta Galera para macOS: un `.dmg` universal (Apple Silicon e Intel),
+# firmado con el certificado Developer ID y notarizado por Apple, para que se
+# abra sin avisos de Gatekeeper. Ver docs/distribucion.md.
+#
+# - Al subir una etiqueta `v*` y a mano (`workflow_dispatch`): firma y
+#   notariza. Sin los secrets de firma, falla: lo que se reparte tiene que ir
+#   firmado.
+# - En un PR que toque el empaquetado: lo mismo sin firmar —los PR no ven los
+#   secrets—, para comprobar que el `.dmg` sale y es universal.
+#
+# Publicar el `.dmg` en una release de GitHub es de F8-07 (#94); aquí queda
+# como artefacto del workflow.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - app/src-tauri/tauri.conf.json
+      - app/src-tauri/Cargo.toml
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  dmg:
+    name: dmg universal
+    runs-on: macos-latest
+    env:
+      # Los secrets no se pueden mirar en un `if`: se pasan por aquí.
+      SIGNED: ${{ secrets.APPLE_CERTIFICATE != '' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Lo que se reparte va firmado
+        if: github.event_name != 'pull_request' && env.SIGNED != 'true'
+        run: |
+          echo "::error::Faltan los secrets de firma de Apple. Ver docs/distribucion.md."
+          exit 1
+
+      # rust-toolchain.toml fija el canal; las dos arquitecturas se añaden
+      # aquí para compilar el binario universal.
+      - name: Rust con las dos arquitecturas
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Caché de Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # El certificado Developer ID, en un llavero propio y temporal. Tauri
+      # firma con la identidad que encuentre en él (APPLE_SIGNING_IDENTITY),
+      # y el `.dmg` se firma después con la misma.
+      - name: Certificado de firma
+        if: env.SIGNED == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/galera.keychain-db"
+          password="$(openssl rand -base64 24)"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificado.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/certificado.p12" -k "$keychain" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/certificado.p12"
+
+          identity=$(security find-identity -v -p codesigning "$keychain" \
+            | grep -o '"Developer ID Application: [^"]*"' | head -n 1 | tr -d '"')
+          if [ -z "$identity" ]; then
+            echo "::error::El certificado no es un Developer ID Application."
+            exit 1
+          fi
+          echo "APPLE_SIGNING_IDENTITY=$identity" >> "$GITHUB_ENV"
+
+      # La clave de la API de App Store Connect, para notarizar. Tauri la lee
+      # de un archivo.
+      - name: Clave para notarizar
+        if: env.SIGNED == 'true'
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          path="$RUNNER_TEMP/AuthKey.p8"
+          echo "$APPLE_API_KEY_P8" > "$path"
+          echo "APPLE_API_KEY_PATH=$path" >> "$GITHUB_ENV"
+
+      # Con APPLE_SIGNING_IDENTITY y la clave de la API, Tauri firma la app
+      # con el runtime endurecido, la manda a notarizar, espera y grapa el
+      # resultado. Sin ellos, la deja sin firmar.
+      - name: Compilar y empaquetar
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: pnpm tauri build --target universal-apple-darwin --bundles app,dmg
+
+      - name: Localizar lo empaquetado
+        run: |
+          bundle="$PWD/target/universal-apple-darwin/release/bundle"
+          app=$(ls -d "$bundle"/macos/*.app | head -n 1)
+          dmg=$(ls "$bundle"/dmg/*.dmg | head -n 1)
+          echo "APP=$app" >> "$GITHUB_ENV"
+          echo "DMG=$dmg" >> "$GITHUB_ENV"
+          echo "app: $app"
+          echo "dmg: $dmg"
+
+      - name: Es universal
+        run: |
+          executable=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$APP/Contents/Info.plist")
+          binary="$APP/Contents/MacOS/$executable"
+          archs=$(lipo -archs "$binary")
+          echo "arquitecturas: $archs"
+          for arch in arm64 x86_64; do
+            case " $archs " in
+              *" $arch "*) ;;
+              *) echo "::error::Al binario le falta $arch"; exit 1 ;;
+            esac
+          done
+
+      # Tauri notariza la app, no la imagen que la contiene. La imagen se
+      # firma, se notariza y se grapa aparte: así Gatekeeper no pregunta ni
+      # al abrir el `.dmg` ni al abrir la app.
+      - name: Firmar y notarizar el dmg
+        if: env.SIGNED == 'true'
+        env:
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          codesign --force --timestamp --sign "$APPLE_SIGNING_IDENTITY" "$DMG"
+          xcrun notarytool submit "$DMG" --wait \
+            --key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER"
+          xcrun stapler staple "$DMG"
+
+      # Lo mismo que mira Gatekeeper en un Mac que nunca ha visto la app.
+      - name: Gatekeeper lo acepta
+        if: env.SIGNED == 'true'
+        run: |
+          codesign --verify --deep --strict --verbose=2 "$APP"
+          xcrun stapler validate "$APP"
+          xcrun stapler validate "$DMG"
+          spctl --assess --type execute --verbose=2 "$APP"
+          spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.SIGNED == 'true' && 'galera-macos' || 'galera-macos-sin-firmar' }}
+          path: ${{ env.DMG }}
+          if-no-files-found: error
+
+      - name: Limpiar el llavero
+        if: always() && env.SIGNED == 'true'
+        run: |
+          security delete-keychain "$RUNNER_TEMP/galera.keychain-db" || true
+          rm -f "$RUNNER_TEMP/AuthKey.p8"
