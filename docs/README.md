@@ -3,6 +3,7 @@
 | Documento | Para qué sirve |
 |---|---|
 | [`../guide.md`](../guide.md) | Resumen del proyecto: alcance, principios, arquitectura, modelo de documento, fases y riesgos. Fuente de verdad de la planificación. |
+| [`manual/`](manual/README.md) | **El manual de usuario**: primeros pasos, conceptos, plantillas y lotes, preguntas frecuentes y notas de la versión 0.1. |
 | [`tareas.md`](tareas.md) | Estado de todas las tareas, fase por fase, con enlace a su issue. |
 | `galera-design-brief.md` | Colores, tipografía, estructura de pantalla, estados, textos y atajos. **Todavía no está en el repositorio**; hace falta antes de la tarea F1-13 (#29). |
 | `atajos.md` | Referencia de atajos de teclado. Se crea en F3-13 (#53). |

@@ -4,7 +4,8 @@
 
 <p align="center">
   <a href="https://github.com/xlCyanz/galera/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/xlCyanz/galera/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://github.com/xlCyanz/galera/milestone/1"><img alt="Fase" src="https://img.shields.io/badge/fase%200-completada-0E4429"></a>
+  <a href="https://github.com/xlCyanz/galera/releases/latest"><img alt="Versión" src="https://img.shields.io/github/v/release/xlCyanz/galera?label=versi%C3%B3n&include_prereleases"></a>
+  <a href="https://github.com/xlCyanz/galera/milestone/9"><img alt="Fase" src="https://img.shields.io/badge/fase%208-en%20curso-B08800"></a>
   <a href="https://github.com/xlCyanz/galera/issues"><img alt="Tareas" src="https://img.shields.io/github/issues/xlCyanz/galera?label=tareas%20abiertas"></a>
   <img alt="Rust" src="https://img.shields.io/badge/rust-1.92%2B-B7410E?logo=rust&logoColor=white">
   <img alt="Tauri" src="https://img.shields.io/badge/tauri-2-24C8DB?logo=tauri&logoColor=white">
@@ -38,7 +39,28 @@ Sirve para informes, facturas, certificados, carteles y CVs. El documento se gua
 
 **Y el cursor de texto también.** Su posición sale de las coordenadas de glifos que devuelve Typst, no de una medición aparte. Es más difícil de construir y es justo lo que evita que el editor y el PDF se separen.
 
-> **Estado:** Fase 0 completada: el núcleo convierte un documento en PDF y SVG desde la terminal. Siguiente, la Fase 1: la ventana. Todavía no hay binarios publicados. El plan completo está en [`guide.md`](guide.md) y el avance tarea a tarea en [`docs/tareas.md`](docs/tareas.md).
+## Descargar
+
+| Sistema | Archivo |
+|---|---|
+| macOS, Apple Silicon e Intel | `Galera_X.Y.Z_universal.dmg`, firmado y notarizado |
+| Windows 10 y 11 | `Galera_X.Y.Z_x64-setup.exe`, todavía sin firmar |
+
+En la página de [versiones](https://github.com/xlCyanz/galera/releases/latest).
+Para aprender a usarla, el [manual](docs/manual/README.md): primeros pasos,
+conceptos, plantillas y lotes, atajos y preguntas frecuentes. Lo que trae la
+primera versión y lo que le falta, en las
+[notas de la 0.1](docs/manual/notas-0.1.md).
+
+> **Estado:** la app hace ya lo que promete: diseñar páginas con textos,
+> formas e imágenes —y tablas y textos que fluyen, que por ahora vienen en
+> las plantillas—, editar el texto sobre la página con el cursor que da
+> Typst, rellenar plantillas con variables y
+> generar en lote desde un CSV, y exportar a PDF, SVG y PNG. Se empaqueta
+> para macOS y Windows y se publica al etiquetar una versión. Quedan las
+> sesiones de prueba a mano, la firma con la cuenta de Apple y el diseño
+> definitivo de la ventana. El avance, tarea a tarea, en
+> [`docs/tareas.md`](docs/tareas.md).
 
 ---
 
@@ -129,7 +151,7 @@ cd galera
 cargo build --workspace
 cargo test --workspace
 
-# CLI: JSON → PDF (disponible desde la Fase 0)
+# CLI: JSON → PDF
 cargo run -p galera-cli -- fixtures/informe.json -o salida.pdf
 
 # App de escritorio
@@ -183,14 +205,14 @@ El documento es un JSON versionado. Ejemplo mínimo:
 | Fase | Objetivo | Estado |
 |---|---|---|
 | [Fase 0](../../milestone/1) | Núcleo por terminal: JSON entra, PDF sale | Hecha |
-| [Fase 1](../../milestone/2) | Ventana y vista fiel | En curso |
-| [Fase 2](../../milestone/3) | Layout y selección | Pendiente |
-| [Fase 3](../../milestone/4) | Creación de elementos y paneles | Pendiente |
-| [Fase 4](../../milestone/5) | Edición de texto de alta fidelidad | Pendiente |
-| [Fase 5](../../milestone/6) | Productividad | Pendiente |
-| [Fase 6](../../milestone/7) | Plantillas y variables | Pendiente |
-| [Fase 7](../../milestone/8) | Texto que fluye y tablas | Pendiente |
-| [Fase 8](../../milestone/9) | Pulido y distribución | Pendiente |
+| [Fase 1](../../milestone/2) | Ventana y vista fiel | Hecha, salvo el diseño definitivo de la ventana (#29) |
+| [Fase 2](../../milestone/3) | Layout y selección | Hecha |
+| [Fase 3](../../milestone/4) | Creación de elementos y paneles | Hecha, salvo la sesión de prueba a mano (#54) |
+| [Fase 4](../../milestone/5) | Edición de texto de alta fidelidad | Hecha, salvo la sesión de prueba del IME (#55) |
+| [Fase 5](../../milestone/6) | Productividad | Hecha |
+| [Fase 6](../../milestone/7) | Plantillas y variables | Hecha |
+| [Fase 7](../../milestone/8) | Texto que fluye y tablas | Hecha |
+| [Fase 8](../../milestone/9) | Pulido y distribución | En curso |
 
 Estado detallado tarea por tarea: [`docs/tareas.md`](docs/tareas.md).
 
