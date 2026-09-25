@@ -115,7 +115,7 @@ jobs:
 
       - name: Localizar lo empaquetado
         run: |
-          bundle=target/universal-apple-darwin/release/bundle
+          bundle="$PWD/target/universal-apple-darwin/release/bundle"
           app=$(ls -d "$bundle"/macos/*.app | head -n 1)
           dmg=$(ls "$bundle"/dmg/*.dmg | head -n 1)
           echo "APP=$app" >> "$GITHUB_ENV"
@@ -125,7 +125,8 @@ jobs:
 
       - name: Es universal
         run: |
-          binary="$APP/Contents/MacOS/$(defaults read "$APP/Contents/Info.plist" CFBundleExecutable)"
+          executable=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$APP/Contents/Info.plist")
+          binary="$APP/Contents/MacOS/$executable"
           archs=$(lipo -archs "$binary")
           echo "arquitecturas: $archs"
           for arch in arm64 x86_64; do
