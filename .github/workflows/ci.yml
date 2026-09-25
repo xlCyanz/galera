@@ -31,6 +31,16 @@ jobs:
           if [ -f Cargo.toml ]; then echo "rust=true" >> "$GITHUB_OUTPUT"; else echo "rust=false" >> "$GITHUB_OUTPUT"; fi
           if [ -f package.json ]; then echo "frontend=true" >> "$GITHUB_OUTPUT"; else echo "frontend=false" >> "$GITHUB_OUTPUT"; fi
 
+  # La versión de Cargo.toml, de package.json y de tauri.conf.json es la
+  # misma: al etiquetar, el workflow de empaquetado exige además que la
+  # etiqueta lo sea (F8-07, #94).
+  version:
+    name: La versión cuadra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: scripts/check-version.sh
+
   rust:
     name: Rust (${{ matrix.os }})
     needs: detect
@@ -168,16 +178,17 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [detect, rust, pdf, frontend]
+    needs: [detect, version, rust, pdf, frontend]
     runs-on: ubuntu-latest
     steps:
       - name: Comprobar resultados
         run: |
           echo "detect:   ${{ needs.detect.result }}"
+          echo "version:  ${{ needs.version.result }}"
           echo "rust:     ${{ needs.rust.result }}"
           echo "pdf:      ${{ needs.pdf.result }}"
           echo "frontend: ${{ needs.frontend.result }}"
-          for r in "${{ needs.detect.result }}" "${{ needs.rust.result }}" "${{ needs.pdf.result }}" "${{ needs.frontend.result }}"; do
+          for r in "${{ needs.detect.result }}" "${{ needs.version.result }}" "${{ needs.rust.result }}" "${{ needs.pdf.result }}" "${{ needs.frontend.result }}"; do
             case "$r" in
               success|skipped) ;;
               *) echo "::error::Un job requerido no pasó ($r)"; exit 1 ;;
