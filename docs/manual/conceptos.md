@@ -163,9 +163,14 @@ sobre la página.
 
 Una tabla nueva nace con tres filas y tres columnas iguales, vacía y con un
 borde fino; su alto crece con lo que escribes. Como un texto, necesita una
-fuente en el proyecto. En esta versión todavía no se pueden combinar celdas
-desde la app: las combinadas de una plantilla, como la «Factura», se ven y
-se editan, pero no se crean.
+fuente en el proyecto.
+
+**Combinar celdas**: escribiendo en una celda, marca otras con `⇧` o `⌘` y
+clic, y en el menú (botón derecho), **«Combinar celdas»**. Se combina el
+rectángulo que las contiene, con los textos de todas juntos en la primera;
+si el rectángulo partiría una celda que ya está combinada, el menú lo dice
+y no hace nada. **«Separar la celda»** devuelve una combinada a celdas
+sueltas, vacías salvo la primera.
 
 ## Bloque de código
 

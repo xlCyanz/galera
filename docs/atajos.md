@@ -70,7 +70,8 @@ teclas van al texto y no a las herramientas:
   final. `⇧` o `⌘` + clic en otra celda la suma a las marcadas, y entonces
   `⌘B`, `⌘I` y `⌘U` van al texto entero de todas ellas de una vez. El botón
   derecho sobre una celda abre el menú de la tabla: meter y quitar filas y
-  columnas. Con la tabla seleccionada, el borde de cada columna se arrastra
+  columnas, combinar la celda con las marcadas y separar una combinada. Con
+  la tabla seleccionada, el borde de cada columna se arrastra
   para cambiar lo que mide.
 - `Esc` sale de escribir. `⌘Z` deshace el documento, no el campo: cada
   cambio del texto ya es un paso del historial.

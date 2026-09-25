@@ -18,9 +18,9 @@
 //! cambio de un elemento: guarda la tabla que había.
 
 use super::OpError;
-use crate::model::Element;
 use crate::model::table::{ColumnWidth, TableCell, TableRow, cell_at, grid, occupancy};
 use crate::model::text::{self, Format};
+use crate::model::{Element, Run};
 
 /// Mete una fila en `index`, o al final si no se dice.
 pub(super) fn insert_row(
@@ -194,6 +194,148 @@ pub(super) fn format_text(
 }
 
 /// Las columnas y las filas del elemento, si es una tabla.
+/// Combina las celdas de un rectángulo de la rejilla en una sola: la de
+/// arriba a la izquierda, que pasa a ocupar el rectángulo entero.
+///
+/// El texto de las demás no se pierde: se añade al de la primera, separado
+/// por un espacio, en el orden en que se leen (fila a fila). Solo se puede
+/// si ninguna celda queda partida por el borde del rectángulo: combinar
+/// media celda combinada no tiene sentido.
+pub(super) fn merge_cells(
+    element: &mut Element,
+    id: &str,
+    row: usize,
+    column: usize,
+    rows_taken: usize,
+    columns_taken: usize,
+) -> Result<(), OpError> {
+    let (columns, rows) = table_of(element, id, "Combinar celdas")?;
+    let cannot = |why: &str| OpError::CannotMerge {
+        id: id.to_owned(),
+        why: why.to_owned(),
+    };
+    if rows_taken == 0 || columns_taken == 0 || rows_taken * columns_taken < 2 {
+        return Err(cannot("hacen falta al menos dos celdas"));
+    }
+    if row + rows_taken > rows.len() || column + columns_taken > columns.len() {
+        return Err(missing(
+            id,
+            format!("{rows_taken} × {columns_taken} celdas desde la fila {row}, columna {column}"),
+        ));
+    }
+
+    let map = occupancy(columns.len(), rows);
+    let places = grid(columns.len(), rows);
+    let inside = |r: usize, c: usize| {
+        (row..row + rows_taken).contains(&r) && (column..column + columns_taken).contains(&c)
+    };
+    // Cada celda que asoma al rectángulo tiene que caber entera dentro.
+    let mut merged: Vec<(usize, usize)> = Vec::new();
+    for line in map.iter().skip(row).take(rows_taken) {
+        for owner in line.iter().skip(column).take(columns_taken) {
+            let Some((owner_row, owner_index)) = *owner else {
+                return Err(cannot("hay huecos sin celda"));
+            };
+            let start = places[owner_row][owner_index];
+            let cell = &rows[owner_row].cells[owner_index];
+            let last_row = owner_row + cell.rowspan.max(1) - 1;
+            let last_column = start + cell.colspan.max(1) - 1;
+            if !inside(owner_row, start) || !inside(last_row, last_column) {
+                return Err(cannot("el borde parte una celda combinada"));
+            }
+            if !merged.contains(&(owner_row, owner_index)) {
+                merged.push((owner_row, owner_index));
+            }
+        }
+    }
+    // Una combinada sola ya es una: no hay nada que juntar.
+    if merged.len() < 2 {
+        return Err(cannot("hacen falta al menos dos celdas"));
+    }
+    // La primera es la de arriba a la izquierda: la que empieza en la fila
+    // y la columna pedidas.
+    let Some(first) = cell_at(columns.len(), rows, row, column) else {
+        return Err(cannot("hay huecos sin celda"));
+    };
+    merged.sort_unstable();
+
+    // Juntar los textos, en orden de lectura.
+    let mut content = Vec::new();
+    for &(r, index) in &merged {
+        let text = &rows[r].cells[index].content;
+        if text.iter().all(|run| run.text.is_empty()) {
+            continue;
+        }
+        if !content.is_empty() {
+            content.push(Run::plain(" "));
+        }
+        content.extend(text.iter().cloned());
+    }
+
+    // Quitar las demás, de atrás adelante para no mover los índices.
+    for &(r, index) in merged.iter().rev() {
+        if (r, index) != (row, first) {
+            rows[r].cells.remove(index);
+        }
+    }
+    let cell = &mut rows[row].cells[first];
+    cell.content = content;
+    cell.rowspan = rows_taken;
+    cell.colspan = columns_taken;
+    Ok(())
+}
+
+/// Separa una celda combinada: vuelve a ocupar un solo sitio, con su texto,
+/// y el resto de lo que ocupaba vuelve a ser celdas vacías.
+pub(super) fn split_cell(
+    element: &mut Element,
+    id: &str,
+    row: usize,
+    column: usize,
+) -> Result<(), OpError> {
+    let (columns, rows) = table_of(element, id, "Separar una celda")?;
+    let places = grid(columns.len(), rows);
+    let Some(index) = cell_at(columns.len(), rows, row, column) else {
+        return Err(missing(
+            id,
+            format!("ninguna celda en la fila {row}, columna {column}"),
+        ));
+    };
+    let cell = &rows[row].cells[index];
+    let (rowspan, colspan) = (cell.rowspan.max(1), cell.colspan.max(1));
+    if rowspan == 1 && colspan == 1 {
+        return Err(OpError::CannotMerge {
+            id: id.to_owned(),
+            why: "esa celda no está combinada".to_owned(),
+        });
+    }
+    let fresh = || TableCell {
+        content: Vec::new(),
+        colspan: 1,
+        rowspan: 1,
+        fill: None,
+        align: None,
+    };
+
+    // Dónde entra cada celda nueva: detrás de las de su fila que caen más a
+    // la izquierda en la rejilla de antes.
+    for (r, line) in rows.iter_mut().enumerate().skip(row).take(rowspan) {
+        let before: Vec<usize> = places.get(r).cloned().unwrap_or_default();
+        let wanted: Vec<usize> = (column..column + colspan)
+            .filter(|c| r != row || *c != column)
+            .collect();
+        // De derecha a izquierda, para que los índices de antes sigan valiendo.
+        for c in wanted.into_iter().rev() {
+            let at = before.iter().filter(|start| **start < c).count();
+            line.cells.insert(at, fresh());
+        }
+    }
+    let cell = &mut rows[row].cells[index];
+    cell.rowspan = 1;
+    cell.colspan = 1;
+    Ok(())
+}
+
 fn table_of<'a>(
     element: &'a mut Element,
     id: &str,
@@ -534,5 +676,100 @@ mod tests {
             matches!(error, OpError::NotApplicable { kind: "rect", .. }),
             "{error:?}"
         );
+    }
+
+    fn merge(row: usize, column: usize, rows: usize, columns: usize) -> Op {
+        Op::MergeCells {
+            id: "tb1".to_owned(),
+            row,
+            column,
+            rows,
+            columns,
+        }
+    }
+
+    fn spans(document: &Document, row: usize) -> Vec<(usize, usize)> {
+        table(document).1[row]
+            .cells
+            .iter()
+            .map(|cell| (cell.rowspan, cell.colspan))
+            .collect()
+    }
+
+    /// El criterio de la tarea: se combinan celdas de una fila, con sus
+    /// textos, y se deshace.
+    #[test]
+    fn two_cells_of_a_row_become_one_with_both_texts() {
+        let (merged, undo) = apply(&document(), merge(2, 1, 1, 2));
+        assert_eq!(texts(&merged, 2), ["Marzo", "Sur 34"]);
+        assert_eq!(spans(&merged, 2), [(1, 1), (1, 2)]);
+        assert_eq!(
+            undo.apply(&merged).expect("se deshace").document,
+            document()
+        );
+    }
+
+    /// Un rectángulo de dos por dos, que ya lleva una combinada dentro.
+    #[test]
+    fn a_block_with_a_merged_cell_inside_becomes_one() {
+        let (merged, _) = apply(&document(), merge(1, 1, 2, 2));
+        assert_eq!(texts(&merged, 1), ["Febrero Sur 34"]);
+        assert_eq!(spans(&merged, 1), [(2, 2)]);
+        assert_eq!(texts(&merged, 2), ["Marzo"]);
+    }
+
+    /// Lo que no se puede: partir una combinada con el borde, una sola
+    /// celda, o salirse de la tabla.
+    #[test]
+    fn merging_has_to_leave_every_cell_whole() {
+        for (op, why) in [
+            (merge(0, 0, 1, 2), "Enero ocupa dos filas"),
+            (merge(1, 1, 2, 1), "Febrero ocupa dos columnas"),
+            (merge(0, 1, 1, 1), "una sola celda"),
+            (merge(1, 1, 1, 2), "Febrero sola ya está combinada"),
+        ] {
+            let error = op.apply(&document()).expect_err(why);
+            assert!(
+                matches!(error, OpError::CannotMerge { .. }),
+                "{why}: {error:?}"
+            );
+        }
+        let error = merge(2, 1, 2, 2).apply(&document()).expect_err("se sale");
+        assert!(
+            matches!(error, OpError::TablePartNotFound { .. }),
+            "{error:?}"
+        );
+    }
+
+    /// Separar devuelve cada sitio a su celda, vacía, sin tocar el texto
+    /// de la que se separa.
+    #[test]
+    fn a_merged_cell_splits_back_into_empty_ones() {
+        let split = |row, column| Op::SplitCell {
+            id: "tb1".to_owned(),
+            row,
+            column,
+        };
+        // «Enero» ocupaba dos filas: debajo vuelve una celda.
+        let (down, undo) = apply(&document(), split(0, 0));
+        assert_eq!(texts(&down, 0), ["Enero", "Norte", "12"]);
+        assert_eq!(texts(&down, 1), ["", "Febrero"]);
+        assert_eq!(undo.apply(&down).expect("se deshace").document, document());
+
+        // «Febrero» ocupaba dos columnas: a su derecha vuelve una.
+        let (across, _) = apply(&document(), split(1, 1));
+        assert_eq!(texts(&across, 1), ["Febrero", ""]);
+        assert_eq!(spans(&across, 1), [(1, 1), (1, 1)]);
+
+        // Combinar y separar: vuelve la forma, con los textos juntos.
+        let (merged, _) = apply(&document(), merge(1, 1, 2, 2));
+        let (back, _) = apply(&merged, split(1, 1));
+        assert_eq!(texts(&back, 1), ["Febrero Sur 34", ""]);
+        assert_eq!(texts(&back, 2), ["Marzo", "", ""]);
+
+        let error = split(2, 0)
+            .apply(&document())
+            .expect_err("no está combinada");
+        assert!(matches!(error, OpError::CannotMerge { .. }), "{error:?}");
     }
 }

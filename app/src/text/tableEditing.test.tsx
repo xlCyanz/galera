@@ -12,6 +12,7 @@ import { useEditingStore } from "../store/editing";
 import { useLayoutStore } from "../store/layout";
 import { useToolStore } from "../store/tool";
 import type { CellBox, Glyph, LayoutBox } from "../types/layout";
+import type { Element as ModelElement } from "../types/model";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -106,6 +107,8 @@ let container: HTMLDivElement;
 let root: Root;
 /** Qué contesta el núcleo a `element_at`. */
 let found: string | null;
+/** Si no es null, el núcleo se niega a aplicar comandos con este mensaje. */
+let refuse: string | null;
 /** Lo que se le ha pedido al backend. */
 let asked: Array<{ command: string; args: Record<string, unknown> }>;
 const restore: Array<() => void> = [];
@@ -127,6 +130,7 @@ beforeEach(() => {
   });
 
   found = null;
+  refuse = null;
   asked = [];
   mockIPC((command, args) => {
     asked.push({ command, args: args as Record<string, unknown> });
@@ -140,6 +144,9 @@ beforeEach(() => {
       return [10, 50, 90];
     }
     if (command === "apply_op") {
+      if (refuse !== null) {
+        throw { kind: "op", message: refuse };
+      }
       return {
         revision: 2,
         document: project.document,
@@ -403,7 +410,9 @@ describe("el menú de la tabla con el teclado", () => {
     expect(document.activeElement).toBe(items[1]);
     await key(document.activeElement as HTMLElement, "ArrowUp");
     await key(document.activeElement as HTMLElement, "ArrowUp");
-    expect(document.activeElement).toBe(items.at(-1));
+    // La última a la que se llega: las desactivadas —combinar sin nada
+    // marcado, separar una celda que no está combinada— no cogen el foco.
+    expect(document.activeElement).toBe(items.filter((item) => !(item as HTMLButtonElement).disabled).at(-1));
   });
 
   it("Esc lo cierra y el foco vuelve al texto de la celda", async () => {
@@ -454,3 +463,66 @@ describe("la barra de formato con el teclado", () => {
     expect(useEditingStore.getState().cell).toEqual({ table: "tb1", row: 0, column: 0 });
   });
 });
+
+describe("combinar y separar celdas", () => {
+  const item = (text: string) =>
+    [...container.querySelectorAll<HTMLButtonElement>('.table-menu [role="menuitem"]')].find(
+      (one) => one.textContent === text,
+    )!;
+
+  async function openMenu() {
+    await act(async () => {
+      input()!.dispatchEvent(new KeyboardEvent("keydown", { key: "ContextMenu", bubbles: true, cancelable: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  async function click(button: HTMLButtonElement) {
+    await act(async () => {
+      button.click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
+
+  /** El criterio de la tarea: se combinan las celdas marcadas. */
+  it("combina la celda con las marcadas, en el rectángulo que las contiene", async () => {
+    await enter();
+    await openMenu();
+    // Sin nada marcado no hay qué combinar, y una celda suelta no se separa.
+    expect(item("Combinar celdas").disabled).toBe(true);
+    expect(item("Separar la celda").disabled).toBe(true);
+    act(() => {
+      useEditingStore.getState().markCell(1, 1);
+    });
+    expect(item("Combinar celdas").disabled).toBe(false);
+
+    await click(item("Combinar celdas"));
+    expect(opsAsked().at(-1)).toEqual({ op: "merge_cells", id: "tb1", row: 0, column: 0, rows: 2, columns: 2 });
+    expect(container.querySelector(".table-menu")).toBeNull();
+  });
+
+  it("si el núcleo no puede, el menú se queda y dice por qué", async () => {
+    await enter();
+    act(() => {
+      useEditingStore.getState().markCell(0, 1);
+    });
+    await openMenu();
+    refuse = "no se puede en la tabla \"tb1\": el borde parte una celda combinada";
+    await click(item("Combinar celdas"));
+    expect(container.querySelector(".table-menu")).not.toBeNull();
+    expect(container.querySelector('.table-menu [role="alert"]')?.textContent).toContain("el borde parte una celda combinada");
+  });
+
+  it("una celda combinada se separa", async () => {
+    const merged = structuredClone(project);
+    const table = merged.document.pages[0]!.elements[0] as Extract<ModelElement, { type: "table" }>;
+    table.rows[0]!.cells = [{ ...table.rows[0]!.cells[0]!, colspan: 2 }];
+    act(() => useDocumentStore.getState().open(merged));
+    await enter();
+    await openMenu();
+    expect(item("Separar la celda").disabled).toBe(false);
+    await click(item("Separar la celda"));
+    expect(opsAsked().at(-1)).toEqual({ op: "split_cell", id: "tb1", row: 0, column: 0 });
+  });
+});
+
