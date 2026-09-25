@@ -204,13 +204,14 @@ jobs:
       - name: Localizar el instalador
         shell: bash
         run: |
-          installer=$(ls "$PWD"/target/release/bundle/nsis/*.exe | head -n 1)
+          installer=$(ls target/release/bundle/nsis/*.exe | head -n 1)
           [ -n "$installer" ] || { echo "::error::No salió el instalador"; exit 1; }
-          echo "INSTALLER=$installer" >> "$GITHUB_ENV"
           echo "instalador: $installer ($(du -h "$installer" | cut -f1))"
 
+      # La ruta, relativa y con patrón: la que da bash en Windows
+      # (`/d/a/…`) no la entiende upload-artifact.
       - uses: actions/upload-artifact@v7
         with:
           name: galera-windows
-          path: ${{ env.INSTALLER }}
+          path: target/release/bundle/nsis/*.exe
           if-no-files-found: error
