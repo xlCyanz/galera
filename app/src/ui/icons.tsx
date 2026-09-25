@@ -30,6 +30,13 @@ export const TOOL_ICONS: Record<Tool, ReactNode> = {
       <path d="M3.5 8.2h13M3.5 11.8h13M7.8 4.5v11M12.2 4.5v11" />
     </>
   ),
+  // Dos columnas con renglones y una flecha que pasa de una a otra.
+  flow: (
+    <>
+      <path d="M3.5 5h5M3.5 8h5M3.5 11h5M11.5 9h5M11.5 12h5M11.5 15h5" />
+      <path d="M8.5 13.5l2.5 1.5" />
+    </>
+  ),
   hand: (
     <path d="M7 10V5.5a1 1 0 012 0V9m0-4.5V4a1 1 0 012 0v5m0-4a1 1 0 012 0v5m0-3a1 1 0 012 0v5c0 3-2 5-5 5h-1c-2 0-3-1-4-2.5L4.5 12a1 1 0 011.6-1.2L7 12" />
   ),

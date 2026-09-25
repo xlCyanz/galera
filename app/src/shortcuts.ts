@@ -115,6 +115,7 @@ export const SHORTCUTS = [
   { id: "toolImage", label: "Imagen", group: "Herramientas", keys: { key: "i" } },
   { id: "toolCode", label: "Bloque de código", group: "Herramientas", keys: { key: "c" } },
   { id: "toolTable", label: "Tabla", group: "Herramientas", keys: { key: "b" } },
+  { id: "toolFlow", label: "Zona de texto", group: "Herramientas", keys: { key: "f" } },
   { id: "toolHand", label: "Mano", group: "Herramientas", keys: { key: "h" } },
 
   { id: "zoomIn", label: "Acercar", group: "Vista", keys: { key: ["+", "="], mod: true, show: "+" } },

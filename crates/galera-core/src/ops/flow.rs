@@ -78,10 +78,27 @@ pub fn apply_link(
             zone: zone.to_owned(),
             index: Some(at),
         },
-        None => Op::UnlinkZone {
-            zone: zone.to_owned(),
-            to: flow.to_owned(),
-        },
+        // No estaba en ninguna cadena —se acaba de crear, o se acaba de
+        // volver a poner al deshacer un borrado—: deshacer es dejar el
+        // flujo y la zona como estaban. `UnlinkZone` no sirve, porque crea
+        // un flujo nuevo y el nombre ya está cogido.
+        None => {
+            let before = document.flows.get(flow).cloned();
+            let element = document.element(zone).cloned();
+            match (before, element) {
+                (Some(before), Some(element)) => Op::Batch {
+                    ops: vec![
+                        Op::RestoreFlow {
+                            name: flow.to_owned(),
+                            flow: before,
+                        },
+                        Op::Restore { element },
+                    ],
+                },
+                // Ya se comprobó arriba que existen los dos.
+                _ => unreachable!("la zona y el flujo existen"),
+            }
+        }
     };
 
     unlink_everywhere(document, zone);
@@ -556,5 +573,85 @@ mod tests {
 
         let back = applied.undo.apply(&applied.document).expect("se deshace");
         assert_eq!(back.document, document());
+
+        // Y rehacer —el deshacer del deshacer— vuelve a quitarla.
+        let again = back.undo.apply(&back.document).expect("se rehace");
+        assert_eq!(again.document, applied.document);
+    }
+
+    /// Aplica, deshace y rehace, y comprueba que cada paso deja un
+    /// documento válido y que deshacer vuelve justo a lo de antes.
+    fn round_trip(op: &Op) -> Document {
+        let original = document();
+        let applied = op.apply(&original).expect("se aplica");
+        applied
+            .document
+            .validate()
+            .expect("vale después de aplicar");
+        let back = applied.undo.apply(&applied.document).expect("se deshace");
+        assert_eq!(back.document, original, "deshacer vuelve a lo de antes");
+        let again = back.undo.apply(&back.document).expect("se rehace");
+        assert_eq!(
+            again.document, applied.document,
+            "rehacer vuelve a lo hecho"
+        );
+        applied.document
+    }
+
+    fn zone(id: &str, flow: &str) -> Element {
+        serde_json::from_str(&format!(
+            r#"{{ "id": "{id}", "type": "flow", "x": 110, "y": 20, "w": 80, "h": 100, "flow": "{flow}" }}"#
+        ))
+        .expect("es una zona")
+    }
+
+    /// Lo que hace la herramienta «Zona de texto» sin ninguna zona
+    /// seleccionada: un flujo nuevo con su primera zona, en un solo paso.
+    #[test]
+    fn a_new_flow_with_its_first_zone_undoes_and_redoes() {
+        let document = round_trip(&Op::Batch {
+            ops: vec![
+                Op::CreateFlow {
+                    name: "flujo-1".to_owned(),
+                    flow: Flow {
+                        content: vec![],
+                        style: self::document().flows["cuerpo"].style.clone(),
+                        zones: vec![],
+                    },
+                },
+                Op::Create {
+                    page: "p1".to_owned(),
+                    index: None,
+                    element: zone("zona-1", "flujo-1"),
+                },
+                Op::LinkZone {
+                    flow: "flujo-1".to_owned(),
+                    zone: "zona-1".to_owned(),
+                    index: None,
+                },
+            ],
+        });
+        assert_eq!(zones(&document, "flujo-1"), vec!["zona-1"]);
+    }
+
+    /// Y con una zona seleccionada: la nueva sigue su texto, justo detrás.
+    #[test]
+    fn a_zone_added_after_another_undoes_and_redoes() {
+        let document = round_trip(&Op::Batch {
+            ops: vec![
+                Op::Create {
+                    page: "p1".to_owned(),
+                    index: None,
+                    element: zone("z4", "cuerpo"),
+                },
+                Op::LinkZone {
+                    flow: "cuerpo".to_owned(),
+                    zone: "z4".to_owned(),
+                    index: Some(1),
+                },
+            ],
+        });
+        assert_eq!(zones(&document, "cuerpo"), vec!["z1", "z4", "z2"]);
+        assert_eq!(flow_field(&document, "z4"), "cuerpo");
     }
 }

@@ -56,9 +56,10 @@ ancho. Sale de tres por tres; con el botón derecho en una celda se añaden o
 se quitan filas y columnas. Combinar celdas todavía no se puede.
 
 **¿Cómo hago un texto a dos columnas?**
-En esta versión, el texto que fluye viene hecho en las plantillas «Boletín
-a dos columnas» y «Carta con membrete», y se puede copiar de un documento a
-otro con `⌘C` y `⌘V`.
+Con la herramienta «Zona de texto» (`F`): dibuja la primera columna, y con
+ella seleccionada, dibuja la segunda. El texto que no quepa en la primera
+sigue en la segunda, y de ahí puede seguir en otra página del mismo modo.
+Ver [Texto que fluye](conceptos.md#texto-que-fluye).
 
 ## Sobre los archivos
 
