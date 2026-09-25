@@ -21,8 +21,22 @@ Lo hace el workflow [`release.yml`](../.github/workflows/release.yml):
 | A mano (*Run workflow* en Actions) | Lo mismo, para probar sin etiquetar |
 | En un PR que toca el empaquetado | Lo mismo **sin firmar**: los PR no ven los secrets. Comprueba que el `.dmg` sale y que el binario es universal |
 
-Sin los secrets de firma, una etiqueta o una ejecución a mano **fallan**: lo
-que se reparte tiene que ir firmado.
+Sin los secrets de firma, una etiqueta o una ejecución a mano no fallan: el
+`.dmg` sale con **firma ad-hoc** —sin nadie que la avale, pero coherente,
+que es lo mínimo para que la app arranque en Apple Silicon—, el workflow
+deja un aviso y la release lo dice al principio de sus notas. La 0.1.0 salió
+así.
+
+### Abrir una versión sin firmar
+
+macOS no abre la primera vez una app que Apple no ha notarizado. Para
+abrirla:
+
+1. Abrir Galera como siempre. macOS avisa de que no puede comprobarla y no
+   la abre.
+2. En **Ajustes del Sistema → Privacidad y seguridad**, bajar hasta el aviso
+   de Galera y pulsar **«Abrir igualmente»**.
+3. Confirmar. A partir de ahí se abre normal.
 
 ### Los pasos
 
@@ -228,8 +242,9 @@ configuración.
 
 4. El workflow *Empaquetado* corre con la etiqueta: *La versión cuadra* (y
    que CHANGELOG.md tiene la `0.2.0`), el `.dmg`, el instalador y *Release en
-   borrador*. Si falta cualquier cosa —los secrets de Apple, la sección del
-   changelog, una versión que no cuadra—, falla antes de crear nada.
+   borrador*. Si falta la sección del changelog o la versión no cuadra,
+   falla antes de crear nada. Sin los secrets de Apple, sigue con el `.dmg`
+   sin firmar (ver arriba).
 5. En **Releases**, revisar el borrador: las notas, que estén el `.dmg` y el
    `.exe`, y probarlos. Entonces, *Publish release*.
 

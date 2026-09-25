@@ -70,7 +70,9 @@ desde una hoja de cálculo.
 
 **Plataformas**
 
-- **macOS**, Apple Silicon e Intel en un solo `.dmg`, firmado y notarizado.
+- **macOS**, Apple Silicon e Intel en un solo `.dmg`, todavía sin firmar:
+  la primera vez hay que permitirla en Ajustes del Sistema → Privacidad y
+  seguridad («Abrir igualmente»).
 - **Windows** 10 y 11, con un instalador `.exe`, todavía sin firmar.
 
 ## Lo que todavía no hace

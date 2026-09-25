@@ -10,8 +10,10 @@ Las descargas están en la página de
 [versiones](https://github.com/xlCyanz/galera/releases/latest).
 
 - **macOS** (Apple Silicon e Intel): descarga el `.dmg`, ábrelo y arrastra
-  Galera a Aplicaciones. Va firmado y notarizado por Apple: se abre sin
-  avisos.
+  Galera a Aplicaciones. En la 0.1 todavía no va firmado por Apple, así que
+  la primera vez macOS no la abre: en **Ajustes del Sistema → Privacidad y
+  seguridad**, pulsa **«Abrir igualmente»** junto al aviso de Galera.
+  Después se abre normal.
 - **Windows** (10 y 11): descarga el instalador `.exe` y ábrelo. Instala
   Galera para tu usuario, sin pedir permisos de administrador. Como todavía
   no va firmado, Windows puede decir que no conoce al editor: pulsa «Más

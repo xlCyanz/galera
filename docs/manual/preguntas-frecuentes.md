@@ -107,8 +107,12 @@ documentos largos, algo más. Mientras compone, la barra de estado dice
 
 **Windows dice que no conoce al editor de la app.**
 El instalador de Windows todavía no va firmado. Pulsa «Más información» y
-«Ejecutar de todas formas». En macOS, el `.dmg` va firmado y notarizado y
-no debería preguntar nada; si lo hace, avísanos.
+«Ejecutar de todas formas».
+
+**macOS dice que no puede comprobar la app y no la abre.**
+En la 0.1 el `.dmg` todavía no va firmado ni notarizado por Apple. Abre
+**Ajustes del Sistema → Privacidad y seguridad** y pulsa **«Abrir
+igualmente»** junto al aviso de Galera; solo hace falta la primera vez.
 
 **¿Hay versión para Linux?**
 Todavía no se publica. Se puede compilar desde el código: ver el

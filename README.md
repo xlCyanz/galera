@@ -43,7 +43,7 @@ Sirve para informes, facturas, certificados, carteles y CVs. El documento se gua
 
 | Sistema | Archivo |
 |---|---|
-| macOS, Apple Silicon e Intel | `Galera_X.Y.Z_universal.dmg`, firmado y notarizado |
+| macOS, Apple Silicon e Intel | `Galera_X.Y.Z_universal.dmg`; la 0.1 va sin firmar ([cómo abrirla](docs/distribucion.md#abrir-una-versión-sin-firmar)) |
 | Windows 10 y 11 | `Galera_X.Y.Z_x64-setup.exe`, todavía sin firmar |
 
 En la página de [versiones](https://github.com/xlCyanz/galera/releases/latest).
