@@ -153,9 +153,24 @@ pide `resend_pages`: la siguiente entrega va entera.
 Lo que queda por tecla es la página que cambió: la 25, con el logotipo y sus
 glifos.
 
-Lo que el banco no mide es lo que pasa en el webview: el tiempo de tecla a
-pantalla y **desplazarse** por las miniaturas de cincuenta páginas. Eso se
-comprueba abriendo `fixtures/grande.json` con `pnpm tauri dev`.
+### En la app
+
+Lo que el banco no mide es lo que pasa en el webview. Se probó abriendo
+`fixtures/grande.json` como proyecto en la app compilada en modo release
+(`pnpm tauri build --bundles app`), en la misma máquina, el 25 de septiembre
+de 2026:
+
+| | Lo que se vio |
+|---|---|
+| Abrirlo | «Compilado en 59,3 ms», y la primera página enseguida |
+| Ir de la página 1 a la 25 | 24 pasos seguidos, sin espera en ninguno |
+| Escribir 19 caracteres seguidos en la página 25 | «Compilado en 15,4 ms» por tecla; el texto de la página, al día en menos de un segundo después de la última tecla, sin quedarse atrás mientras se escribía |
+
+Es una prueba a ojo: la barra de estado dice lo que tarda el núcleo, no el
+camino entero hasta la pantalla, y la app de release no trae las
+herramientas del navegador para medirlo con precisión. Lo que sí se ve es
+que escribir en un documento de cincuenta páginas no se nota distinto de
+hacerlo en uno de una.
 
 ## Qué vigila que no se estropee
 

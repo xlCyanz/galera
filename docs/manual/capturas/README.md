@@ -4,13 +4,9 @@ Las capturas que usa el manual. Se hacen a mano, con la app abierta: la
 interfaz la dibuja el webview y Typst, y no hay forma de sacarlas en una
 prueba.
 
-**Estado: pendientes.** Mientras no estén, el manual lleva en su lugar una
-nota «📷 Captura pendiente» con el nombre del archivo. Al añadir una, se
-cambia esa nota por la imagen:
-
-```markdown
-![La ventana con el informe abierto](capturas/02-ventana-con-documento.png)
-```
+**Están hechas** —con la app compilada en modo release, en el tema claro y
+con la ventana a 1280 × 800— y el manual las usa. Si la interfaz cambia, se
+rehacen igual, con el mismo nombre, y el manual no hay que tocarlo.
 
 ## La lista
 

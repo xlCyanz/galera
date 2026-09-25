@@ -21,8 +21,7 @@ Cada tarjeta dice qué variables trae. **«Usar en una carpeta…»** o **«Usar
 en un .galera…»** crea un proyecto nuevo a partir de ella. El proyecto es
 una copia: puedes cambiarlo todo sin tocar la plantilla.
 
-> 📷 Captura pendiente: `capturas/05-plantillas.png`, la galería de
-> plantillas.
+![La galería «Empezar con una plantilla», con las seis plantillas](capturas/05-plantillas.png)
 
 ## Las variables
 
@@ -51,8 +50,7 @@ estado, y en el PDF sale el hueco vacío.
 La pestaña **«Lote»** hace **un documento por fila de una hoja de cálculo**:
 cien credenciales desde la lista de inscritos, un diploma por alumno.
 
-> 📷 Captura pendiente: `capturas/06-lote.png`, el panel «Lote» con un CSV
-> cargado y la vista previa.
+![El panel «Lote» con un CSV de cuatro filas cargado, las columnas relacionadas con las variables y el principio de la vista previa](capturas/06-lote.png)
 
 1. **Prepara la hoja** con una fila por documento y una columna por
    variable, y guárdala como **CSV** (en Excel o Numbers: «Guardar como» →
