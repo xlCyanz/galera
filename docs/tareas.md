@@ -209,7 +209,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | ✅ | **F8-04** — Rendimiento con documentos de 50 páginas ([medidas](rendimiento.md#un-documento-de-50-páginas)) | [#91](https://github.com/xlCyanz/galera/issues/91) | #65, #58 |
 | 🟡 | **F8-05** — Firma y notarización para macOS ([cómo](distribucion.md)) | [#92](https://github.com/xlCyanz/galera/issues/92) | #51 |
 | ✅ | **F8-06** — Empaquetado para Windows ([cómo](distribucion.md#windows)) | [#93](https://github.com/xlCyanz/galera/issues/93) | #92 |
-| ⬜ | **F8-07** — Publicación de releases automatizada | [#94](https://github.com/xlCyanz/galera/issues/94) | #92, #93 |
+| 🟡 | **F8-07** — Publicación de releases automatizada ([cómo](distribucion.md#publicar-una-versión)) | [#94](https://github.com/xlCyanz/galera/issues/94) | #92, #93 |
 | ⬜ | **F8-08** — Manual de usuario y notas de la primera versión | [#95](https://github.com/xlCyanz/galera/issues/95) | #94, #79 |
 
 ---

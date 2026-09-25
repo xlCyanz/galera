@@ -16,8 +16,12 @@ name: Empaquetado
 # - En un PR que toque el empaquetado: lo mismo, con el `.dmg` sin firmar
 #   —los PR no ven los secrets—, para comprobar que todo sale.
 #
-# Publicar lo empaquetado en una release de GitHub es de F8-07 (#94); aquí
-# queda como artefacto del workflow.
+# Lo empaquetado queda como artefacto del workflow. Con una etiqueta, además,
+# se publica en una release de GitHub **en borrador**, con las notas de esa
+# versión sacadas de los commits: se revisa y se publica a mano (F8-07, #94).
+# Antes de compilar nada se comprueba que la versión es la misma en todas
+# partes y, con etiqueta, que la etiqueta es esa versión y que CHANGELOG.md
+# ya la tiene.
 
 on:
   push:
@@ -28,6 +32,8 @@ on:
       - .github/workflows/release.yml
       - app/src-tauri/tauri.conf.json
       - app/src-tauri/Cargo.toml
+      - scripts/check-version.sh
+      - cliff.toml
 
 concurrency:
   group: empaquetado-${{ github.ref }}
@@ -37,8 +43,34 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  version:
+    name: La versión cuadra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Cargo.toml, package.json, tauri.conf.json y la etiqueta
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            scripts/check-version.sh "$GITHUB_REF_NAME"
+          else
+            scripts/check-version.sh
+          fi
+
+      # El CHANGELOG.md se regenera antes de etiquetar (ver
+      # docs/distribucion.md). Si la versión no está, se olvidó.
+      - name: CHANGELOG.md tiene la versión
+        if: github.ref_type == 'tag'
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if ! grep -q "^## \[$version\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md no tiene la sección de $version. Ver docs/distribucion.md."
+            exit 1
+          fi
+
   dmg:
     name: dmg universal
+    needs: version
     runs-on: macos-latest
     env:
       # Los secrets no se pueden mirar en un `if`: se pasan por aquí.
@@ -180,6 +212,7 @@ jobs:
 
   windows:
     name: instalador de Windows
+    needs: version
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
@@ -215,3 +248,41 @@ jobs:
           name: galera-windows
           path: target/release/bundle/nsis/*.exe
           if-no-files-found: error
+
+  # Solo con etiqueta: junta lo de los dos sistemas en una release en
+  # borrador. Nadie la ve hasta que se publica a mano.
+  release:
+    name: Release en borrador
+    if: github.ref_type == 'tag'
+    needs: [dmg, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # Con toda la historia: las notas van desde la etiqueta anterior.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: paquetes
+          merge-multiple: true
+
+      - name: Las notas de esta versión
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip all
+        env:
+          OUTPUT: notas.md
+
+      - name: Crear la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -l paquetes
+          gh release create "$GITHUB_REF_NAME" paquetes/* \
+            --draft --verify-tag \
+            --title "Galera ${GITHUB_REF_NAME#v}" \
+            --notes-file notas.md

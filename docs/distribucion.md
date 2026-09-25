@@ -1,9 +1,8 @@
 # Distribución
 
-Cómo se empaqueta Galera para repartirla: macOS y Windows. Lo hace el
-workflow [`release.yml`](../.github/workflows/release.yml) (*Empaquetado*);
-publicar lo empaquetado en una release llega con F8-07
-([#94](https://github.com/xlCyanz/galera/issues/94)).
+Cómo se empaqueta Galera para repartirla —macOS y Windows— y cómo se
+publica una versión. Lo hace el workflow
+[`release.yml`](../.github/workflows/release.yml) (*Empaquetado*).
 
 ## macOS
 
@@ -169,4 +168,71 @@ en la matriz de Rust de [`ci.yml`](../.github/workflows/ci.yml)), y además:
   el artefacto `galera-windows`.
 - **En local**, en un Windows con Rust, Node y pnpm: `pnpm tauri build
   --bundles nsis`. El instalador sale en `target/release/bundle/nsis/`.
+
+## Publicar una versión
+
+F8-07 ([#94](https://github.com/xlCyanz/galera/issues/94)).
+
+Una versión se publica **etiquetando** `vX.Y.Z` en `main`. El workflow
+comprueba la versión, compila el `.dmg` firmado y el instalador de Windows, y
+deja los dos en una **release en borrador** con las notas de esa versión.
+Nadie la ve hasta que se publica a mano.
+
+### La versión, en un solo número
+
+La versión se escribe en tres sitios, y tienen que decir lo mismo:
+
+| Archivo | Campo |
+|---|---|
+| `Cargo.toml` | `version` en `[workspace.package]`: la de los tres crates |
+| `app/package.json` | `version` |
+| `app/src-tauri/tauri.conf.json` | `version`: la que llevan los instaladores |
+
+`scripts/check-version.sh` lo comprueba. Corre en el CI en cada cambio
+(*La versión cuadra*) y, al etiquetar, comprueba además que la etiqueta es
+esa versión con una `v` delante.
+
+### CHANGELOG.md
+
+[`CHANGELOG.md`](../CHANGELOG.md) se **genera** con
+[git-cliff](https://git-cliff.org) a partir de los commits de `main`: cada PR
+entra como un commit de Conventional Commits, y de su tipo sale la sección
+(`feat` → Novedades, `fix` → Arreglos, `perf` → Rendimiento…). La
+configuración está en [`cliff.toml`](../cliff.toml). No se edita a mano: si
+algo sale mal escrito, se arregla en el título del PR, que es el mensaje del
+commit.
+
+Las notas de la release son la sección de esa versión, sacadas con la misma
+configuración.
+
+### Los pasos
+
+1. En una rama, subir la versión en los tres archivos y regenerar el
+   changelog con la versión nueva:
+
+   ```bash
+   cargo check                                   # para que Cargo.lock la recoja
+   scripts/check-version.sh
+   npx git-cliff@2.14.2 --tag v0.2.0 -o CHANGELOG.md
+   ```
+
+2. PR con título `chore: release 0.2.0`, CI en verde, merge. Los `chore`
+   no entran en el changelog.
+3. Etiquetar el commit de `main` y subir la etiqueta:
+
+   ```bash
+   git checkout main && git pull
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+
+4. El workflow *Empaquetado* corre con la etiqueta: *La versión cuadra* (y
+   que CHANGELOG.md tiene la `0.2.0`), el `.dmg`, el instalador y *Release en
+   borrador*. Si falta cualquier cosa —los secrets de Apple, la sección del
+   changelog, una versión que no cuadra—, falla antes de crear nada.
+5. En **Releases**, revisar el borrador: las notas, que estén el `.dmg` y el
+   `.exe`, y probarlos. Entonces, *Publish release*.
+
+Si hay que repetir, se borra el borrador y la etiqueta (`git push --delete
+origin v0.2.0`), se arregla lo que falle y se vuelve a etiquetar.
 

@@ -1,0 +1,52 @@
+# Cómo git-cliff escribe CHANGELOG.md a partir de los Conventional Commits
+# (F8-07, #94). Ver docs/distribucion.md.
+#
+#   npx git-cliff --tag v0.2.0 -o CHANGELOG.md   # antes de etiquetar
+#   npx git-cliff --latest --strip all           # las notas de la última
+
+[changelog]
+header = """
+# Cambios
+
+Todo lo que cambia de una versión a otra, sacado de los commits: cada PR
+entra en `main` como un commit con el formato de
+[Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/), y de
+su tipo sale la sección. Se genera con `git-cliff`: no se edita a mano.
+"""
+body = """
+{% if version %}\
+## [{{ version | trim_start_matches(pat="v") }}] — {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+## Sin publicar
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | upper_first }}\
+{% endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = false
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+# El comentario del principio de cada grupo ordena las secciones, y
+# `striptags` lo quita al escribirlas.
+commit_parsers = [
+  { message = "^feat", group = "<!-- 0 -->Novedades" },
+  { message = "^fix", group = "<!-- 1 -->Arreglos" },
+  { message = "^perf", group = "<!-- 2 -->Rendimiento" },
+  { message = "^docs", group = "<!-- 3 -->Documentación" },
+  { message = "^test", group = "<!-- 4 -->Pruebas" },
+  { message = "^refactor", group = "<!-- 5 -->Reorganización" },
+  { message = "^(build|ci)", group = "<!-- 6 -->Compilación y distribución" },
+  { message = "^chore\\(deps\\)", group = "<!-- 7 -->Dependencias" },
+  { message = "^chore", skip = true },
+  { message = "^style", skip = true },
+]
+filter_commits = false
+tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+"
+sort_commits = "oldest"
