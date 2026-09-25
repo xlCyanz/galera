@@ -258,10 +258,15 @@ mod tests {
             Err(AccessError::Outside)
         ));
 
-        // Incluso si apunta a un archivo que sí está en el proyecto.
+        // Incluso si apunta a un archivo que sí está en el proyecto. Con `/`:
+        // en Windows la ruta real lleva `\`, y eso se rechaza antes y por
+        // otro motivo (`a_backslash_is_refused_everywhere`).
         let absolute = project.root().join("assets/logo.png");
-        let absolute = absolute.to_str().expect("ruta UTF-8");
-        assert!(matches!(project.read(absolute), Err(AccessError::Outside)));
+        let absolute = absolute.to_str().expect("ruta UTF-8").replace('\\', "/");
+        assert!(
+            matches!(project.read(&absolute), Err(AccessError::Outside)),
+            "{absolute:?}"
+        );
     }
 
     /// Una ruta con `\` no se lee en ningún sistema, ni siquiera en
