@@ -1,6 +1,7 @@
 /**
- * Crear un rectángulo, una elipse, una línea o un texto arrastrando sobre el
- * lienzo con su herramienta (`store/tool.ts`).
+ * Crear un rectángulo, una elipse, una línea, un texto, un bloque de código
+ * o una tabla arrastrando sobre el lienzo con su herramienta
+ * (`store/tool.ts`).
  *
  * Mientras se arrastra se ve la forma (`CreatePreview.tsx`); al soltar se
  * manda un único `Op::Create` al núcleo, con el estilo por defecto, y el
@@ -18,6 +19,10 @@
  * puede: se queda en `needsFont`, el lienzo lo avisa y ofrece añadir una
  * (`addFont`), y en cuanto se añade se crea el texto.
  *
+ * Una tabla se crea igual que un texto —arrastrando su ancho, con el estilo
+ * del núcleo y pidiendo una fuente si no hay—: tres filas y tres columnas
+ * iguales, con las celdas vacías.
+ *
  * Las cuentas están en `createGeometry.ts`.
  */
 import { type PointerEvent, useEffect, useEffectEvent, useRef, useState } from "react";
@@ -33,7 +38,9 @@ import {
   type Point,
   type ShapeGeometry,
   type ShapeKind,
+  type TextKind,
   defaultShape,
+  needsTextStyle,
   newElementId,
   shapeElement,
   shapeFromDrag,
@@ -50,7 +57,7 @@ export type CreateState =
    * Un texto que no se puede crear porque el proyecto no tiene fuentes.
    * `error`: por qué falló el último intento de añadir una.
    */
-  | { phase: "needsFont"; kind: "text"; shape: ShapeGeometry; error: string | null };
+  | { phase: "needsFont"; kind: TextKind; shape: ShapeGeometry; error: string | null };
 
 const idle: CreateState = { phase: "idle" };
 
@@ -63,9 +70,9 @@ export interface Create {
    * Es lo que hace un clic sin arrastrar, para crear sin ratón (F8-02).
    */
   createAt: (kind: ShapeKind, at: Point) => void;
-  /** En `needsFont`: pide una fuente, la añade y crea el texto. */
+  /** En `needsFont`: pide una fuente, la añade y crea el texto o la tabla. */
   addFont: () => Promise<void>;
-  /** En `needsFont`: renuncia a crear el texto. */
+  /** En `needsFont`: renuncia a crearlo. */
   dismiss: () => void;
 }
 
@@ -98,7 +105,7 @@ export function useCreate(transform: CanvasTransform | null, page: number): Crea
   /** Crea el elemento: un único `Op::Create`. */
   const create = useEffectEvent(async (kind: ShapeKind, shape: ShapeGeometry) => {
     let style: TextStyle | undefined;
-    if (kind === "text") {
+    if (needsTextStyle(kind)) {
       try {
         const found = await textDefaults();
         if (found === null) {

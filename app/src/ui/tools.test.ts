@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { useToolStore } from "../store/tool";
 import { shortcutFor, shortcutLabel } from "../shortcuts";
-import { TOOLS, TOOL_IDS, createsElements, toolInfo } from "./tools";
+import { TOOLS, TOOL_IDS, createsElements, isShapeTool, toolInfo } from "./tools";
 
 const press = (key: string, modifiers: Partial<KeyboardEvent> = {}) => ({
   key,
@@ -14,7 +14,7 @@ const press = (key: string, modifiers: Partial<KeyboardEvent> = {}) => ({
 });
 
 describe("herramientas", () => {
-  it("son ocho, cada una con su atajo, sin repetir", () => {
+  it("son nueve, cada una con su atajo, sin repetir", () => {
     expect(TOOLS.map((tool) => tool.id)).toEqual([...TOOL_IDS]);
     expect(new Set(TOOLS.map((tool) => tool.shortcut)).size).toBe(TOOLS.length);
     expect(TOOLS.every((tool) => tool.label.length > 0)).toBe(true);
@@ -27,6 +27,7 @@ describe("herramientas", () => {
       "L",
       "I",
       "C",
+      "B",
       "H",
     ]);
   });
@@ -45,8 +46,10 @@ describe("herramientas", () => {
     expect(shortcutFor(press("t", { altKey: true }), true)).toBeNull();
   });
 
-  it("solo crean elementos las de texto, formas, línea e imagen", () => {
-    expect(TOOL_IDS.filter(createsElements)).toEqual(["text", "rect", "ellipse", "line", "image", "code"]);
+  it("solo crean elementos las de texto, formas, línea, imagen, código y tabla", () => {
+    expect(TOOL_IDS.filter(createsElements)).toEqual(["text", "rect", "ellipse", "line", "image", "code", "table"]);
+    // Todas arrastrando, menos la imagen, que abre un diálogo.
+    expect(TOOL_IDS.filter(isShapeTool)).toEqual(["text", "rect", "ellipse", "line", "code", "table"]);
     expect(toolInfo("hand").cursor).toBe("grab");
   });
 

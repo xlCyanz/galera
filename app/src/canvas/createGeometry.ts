@@ -1,5 +1,5 @@
 /**
- * Las cuentas de crear una forma o un texto arrastrando, sin DOM: qué caja,
+ * Las cuentas de crear una forma, un texto o una tabla arrastrando, sin DOM: qué caja,
  * qué línea o qué ancho sale de un arrastre, el tamaño si solo se hace clic,
  * el id nuevo y el elemento con su estilo por defecto.
  *
@@ -9,7 +9,15 @@ import type { Document, Element, TextStyle } from "../types/model";
 import { roundMm } from "./dragGeometry";
 
 /** Lo que se crea arrastrando. */
-export type ShapeKind = "rect" | "ellipse" | "line" | "text" | "code";
+export type ShapeKind = "rect" | "ellipse" | "line" | "text" | "code" | "table";
+
+/** Lo que lleva texto, y por eso necesita una fuente del proyecto. */
+export type TextKind = "text" | "table";
+
+/** Si lo que se crea lleva texto. */
+export function needsTextStyle(kind: ShapeKind): kind is TextKind {
+  return kind === "text" || kind === "table";
+}
 
 export interface Point {
   x: number;
@@ -20,8 +28,8 @@ export interface Point {
 export type ShapeGeometry =
   | { kind: "rect" | "ellipse" | "code"; x: number; y: number; w: number; h: number }
   | { kind: "line"; x: number; y: number; x2: number; y2: number }
-  /** Un texto: solo su ancho; el alto lo decide Typst (`h: null`). */
-  | { kind: "text"; x: number; y: number; w: number };
+  /** Un texto o una tabla: solo su ancho; el alto lo decide Typst (`h: null`). */
+  | { kind: TextKind; x: number; y: number; w: number };
 
 /** Píxeles que hay que mover el puntero para que sea un arrastre y no un clic. */
 export const DRAG_THRESHOLD_PX = 3;
@@ -33,7 +41,20 @@ export const DEFAULT_SIZE: Record<ShapeKind, { w: number; h: number }> = {
   line: { w: 40, h: 0 },
   text: { w: 60, h: 0 },
   code: { w: 80, h: 40 },
+  table: { w: 120, h: 0 },
 };
+
+/** Las filas y las columnas de una tabla nueva. */
+export const NEW_TABLE = { rows: 3, columns: 3 };
+
+/** El alto con que se enseña una fila de tabla mientras se crea, en mm. */
+export const TABLE_ROW_PREVIEW_MM = 7;
+
+/** El borde de una tabla nueva: fino y gris, para que se vean las celdas. */
+export const TABLE_STROKE = { color: "#94a3b8", width: 0.2 };
+
+/** El margen interior de cada celda de una tabla nueva, en mm. */
+export const TABLE_INSET_MM = 2;
 
 /**
  * El código con el que nace un bloque: un marco gris que se ve en la página
@@ -73,8 +94,8 @@ export function shapeFromDrag(kind: ShapeKind, start: Point, end: Point, constra
   let dx = end.x - start.x;
   let dy = end.y - start.y;
 
-  if (kind === "text") {
-    // Solo cuenta el ancho: el texto empieza a la altura donde se pulsó.
+  if (kind === "text" || kind === "table") {
+    // Solo cuenta el ancho: empieza a la altura donde se pulsó.
     const w = Math.max(MIN_TEXT_WIDTH_MM, Math.abs(dx));
     return { kind, x: roundMm(dx < 0 ? start.x - w : start.x), y: roundMm(start.y), w: roundMm(w) };
   }
@@ -145,8 +166,8 @@ export function newElementId(document: Document, kind: string): string {
 /**
  * El elemento que se crea, con su estilo por defecto.
  *
- * @param textStyle El estilo de un texto nuevo, que decide el núcleo según
- *   las fuentes del proyecto. Solo hace falta para un texto.
+ * @param textStyle El estilo de un texto o de una tabla nuevos, que decide
+ *   el núcleo según las fuentes del proyecto. Solo hace falta para ellos.
  */
 export function shapeElement(id: string, shape: ShapeGeometry, textStyle?: TextStyle): Element {
   switch (shape.kind) {
@@ -193,5 +214,26 @@ export function shapeElement(id: string, shape: ShapeGeometry, textStyle?: TextS
       };
     case "line":
       return { type: "line", id, x: shape.x, y: shape.y, x2: shape.x2, y2: shape.y2, rotation: 0, stroke: { ...DEFAULT_STROKE } };
+    case "table":
+      if (textStyle === undefined) {
+        throw new Error("una tabla necesita un estilo");
+      }
+      return {
+        type: "table",
+        id,
+        x: shape.x,
+        y: shape.y,
+        w: shape.w,
+        h: null,
+        rotation: 0,
+        // Columnas iguales que reparten el ancho, y celdas vacías.
+        columns: Array.from({ length: NEW_TABLE.columns }, () => ({ width: "fraction" as const, fr: 1 })),
+        rows: Array.from({ length: NEW_TABLE.rows }, () => ({
+          cells: Array.from({ length: NEW_TABLE.columns }, () => ({ content: [], colspan: 1, rowspan: 1 })),
+        })),
+        style: { ...textStyle },
+        stroke: { ...TABLE_STROKE },
+        inset: TABLE_INSET_MM,
+      };
   }
 }

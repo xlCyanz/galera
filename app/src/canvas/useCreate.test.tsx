@@ -131,7 +131,7 @@ async function up() {
   });
 }
 
-function tool(name: "rect" | "ellipse" | "line" | "text" | "code") {
+function tool(name: "rect" | "ellipse" | "line" | "text" | "code" | "table") {
   act(() => useToolStore.getState().setTool(name));
 }
 
@@ -299,3 +299,44 @@ describe("crear un bloque de código", () => {
     expect(useToolStore.getState().tool).toBe("select");
   });
 });
+
+describe("crear una tabla", () => {
+  const notice = () => container.querySelector<HTMLElement>(".canvas-notice");
+
+  it("arrastrar define el ancho; tres por tres, con el estilo del documento, y queda seleccionada", async () => {
+    tool("table");
+    down(20, 30);
+    move(140, 80);
+    expect(preview()!.dataset.shape).toBe("table");
+    await up();
+    expect(ops).toHaveLength(1);
+    const table = ops[0]!.element;
+    expect(table).toMatchObject({
+      type: "table",
+      id: "table-1",
+      x: 20,
+      y: 30,
+      w: 120,
+      h: null,
+      style: { font: "Inter", size: 14 },
+    });
+    if (table.type !== "table") {
+      throw new Error("es una tabla");
+    }
+    expect(table.columns).toHaveLength(3);
+    expect(table.rows.map((row) => row.cells.length)).toEqual([3, 3, 3]);
+    expect(useDocumentStore.getState().selection).toEqual(["table-1"]);
+    expect(useToolStore.getState().tool).toBe("select");
+  });
+
+  /** Como un texto: sin fuentes no se puede, y lo dice. */
+  it("sin fuentes avisa, hablando de tablas", async () => {
+    style = null;
+    tool("table");
+    down(20, 30);
+    await up();
+    expect(ops).toHaveLength(0);
+    expect(notice()!.textContent).toContain("para poder crear tablas");
+  });
+});
+

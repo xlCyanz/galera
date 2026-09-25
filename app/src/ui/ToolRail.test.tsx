@@ -33,7 +33,7 @@ function key(init: KeyboardEventInit, target: EventTarget = window) {
 }
 
 describe("riel de herramientas", () => {
-  it("tiene las ocho, con icono, nombre y atajo en la ayuda", () => {
+  it("tiene las nueve, con icono, nombre y atajo en la ayuda", () => {
     expect(buttons().map((b) => b.getAttribute("aria-label"))).toEqual([
       "Selección",
       "Texto",
@@ -42,6 +42,7 @@ describe("riel de herramientas", () => {
       "Línea",
       "Imagen",
       "Bloque de código",
+      "Tabla",
       "Mano",
     ]);
     expect(buttons().every((b) => b.querySelector("svg") !== null)).toBe(true);

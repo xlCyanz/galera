@@ -64,6 +64,7 @@ import {
 } from "../store/editing";
 import { useElementBox, useLayoutStore, useOverflowing } from "../store/layout";
 import { useTool, useToolStore } from "../store/tool";
+import { isShapeTool } from "../ui/tools";
 import { Cursor } from "../text/Cursor";
 import { FormatBar } from "../text/FormatBar";
 import { ChipPicker } from "../text/ChipPicker";
@@ -406,7 +407,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
     }
     const width = toMillimeters(page.size.width, page.size.unit);
     const height = toMillimeters(page.size.height, page.size.unit);
-    if (tool === "rect" || tool === "ellipse" || tool === "line" || tool === "text" || tool === "code") {
+    if (isShapeTool(tool)) {
       const size = DEFAULT_SIZE[tool];
       create.createAt(tool, { x: roundMm((width - size.w) / 2), y: roundMm((height - size.h) / 2) });
     } else if (tool === "image") {
@@ -485,13 +486,7 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
             viewportHandlers.onPointerDown(event);
             if (selecting) {
               onSelect(event);
-            } else if (
-              tool === "rect" ||
-              tool === "ellipse" ||
-              tool === "line" ||
-              tool === "text" ||
-              tool === "code"
-            ) {
+            } else if (isShapeTool(tool)) {
               create.onPointerDown(tool, event);
             } else if (tool === "image") {
               fileDrop.insertFromDialog(event);
@@ -710,7 +705,9 @@ export function Canvas({ loader, subscribeToDrops }: CanvasProps) {
             <div className="canvas-notice" role="alert" onPointerDown={(event) => event.stopPropagation()}>
               <p>
                 {create.state.error ??
-                  "El proyecto no tiene ninguna fuente: añade una para poder crear textos."}
+                  `El proyecto no tiene ninguna fuente: añade una para poder crear ${
+                    create.state.kind === "table" ? "tablas" : "textos"
+                  }.`}
               </p>
               <button type="button" onClick={() => void create.addFont()}>
                 Añadir fuente…

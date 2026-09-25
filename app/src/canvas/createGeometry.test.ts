@@ -7,7 +7,9 @@ import {
   DEFAULT_STROKE,
   PLACEHOLDER_CODE,
   MIN_TEXT_WIDTH_MM,
+  NEW_TABLE,
   PLACEHOLDER_TEXT,
+  TABLE_STROKE,
   defaultShape,
   newElementId,
   shapeElement,
@@ -142,3 +144,32 @@ describe("bloque de código", () => {
     expect(PLACEHOLDER_CODE).not.toContain("lorem");
   });
 });
+
+describe("tabla", () => {
+  const style = { font: "Inter", size: 10, color: "#000000", align: "left", leading: 0.65 } as const;
+
+  it("se arrastra como un texto: solo el ancho", () => {
+    expect(shapeFromDrag("table", { x: 10, y: 20 }, { x: 110, y: 90 }, false)).toEqual({ kind: "table", x: 10, y: 20, w: 100 });
+    expect(defaultShape("table", { x: 5, y: 6 })).toEqual({ kind: "table", x: 5, y: 6, w: DEFAULT_SIZE.table.w });
+  });
+
+  it("nace con tres filas y tres columnas iguales, vacía, con borde y el estilo que se le da", () => {
+    const table = shapeElement("table-1", { kind: "table", x: 1, y: 2, w: 90 }, style);
+    expect(table).toMatchObject({ type: "table", id: "table-1", x: 1, y: 2, w: 90, h: null, style, stroke: TABLE_STROKE });
+    if (table.type !== "table") {
+      throw new Error("es una tabla");
+    }
+    expect(table.columns).toEqual([
+      { width: "fraction", fr: 1 },
+      { width: "fraction", fr: 1 },
+      { width: "fraction", fr: 1 },
+    ]);
+    expect(table.rows).toHaveLength(NEW_TABLE.rows);
+    for (const row of table.rows) {
+      expect(row.cells).toEqual(Array.from({ length: NEW_TABLE.columns }, () => ({ content: [], colspan: 1, rowspan: 1 })));
+    }
+    // Sin estilo, no: una tabla lleva texto.
+    expect(() => shapeElement("table-1", { kind: "table", x: 1, y: 2, w: 90 })).toThrow();
+  });
+});
+

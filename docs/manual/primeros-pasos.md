@@ -48,8 +48,8 @@ De arriba abajo y de izquierda a derecha:
   rehacer, y «Atajos».
 - **Las herramientas**, en la columna de la izquierda: «Selección» (`V`),
   «Texto» (`T`), «Rectángulo» (`R`), «Elipse» (`O`), «Línea» (`L`),
-  «Imagen» (`I`), «Bloque de código» (`C`) y «Mano» (`H`), para mover la
-  vista.
+  «Imagen» (`I`), «Bloque de código» (`C`), «Tabla» (`B`) y «Mano» (`H`),
+  para mover la vista.
 - **El lienzo**, en el centro: la página tal como saldrá en el PDF. Abajo a
   la derecha, el zoom y las reglas.
 - **Los paneles**, a la derecha, en pestañas: «Capas», «Páginas»,
