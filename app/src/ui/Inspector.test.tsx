@@ -113,11 +113,15 @@ describe("inspector", () => {
   it("sin selección enseña la página, en mm", () => {
     expect(container.textContent).toContain("Página 1");
     expect(container.textContent).toContain("portada");
-    expect(container.textContent).toContain("210 × 297 mm");
-    // Sin selección solo se edita el título del documento (ver `TitleField`).
+    // Sin selección se edita el título del documento (ver `TitleField`) y el
+    // tamaño de la página, que se enseña en mm aunque esté en cm.
     expect([...container.querySelectorAll("input")].map((input) => input.getAttribute("aria-label"))).toEqual([
       "Título del documento",
+      "Ancho de la página",
+      "Alto de la página",
     ]);
+    expect(input("Ancho de la página").value).toBe("210");
+    expect(input("Alto de la página").value).toBe("297");
   });
 
   it("con un elemento seleccionado enseña sus cinco valores reales", () => {
@@ -194,5 +198,46 @@ describe("inspector", () => {
     await settle();
     expect(ops).toHaveLength(0);
     expect(input("Alto").value).toBe("7,5");
+  });
+});
+
+describe("el tamaño de la página", () => {
+  const paper = () => container.querySelector<HTMLSelectElement>('select[aria-label="Tamaño de la página"]')!;
+  const orientation = (name: string) =>
+    [...container.querySelectorAll<HTMLButtonElement>('[aria-label="Orientación"] button')].find(
+      (button) => button.textContent === name,
+    )!;
+
+  it("reconoce el papel y la orientación, aunque el tamaño esté en cm", () => {
+    expect(paper().value).toBe("a4");
+    expect(orientation("Vertical").getAttribute("aria-pressed")).toBe("true");
+    expect(orientation("Horizontal").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("elegir otro papel lo pone en la misma orientación, en mm", async () => {
+    act(() => {
+      paper().value = "letter";
+      paper().dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+    expect(ops).toEqual([
+      { op: "resize_page", id: "portada", size: { width: 215.9, height: 279.4, unit: "mm" } },
+    ]);
+  });
+
+  it("girarla cambia ancho por alto, con su unidad; a la que ya tiene, no hace nada", async () => {
+    act(() => orientation("Vertical").click());
+    act(() => orientation("Horizontal").click());
+    await settle();
+    expect(ops).toEqual([{ op: "resize_page", id: "portada", size: { width: 29.7, height: 21, unit: "cm" } }]);
+  });
+
+  it("escribir una medida la fija en mm; una que no es mayor que cero, no", async () => {
+    type(input("Ancho de la página"), "100");
+    key(input("Ancho de la página"), { key: "Enter" });
+    type(input("Alto de la página"), "0");
+    key(input("Alto de la página"), { key: "Enter" });
+    await settle();
+    expect(ops).toEqual([{ op: "resize_page", id: "portada", size: { width: 100, height: 297, unit: "mm" } }]);
   });
 });

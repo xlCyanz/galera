@@ -1783,6 +1783,68 @@ fn a_page_with_an_id_that_is_taken_does_not_go_in() {
     assert!(matches!(copy, OpError::DuplicateId { .. }));
 }
 
+/// Cambiar el tamaño de una página, y deshacerlo: vuelve el de antes, con su
+/// unidad. Los elementos no se mueven.
+#[test]
+fn a_page_is_resized_and_undo_puts_the_size_back() {
+    let letter = crate::model::PageSize {
+        width: 8.5,
+        height: 11.0,
+        unit: crate::model::Unit::In,
+    };
+    let document = apply_and_check_undo(&Op::ResizePage {
+        id: "p1".into(),
+        size: letter.clone(),
+    });
+    assert_eq!(document.pages[0].size, letter);
+    assert_eq!(
+        document.pages[0].elements,
+        self::document().pages[0].elements
+    );
+    assert_eq!(
+        Op::ResizePage {
+            id: "p1".into(),
+            size: letter
+        }
+        .describe(),
+        "Cambiar el tamaño de la página p1"
+    );
+}
+
+/// Una medida que no es mayor que cero, o que no es un número, no vale; y
+/// la página tiene que existir.
+#[test]
+fn a_page_size_has_to_make_sense() {
+    for (width, height) in [
+        (0.0, 297.0),
+        (210.0, -1.0),
+        (f64::NAN, 297.0),
+        (f64::INFINITY, 297.0),
+    ] {
+        let error = Op::ResizePage {
+            id: "p1".into(),
+            size: crate::model::PageSize {
+                width,
+                height,
+                unit: crate::model::Unit::Mm,
+            },
+        }
+        .apply(&document())
+        .expect_err("no vale");
+        assert!(
+            matches!(error, OpError::InvalidPageSize { .. }),
+            "{width} × {height}"
+        );
+    }
+    let missing = Op::ResizePage {
+        id: "no".into(),
+        size: blank("x").size,
+    }
+    .apply(&document())
+    .expect_err("no existe");
+    assert!(matches!(missing, OpError::PageNotFound { .. }));
+}
+
 /// El criterio de la tarea: reordenar, y deshacerlo.
 #[test]
 fn pages_are_reordered_and_undo_puts_them_back() {

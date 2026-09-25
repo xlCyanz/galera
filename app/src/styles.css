@@ -489,6 +489,39 @@ body {
   min-width: 1.6em;
 }
 
+/* El tamaño de la página: el papel, la orientación y las dos medidas. */
+.page-size {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0 0 0.5rem;
+}
+
+.page-paper,
+.page-orientation {
+  grid-column: 1 / -1;
+}
+
+.page-paper {
+  min-width: 0;
+  font: inherit;
+}
+
+.page-orientation {
+  display: flex;
+  gap: 4px;
+}
+
+.page-orientation button {
+  flex: 1 1 0;
+  font: inherit;
+}
+
+.page-orientation button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
 .inspector-page {
   display: grid;
   grid-template-columns: auto 1fr;

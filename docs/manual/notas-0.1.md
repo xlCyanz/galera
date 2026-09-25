@@ -22,7 +22,8 @@ desde una hoja de cálculo.
 - Guías que enganchan a los bordes, los centros y los espaciados de los
   demás elementos y de la página. Alinear y repartir. Reglas en milímetros.
 - Capas: reordenar, ocultar, bloquear y poner nombre. Grupos.
-- Varias páginas por documento, cada una con su tamaño.
+- Varias páginas por documento, cada una con su tamaño: A4, A5, A3, Carta,
+  Legal… en vertical o en horizontal, o a medida.
 - Borrar con `⌫` o `Supr`, y deshacer y rehacer todo, con el nombre de lo
   que se deshace.
 - Copiar y pegar entre documentos, con las fuentes y las imágenes que hagan
@@ -77,8 +78,6 @@ versiones.
 - **Crear tablas y textos que fluyen** desde la app, y **combinar celdas**:
   vienen en las plantillas y se pueden copiar de un documento a otro, pero
   no hay herramienta para hacerlos desde cero.
-- **Elegir el tamaño de página.** Los documentos nuevos son A4; para otro,
-  se parte de una plantilla que lo tenga.
 - **Más estilos de fuente** que negrita, cursiva y subrayado: el peso y el
   estilo se eligen con la familia.
 - **Ajustar cómo se encaja una imagen** en su caja: con el ancho y el alto
