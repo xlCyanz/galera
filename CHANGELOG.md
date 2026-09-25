@@ -5,7 +5,7 @@ entra en `main` como un commit con el formato de
 [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/), y de
 su tipo sale la sección. Se genera con `git-cliff`: no se edita a mano.
 
-## Sin publicar
+## [0.1.0] — 2026-09-25
 
 ### Novedades
 
@@ -99,10 +99,17 @@ su tipo sale la sección. Se genera con `git-cliff`: no se edita a mano.
 - **ui:** A dark theme, with every colour of the interface in one file (#205)
 - **ui:** The whole app by keyboard, with the focus always in sight (#206)
 - **ui:** Names, contrast and announcements a screen reader can use (#207)
+- **canvas:** Delete the selection with Delete or Backspace (#217)
+- **ui:** Choose the size and orientation of each page (#219)
+- **canvas:** A tool to create tables (#221)
+- **canvas:** A tool to draw zones and chain a flowing text (#223)
+- **canvas:** Merge and split table cells (#226)
+- **ui:** Measure how long a keystroke takes to show on the canvas (#228)
 
 ### Arreglos
 
 - **text:** The format of a selection is a range of characters, not of bytes (#200)
+- **ui:** Let the side panel tabs wrap, and the open panel scroll (#227)
 
 ### Rendimiento
 
@@ -114,6 +121,7 @@ su tipo sale la sección. Se genera con `git-cliff`: no se edita a mano.
 
 - Add project banner and update README with detailed project over… (#102)
 - Phase 3 exit criterion analysis and the gaps it found (#160)
+- A user manual and the notes of the first version (#215)
 
 ### Pruebas
 
@@ -129,6 +137,8 @@ su tipo sale la sección. Se genera con `git-cliff`: no se edita a mano.
 - Exclude dependabot from the PR title check (#100)
 - **ci:** A universal macOS dmg, signed and notarized (#212)
 - **ci:** A Windows installer, and the same PDF on every system (#213)
+- **ci:** Publish a draft release when a version is tagged (#214)
+- **ci:** Release an unsigned dmg when there are no Apple secrets (#229)
 
 ### Dependencias
 
