@@ -499,6 +499,11 @@ fn describe_batch(ops: &[Op]) -> String {
         many if many.iter().all(|op| matches!(op, Op::Move { .. })) => {
             format!("Mover {} elementos", many.len())
         }
+        // Cortar o borrar varios a la vez: en el menú de deshacer, lo que se
+        // borró y no «cambiar».
+        many if many.iter().all(|op| matches!(op, Op::Delete { .. })) => {
+            format!("Eliminar {} elementos", many.len())
+        }
         many if many
             .iter()
             .all(|op| matches!(op, Op::Resize { .. } | Op::Restore { .. })) =>

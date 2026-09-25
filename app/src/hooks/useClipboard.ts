@@ -8,7 +8,8 @@
  * interfaz, que es quien tiene el gesto de la persona.
  *
  * - **Cortar** es copiar y borrar: un solo comando con todos los borrados,
- *   así que se deshace de una vez.
+ *   así que se deshace de una vez. Borrar sin copiar es Supr
+ *   (`useDelete.ts`).
  * - **Pegar** deja los elementos desplazados unos milímetros y los deja
  *   seleccionados, para poder colocarlos a continuación.
  * - **Duplicar** hace lo mismo sin tocar lo copiado.
@@ -20,7 +21,7 @@ import { copyElements, duplicateElements, applyOp, pasteElements } from "../comm
 import { useDocumentStore } from "../store/document";
 import type { AppliedOp } from "../commands";
 import type { Document } from "../types/model";
-import type { Op } from "../types/ops";
+import { deleteOp } from "./useDelete";
 import { useShortcut } from "./useShortcuts";
 
 /** Los ids de todo lo que hay en el documento, grupos incluidos. */
@@ -84,13 +85,10 @@ export function useClipboard(): void {
     if (selection.length === 0) {
       return false;
     }
-    const ops: Op[] = selection.map((id) => ({ op: "delete", id }));
     void copyElements(selection)
       .then(async (text) => {
         await toSystem(text);
-        const applied = await applyOp(
-          ops.length === 1 && ops[0] !== undefined ? ops[0] : { op: "batch", ops },
-        );
+        const applied = await applyOp(deleteOp(selection));
         useDocumentStore.getState().applyEdit(applied);
         useDocumentStore.getState().select(null);
       })

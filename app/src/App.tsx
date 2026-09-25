@@ -17,6 +17,7 @@ import { Canvas } from "./canvas/Canvas";
 import { isMac, shortcutLabel } from "./shortcuts";
 import { useShortcut } from "./hooks/useShortcuts";
 import { useClipboard } from "./hooks/useClipboard";
+import { useDelete } from "./hooks/useDelete";
 import { useCompilation } from "./hooks/useCompilation";
 import { runHistory, useUndoRedo } from "./hooks/useUndoRedo";
 import { useCompilationStore } from "./store/compilation";
@@ -55,6 +56,7 @@ export function App() {
   useCompilation();
   // ⌘C, ⌘X, ⌘V y ⌘D sobre lo seleccionado.
   useClipboard();
+  useDelete();
   const history = useUndoRedo();
   const title = useDocumentTitle();
   const [status, setStatus] = useState<SessionStatus | null>(null);

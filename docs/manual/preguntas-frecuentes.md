@@ -31,8 +31,8 @@ antes la variable en la pestaña «Variables».
 ## Sobre los elementos
 
 **¿Cómo borro un elemento?**
-Selecciónalo y córtalo con `⌘X`. En esta versión no hay tecla `Supr` para
-borrar. Si lo cortaste sin querer, `⌘Z`.
+Selecciónalo y pulsa `⌫` (`Supr` en Windows). Si lo borraste sin querer,
+`⌘Z`. Si no se borra, mira si está bloqueado: lo bloqueado no se borra.
 
 **No puedo seleccionar un elemento en la página.**
 Puede estar **bloqueado** (el candado en la pestaña «Capas»): los bloqueados
