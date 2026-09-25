@@ -11,8 +11,8 @@ name: Empaquetado
 # Cuándo corre:
 #
 # - Al subir una etiqueta `v*` y a mano (`workflow_dispatch`). El `.dmg` se
-#   firma y se notariza; sin los secrets de firma, falla: lo que se reparte
-#   tiene que ir firmado.
+#   firma y se notariza si están los secrets de Apple; si no, sale con firma
+#   ad-hoc y la release lo avisa en sus notas.
 # - En un PR que toque el empaquetado: lo mismo, con el `.dmg` sin firmar
 #   —los PR no ven los secrets—, para comprobar que todo sale.
 #
@@ -78,11 +78,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Lo que se reparte va firmado
+      # Sin los secrets de Apple, el `.dmg` sale igual, con firma ad-hoc
+      # (lo mínimo para que arranque en Apple Silicon), y la release lo dice
+      # en sus notas. Ver docs/distribucion.md.
+      - name: Sin firma de Apple
         if: github.event_name != 'pull_request' && env.SIGNED != 'true'
-        run: |
-          echo "::error::Faltan los secrets de firma de Apple. Ver docs/distribucion.md."
-          exit 1
+        run: echo "::warning::Faltan los secrets de firma de Apple; el .dmg sale sin firmar ni notarizar. Ver docs/distribucion.md."
 
       # rust-toolchain.toml fija el canal; las dos arquitecturas se añaden
       # aquí para compilar el binario universal.
@@ -149,6 +150,9 @@ jobs:
         env:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # Sin certificado, firma ad-hoc («-»): la app no tiene quién la
+          # avale, pero su firma es coherente y macOS deja abrirla.
+          APPLE_SIGNING_IDENTITY: ${{ env.SIGNED == 'true' && env.APPLE_SIGNING_IDENTITY || '-' }}
         run: pnpm tauri build --target universal-apple-darwin --bundles app,dmg
 
       - name: Localizar lo empaquetado
@@ -258,6 +262,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      SIGNED: ${{ secrets.APPLE_CERTIFICATE != '' }}
     steps:
       # Con toda la historia: las notas van desde la etiqueta anterior.
       - uses: actions/checkout@v7
@@ -276,6 +282,18 @@ jobs:
           args: --latest --strip all
         env:
           OUTPUT: notas.md
+
+      # Si el `.dmg` salió sin firmar, las notas lo dicen primero, con cómo
+      # abrirlo.
+      - name: Aviso de macOS sin firmar
+        if: env.SIGNED != 'true'
+        run: |
+          {
+            echo "> **macOS:** esta versión va sin firmar ni notarizar. La primera vez, macOS no la abre: en **Ajustes del Sistema → Privacidad y seguridad**, pulsa **«Abrir igualmente»** junto al aviso de Galera. Después se abre normal."
+            echo
+            cat notas.md
+          } > notas-con-aviso.md
+          mv notas-con-aviso.md notas.md
 
       - name: Crear la release
         env:
