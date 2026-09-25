@@ -2,7 +2,6 @@ import { useState } from "react";
 
 import {
   type OpenedProject,
-  type SessionStatus,
   chooseProjectFile,
   chooseProjectFolder,
   newProject,
@@ -11,7 +10,6 @@ import {
   openProject,
   saveProject,
   saveProjectAs,
-  sessionStatus,
 } from "./commands";
 import { Canvas } from "./canvas/Canvas";
 import { isMac, shortcutLabel } from "./shortcuts";
@@ -59,7 +57,6 @@ export function App() {
   useDelete();
   const history = useUndoRedo();
   const title = useDocumentTitle();
-  const [status, setStatus] = useState<SessionStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
@@ -163,16 +160,6 @@ export function App() {
     }
   }
 
-  async function check() {
-    setError(null);
-    try {
-      setStatus(await sessionStatus());
-    } catch (reason) {
-      setStatus(null);
-      setError(errorMessage(reason));
-    }
-  }
-
   return (
     <main className="galera">
       <h1>Galera</h1>
@@ -264,9 +251,6 @@ export function App() {
           <kbd>{shortcutLabel("redo", mac)}</kbd>
         </button>
         <ShortcutsHelp />
-        <button type="button" onClick={check}>
-          Comprobar conexión con el núcleo
-        </button>
       </div>
       {title !== null && <ProjectInfo title={title} />}
       {title === null && <TemplateGallery />}
@@ -280,14 +264,6 @@ export function App() {
           </div>
         )}
       </div>
-      {status !== null && (
-        <dl className="ok">
-          <dt>galera-core</dt>
-          <dd>{status.coreVersion}</dd>
-          <dt>Abierto en el backend</dt>
-          <dd>{status.title ?? "nada"}</dd>
-        </dl>
-      )}
       {exportOpen && (
         <ExportDialog
           onClose={() => setExportOpen(false)}
