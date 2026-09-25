@@ -16,6 +16,7 @@ import { useEffect } from "react";
 
 import {
   CompilationEvents,
+  resendPages,
   type CompilationFailed,
   type CompilationFinished,
   type CompilationStarted,
@@ -29,7 +30,10 @@ export function useCompilation(): void {
     const subscriptions = [
       listen<CompilationStarted>(CompilationEvents.start, (event) => store().start(event.payload)),
       listen<CompilationFinished>(CompilationEvents.finish, (event) => {
-        store().finish(event.payload);
+        if (!store().finish(event.payload)) {
+          // Falta alguna página: que la próxima entrega las traiga todas.
+          void resendPages();
+        }
         // Las cajas y las celdas van con sus páginas: se guardan con la
         // misma revisión.
         useLayoutStore

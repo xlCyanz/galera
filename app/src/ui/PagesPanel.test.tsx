@@ -73,6 +73,7 @@ beforeEach(() => {
     ms: 1,
     reused: false,
     diagnostics: [],
+    keys: [],
     pages: ["<svg>una</svg>", "<svg>dos</svg>"],
     boxes: [],
     flows: [], cells: [],

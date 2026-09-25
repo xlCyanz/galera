@@ -22,6 +22,14 @@
  * evento de una revisión anterior a la ya guardada, o a la del documento que
  * se acaba de abrir (`expect`): correspondería a un documento que ya no es
  * el que hay.
+ *
+ * # Solo las páginas que cambian
+ *
+ * Cada resultado trae la huella de todas las páginas, pero el SVG solo de
+ * las que no se tenían: el resto llega como `null` y se toma de lo guardado,
+ * si en ese sitio había una página con esa misma huella (#208). Si falta
+ * alguna —la interfaz se ha recargado, o se ignoró un resultado que llegó
+ * tarde—, `finish` lo dice y quien escucha pide que se reenvíen todas.
  */
 import { create } from "zustand";
 
@@ -51,11 +59,16 @@ export interface CompilationState {
   error: CommandError | null;
   /** El SVG de cada página de la última compilación buena. */
   pages: string[];
+  /** La huella de cada una de esas páginas. */
+  keys: string[];
 
   /** `compilation:start`. Conserva el último resultado. */
   start: (event: CompilationStarted) => void;
-  /** `compilation:finish`. */
-  finish: (event: CompilationFinished) => void;
+  /**
+   * `compilation:finish`. Devuelve `false` si le falta el SVG de alguna
+   * página: entonces hay que pedir que se reenvíen todas.
+   */
+  finish: (event: CompilationFinished) => boolean;
   /** `compilation:error`. Conserva las páginas buenas. */
   fail: (event: CompilationFailed) => void;
   /**
@@ -77,6 +90,7 @@ const empty = {
   diagnostics: [],
   error: null,
   pages: [],
+  keys: [],
 } satisfies Partial<CompilationState>;
 
 export const useCompilationStore = create<CompilationState>()((set, get) => {
@@ -97,8 +111,22 @@ export const useCompilationStore = create<CompilationState>()((set, get) => {
 
     finish: (event) => {
       if (isStale(event.revision)) {
-        return;
+        return true;
       }
+      const state = get();
+      let complete = true;
+      const pages = event.pages.map((svg, index) => {
+        if (svg !== null) {
+          return svg;
+        }
+        const kept = state.keys[index] === event.keys[index] ? state.pages[index] : undefined;
+        if (kept === undefined) {
+          complete = false;
+          // Mientras llega, lo que hubiera en ese sitio: mejor que nada.
+          return state.pages[index] ?? "";
+        }
+        return kept;
+      });
       set({
         status: "ready",
         revision: event.revision,
@@ -106,8 +134,10 @@ export const useCompilationStore = create<CompilationState>()((set, get) => {
         reused: event.reused,
         diagnostics: event.diagnostics,
         error: null,
-        pages: event.pages,
+        pages,
+        keys: event.keys,
       });
+      return complete;
     },
 
     fail: (event) => {

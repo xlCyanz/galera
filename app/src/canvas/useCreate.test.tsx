@@ -81,7 +81,7 @@ beforeEach(async () => {
   useCompilationStore.setState(useCompilationStore.getInitialState(), true);
   useToolStore.setState(useToolStore.getInitialState(), true);
   useDocumentStore.getState().open(project);
-  useCompilationStore.getState().finish({ revision: 1, ms: 1, reused: false, diagnostics: [], pages: ["<svg/>"], boxes: [], flows: [], cells: [] });
+  useCompilationStore.getState().finish({ revision: 1, ms: 1, reused: false, diagnostics: [], keys: [], pages: ["<svg/>"], boxes: [], flows: [], cells: [] });
   useLayoutStore.getState().update(1, []);
 
   container = document.createElement("div");

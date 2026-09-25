@@ -5,7 +5,7 @@ import type { Diagnostic } from "../types/diagnostic";
 import { useCompilationStore } from "./compilation";
 
 function finished(overrides: Partial<CompilationFinished> = {}): CompilationFinished {
-  return { revision: 1, ms: 12, reused: false, diagnostics: [], pages: ["<svg>1</svg>"], boxes: [], flows: [], cells: [], ...overrides };
+  return { revision: 1, ms: 12, reused: false, diagnostics: [], keys: [], pages: ["<svg>1</svg>"], boxes: [], flows: [], cells: [], ...overrides };
 }
 
 const typstError: Diagnostic = {
@@ -99,6 +99,43 @@ describe("store de la compilación", () => {
     store().finish(finished());
     store().reset();
     expect(store()).toMatchObject({ status: "idle", revision: null, pages: [] });
+  });
+});
+
+describe("solo las páginas que cambian (#208)", () => {
+  it("una página que llega como null se toma de lo que había en su sitio", () => {
+    expect(store().finish(finished({ keys: ["a", "b", "c"], pages: ["<svg>a</svg>", "<svg>b</svg>", "<svg>c</svg>"] }))).toBe(true);
+    const before = store().pages;
+
+    const complete = store().finish(
+      finished({ revision: 2, keys: ["a", "b2", "c"], pages: [null, "<svg>b2</svg>", null] }),
+    );
+    expect(complete).toBe(true);
+    expect(store().pages).toEqual(["<svg>a</svg>", "<svg>b2</svg>", "<svg>c</svg>"]);
+    expect(store().keys).toEqual(["a", "b2", "c"]);
+    // Las que no cambian son el mismo texto: nada que volver a pintar.
+    expect(store().pages[0]).toBe(before[0]);
+  });
+
+  it("si en ese sitio había otra página, falta, y lo dice", () => {
+    store().finish(finished({ keys: ["a", "b"], pages: ["<svg>a</svg>", "<svg>b</svg>"] }));
+
+    // Se perdió una entrega: el backend cree que la página 2 ya es «x».
+    const complete = store().finish(finished({ revision: 3, keys: ["a", "x"], pages: [null, null] }));
+    expect(complete).toBe(false);
+    // Mientras llega, lo que había.
+    expect(store().pages).toEqual(["<svg>a</svg>", "<svg>b</svg>"]);
+  });
+
+  it("sin nada guardado —la interfaz se ha recargado— falta todo", () => {
+    expect(store().finish(finished({ keys: ["a"], pages: [null] }))).toBe(false);
+    expect(store().pages).toEqual([""]);
+  });
+
+  it("un resultado que llega tarde no pide nada", () => {
+    store().finish(finished({ revision: 5, keys: ["a"], pages: ["<svg>a</svg>"] }));
+    expect(store().finish(finished({ revision: 4, keys: ["z"], pages: [null] }))).toBe(true);
+    expect(store().pages).toEqual(["<svg>a</svg>"]);
   });
 });
 

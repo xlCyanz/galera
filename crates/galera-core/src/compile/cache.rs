@@ -40,6 +40,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use serde::Serialize;
 use typst::diag::Warned;
 use typst::utils::hash128;
 use typst_layout::PagedDocument;
@@ -79,6 +80,9 @@ pub struct Compiler {
     svgs: HashMap<u128, Arc<str>>,
     /// Cuántas páginas se han dibujado de verdad desde que se creó.
     rendered: usize,
+    /// La huella de cada página de la última [`Compiler::page_update`], en
+    /// orden: lo que tiene la interfaz.
+    delivered: Vec<u128>,
 }
 
 impl Compiler {
@@ -91,6 +95,7 @@ impl Compiler {
             builds: 0,
             svgs: HashMap::new(),
             rendered: 0,
+            delivered: Vec::new(),
         }
     }
 
@@ -119,6 +124,49 @@ impl Compiler {
     ///
     /// `compiled` tiene que salir de este mismo compilador.
     pub fn page_svgs(&mut self, compiled: &Compiled) -> Vec<String> {
+        self.draw(compiled)
+            .into_iter()
+            .map(|(_, svg)| svg.to_string())
+            .collect()
+    }
+
+    /// Lo que la interfaz necesita para enseñar las páginas de esta
+    /// compilación: **solo las que no tiene ya**.
+    ///
+    /// La interfaz guarda las páginas de la entrega anterior. Mandarle otra
+    /// vez las que no han cambiado sería mandarle, en un documento de
+    /// cincuenta páginas, veinte megas por tecla (#208). Así que cada
+    /// página va con su huella, y su SVG solo si en la entrega anterior no
+    /// había una página con esa misma huella en ese mismo sitio.
+    ///
+    /// La interfaz comprueba las huellas: si le falta alguna —se ha
+    /// recargado, o se perdió un aviso—, pide [`Compiler::resend_pages`] y
+    /// la siguiente entrega va entera.
+    ///
+    /// `compiled` tiene que salir de este mismo compilador.
+    pub fn page_update(&mut self, compiled: &Compiled) -> PageUpdate {
+        let drawn = self.draw(compiled);
+        let pages = drawn
+            .iter()
+            .enumerate()
+            .map(|(index, (key, svg))| {
+                (self.delivered.get(index) != Some(key)).then(|| svg.to_string())
+            })
+            .collect();
+        let keys = drawn.iter().map(|(key, _)| page_key(*key)).collect();
+        self.delivered = drawn.into_iter().map(|(key, _)| key).collect();
+        PageUpdate { keys, pages }
+    }
+
+    /// Olvida lo que tiene la interfaz: la siguiente
+    /// [`Compiler::page_update`] lleva todas las páginas.
+    pub fn resend_pages(&mut self) {
+        self.delivered.clear();
+    }
+
+    /// Cada página con su huella y su SVG, dibujando solo las que no se
+    /// dibujaron en la compilación anterior.
+    fn draw(&mut self, compiled: &Compiled) -> Vec<(u128, Arc<str>)> {
         let pages = compiled.paged().pages();
         let mut fresh = HashMap::with_capacity(pages.len());
         let mut out = Vec::with_capacity(pages.len());
@@ -137,7 +185,7 @@ impl Compiler {
                 }
             };
             fresh.insert(key, Arc::clone(&svg));
-            out.push(svg.to_string());
+            out.push((key, svg));
         }
 
         // Solo las de ahora: así no crece sin parar al escribir.
@@ -208,6 +256,41 @@ impl Compiler {
             source,
         })
     }
+}
+
+/// Las páginas de una compilación tal como se mandan a la interfaz: ver
+/// [`Compiler::page_update`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct PageUpdate {
+    /// La huella de cada página, en orden. Dos páginas con la misma huella
+    /// se dibujan igual.
+    pub keys: Vec<String>,
+    /// El SVG de cada página, o `None` si la interfaz ya tiene esa página
+    /// en ese sitio.
+    pub pages: Vec<Option<String>>,
+}
+
+impl PageUpdate {
+    /// Todas las páginas, dibujadas de cero: para quien no tiene un
+    /// [`Compiler`] que recuerde lo que ya se mandó.
+    pub fn complete(compiled: &Compiled) -> Self {
+        let pages = compiled.paged().pages();
+        Self {
+            keys: pages
+                .iter()
+                .map(|page| page_key(hash128(&page.frame)))
+                .collect(),
+            // La página existe: el índice sale de recorrerlas.
+            pages: (0..pages.len())
+                .map(|index| Some(compiled.to_svg(index).unwrap_or_default()))
+                .collect(),
+        }
+    }
+}
+
+/// La huella en texto: en JSON, un número de 128 bits no cabe.
+fn page_key(key: u128) -> String {
+    format!("{key:032x}")
 }
 
 #[cfg(test)]
@@ -448,6 +531,86 @@ mod tests {
         for (page, svg) in second.iter().enumerate() {
             assert_eq!(*svg, compiled.to_svg(page).expect("svg"));
         }
+    }
+
+    /// El criterio de la tarea (#208): a la interfaz solo van las páginas
+    /// que no tiene.
+    #[test]
+    fn only_the_pages_the_interface_lacks_are_sent() {
+        let dir = project_dir();
+        let mut document = five_pages("Cinco páginas");
+        let mut compiler = Compiler::new(open(&dir));
+
+        let compiled = compiler.compile(&document).expect("compila");
+        let first = compiler.page_update(&compiled);
+        assert_eq!(first.keys.len(), 5);
+        assert!(
+            first.pages.iter().all(Option::is_some),
+            "la primera vez, todas"
+        );
+
+        type_a_letter(&mut document, 'x');
+        let compiled = compiler.compile(&document).expect("compila");
+        let second = compiler.page_update(&compiled);
+        let sent: Vec<usize> = (0..5).filter(|&i| second.pages[i].is_some()).collect();
+        assert_eq!(sent, [4], "solo la que cambió");
+        assert_eq!(second.keys[..4], first.keys[..4]);
+        assert_ne!(second.keys[4], first.keys[4]);
+        assert_eq!(
+            second.pages[4].as_deref(),
+            Some(compiled.to_svg(4).expect("svg").as_str())
+        );
+
+        // Sin cambios, no va ninguna.
+        let compiled = compiler.compile(&document).expect("compila");
+        assert!(
+            compiler
+                .page_update(&compiled)
+                .pages
+                .iter()
+                .all(Option::is_none)
+        );
+    }
+
+    /// Si la interfaz ha perdido lo que tenía, lo pide y le llega todo.
+    #[test]
+    fn resending_sends_every_page_again() {
+        let dir = project_dir();
+        let document = five_pages("Cinco páginas");
+        let mut compiler = Compiler::new(open(&dir));
+        let compiled = compiler.compile(&document).expect("compila");
+        let first = compiler.page_update(&compiled);
+
+        compiler.resend_pages();
+        let again = compiler.page_update(&compiled);
+        assert_eq!(again, first);
+        assert_eq!(again, PageUpdate::complete(&compiled));
+    }
+
+    /// Una página nueva al final solo manda esa; quitar la primera mueve
+    /// las demás de sitio, y van todas las que cambian de sitio.
+    #[test]
+    fn pages_are_compared_in_their_place() {
+        let dir = project_dir();
+        let mut document = five_pages("Cinco páginas");
+        let mut compiler = Compiler::new(open(&dir));
+        let compiled = compiler.compile(&document).expect("compila");
+        compiler.page_update(&compiled);
+
+        let mut blank = document.pages[0].clone();
+        blank.id = "p6".to_owned();
+        blank.elements.clear();
+        document.pages.push(blank);
+        let compiled = compiler.compile(&document).expect("compila");
+        let update = compiler.page_update(&compiled);
+        let sent: Vec<usize> = (0..6).filter(|&i| update.pages[i].is_some()).collect();
+        assert_eq!(sent, [5]);
+
+        document.pages.remove(0);
+        let compiled = compiler.compile(&document).expect("compila");
+        let update = compiler.page_update(&compiled);
+        assert_eq!(update.keys.len(), 5);
+        assert!(update.pages.iter().all(Option::is_some));
     }
 
     /// Reutilizar el entorno no cambia lo que sale: el mismo documento

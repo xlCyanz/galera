@@ -251,7 +251,8 @@ fn payload(
     document: &Document,
 ) -> (usize, [Duration; 3]) {
     let started = Instant::now();
-    let pages = compiler.page_svgs(compiled);
+    // Lo que manda la app: solo las páginas que la interfaz no tiene.
+    let pages = compiler.page_update(compiled);
     let drawn = Instant::now();
     let boxes = compiled.layout();
     let flows = compiled.flows();

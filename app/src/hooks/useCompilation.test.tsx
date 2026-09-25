@@ -25,8 +25,18 @@ async function settle() {
   });
 }
 
+/** Los comandos que se han pedido. */
+let invoked: string[];
+
 beforeEach(async () => {
-  mockIPC(() => undefined, { shouldMockEvents: true });
+  invoked = [];
+  mockIPC(
+    (command) => {
+      invoked.push(command);
+      return undefined;
+    },
+    { shouldMockEvents: true },
+  );
   useCompilationStore.setState(useCompilationStore.getInitialState(), true);
   useLayoutStore.setState(useLayoutStore.getInitialState(), true);
   root = createRoot(document.createElement("div"));
@@ -102,5 +112,18 @@ describe("useCompilation", () => {
     expect(useCompilationStore.getState().status).toBe("idle");
     // Para que `afterEach` pueda desmontar otra vez sin fallar.
     root = createRoot(document.createElement("div"));
+  });
+
+  /** #208: si al llegar un resultado falta alguna página, se piden todas. */
+  it("pide que se reenvíen las páginas si le falta alguna", async () => {
+    const event = { ms: 1, reused: false, diagnostics: [], boxes: [], flows: [], cells: [] };
+    await emit(CompilationEvents.finish, { ...event, revision: 1, keys: ["a"], pages: ["<svg>a</svg>"] });
+    await emit(CompilationEvents.finish, { ...event, revision: 2, keys: ["a"], pages: [null] });
+    await settle();
+    expect(invoked).toEqual([]);
+
+    await emit(CompilationEvents.finish, { ...event, revision: 3, keys: ["b"], pages: [null] });
+    await settle();
+    expect(invoked).toEqual(["resend_pages"]);
   });
 });

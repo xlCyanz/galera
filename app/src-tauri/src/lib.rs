@@ -117,6 +117,7 @@ pub fn run() -> tauri::Result<()> {
             commands::recovery::close_window,
             commands::render::render_page,
             commands::render::request_compilation,
+            commands::render::resend_pages,
             commands::selection::element_at,
             commands::selection::elements_in,
             commands::batch::choose_csv,

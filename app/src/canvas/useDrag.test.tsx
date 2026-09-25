@@ -110,7 +110,7 @@ beforeEach(async () => {
   useDocumentStore.getState().open(project);
   useCompilationStore
     .getState()
-    .finish({ revision: 1, ms: 1, reused: false, diagnostics: [], pages: ["<svg>pagina</svg>"], boxes: [r1], flows: [], cells: [] });
+    .finish({ revision: 1, ms: 1, reused: false, diagnostics: [], keys: [], pages: ["<svg>pagina</svg>"], boxes: [r1], flows: [], cells: [] });
   useLayoutStore.getState().update(1, [r1]);
 
   container = document.createElement("div");

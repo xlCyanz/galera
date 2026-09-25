@@ -66,7 +66,7 @@ describe("barra de estado", () => {
     act(() =>
       useCompilationStore
         .getState()
-        .finish({ revision: 1, ms: 12.34, reused: false, diagnostics: [], pages: ["<svg/>", "<svg/>"], boxes: [], flows: [], cells: [] }),
+        .finish({ revision: 1, ms: 12.34, reused: false, diagnostics: [], keys: [], pages: ["<svg/>", "<svg/>"], boxes: [], flows: [], cells: [] }),
     );
     expect(text(".status-compilation")).toBe("Compilado en 12,3 ms");
     expect(container.textContent).toContain("Página 1 de 2");
@@ -117,6 +117,7 @@ describe("barra de estado", () => {
         ms: 5,
         reused: false,
         diagnostics: [typstFailure.diagnostics[1]!],
+        keys: [],
         pages: ["<svg/>", "<svg/>"],
         boxes: [],
         flows: [], cells: [],
@@ -166,7 +167,7 @@ describe("lo que se anuncia de la compilación", () => {
   const ready = () =>
     useCompilationStore
       .getState()
-      .finish({ revision: 1, ms: 5, reused: false, diagnostics: [], pages: ["<svg/>"], boxes: [], flows: [], cells: [] });
+      .finish({ revision: 1, ms: 5, reused: false, diagnostics: [], keys: [], pages: ["<svg/>"], boxes: [], flows: [], cells: [] });
 
   afterEach(() => {
     vi.useRealTimers();

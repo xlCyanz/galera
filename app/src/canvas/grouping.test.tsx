@@ -119,7 +119,7 @@ beforeEach(async () => {
   const boxes = [box("r1", 10, 10, 40, 20), box("r2", 100, 50, 40, 20)];
   useCompilationStore
     .getState()
-    .finish({ revision: 1, ms: 1, reused: false, diagnostics: [], pages: ["<svg/>"], boxes, flows: [], cells: [] });
+    .finish({ revision: 1, ms: 1, reused: false, diagnostics: [], keys: [], pages: ["<svg/>"], boxes, flows: [], cells: [] });
   useLayoutStore.getState().update(1, boxes);
 
   container = document.createElement("div");

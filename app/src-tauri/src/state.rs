@@ -56,7 +56,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::{Duration, Instant};
 
-use galera_core::{Clip, Compiled, Compiler, Document, GaleraError, History, Op, Project};
+use galera_core::{
+    Clip, Compiled, Compiler, Document, GaleraError, History, Op, PageUpdate, Project,
+};
 
 /// El estado de la app, compartido entre todos los comandos.
 #[derive(Default)]
@@ -520,6 +522,30 @@ impl AppState {
             None => (0..compiled.page_count())
                 .filter_map(|page| compiled.to_svg(page).ok())
                 .collect(),
+        }
+    }
+
+    /// Las páginas de una compilación para mandarlas a la interfaz: solo las
+    /// que no tiene ya (ver `galera_core::Compiler::page_update`).
+    pub fn page_update(&self, compiled: &Compiled) -> PageUpdate {
+        let mut compiler = self.compiler.lock().unwrap_or_else(PoisonError::into_inner);
+        match compiler.as_mut() {
+            Some(compiler) => compiler.page_update(compiled),
+            // Sin compilador guardado —en las pruebas—, van todas.
+            None => PageUpdate::complete(compiled),
+        }
+    }
+
+    /// La interfaz ha perdido sus páginas: la siguiente entrega las lleva
+    /// todas.
+    pub fn resend_pages(&self) {
+        if let Some(compiler) = self
+            .compiler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .as_mut()
+        {
+            compiler.resend_pages();
         }
     }
 
