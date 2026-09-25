@@ -1,8 +1,9 @@
 # Distribución
 
-Cómo se empaqueta Galera para repartirla. Hoy, macOS; Windows llega con
-F8-06 ([#93](https://github.com/xlCyanz/galera/issues/93)) y la publicación
-de releases con F8-07 ([#94](https://github.com/xlCyanz/galera/issues/94)).
+Cómo se empaqueta Galera para repartirla: macOS y Windows. Lo hace el
+workflow [`release.yml`](../.github/workflows/release.yml) (*Empaquetado*);
+publicar lo empaquetado en una release llega con F8-07
+([#94](https://github.com/xlCyanz/galera/issues/94)).
 
 ## macOS
 
@@ -103,7 +104,7 @@ o administrador de la cuenta.
 
 ### Probarlo
 
-- **Sin etiquetar:** Actions → *macOS* → *Run workflow*. El `.dmg` queda en
+- **Sin etiquetar:** Actions → *Empaquetado* → *Run workflow*. El `.dmg` queda en
   los artefactos de la ejecución.
 - **En un Mac limpio** —uno que no haya compilado Galera ni la haya abierto
   nunca—, descargar el `.dmg` con el navegador, abrirlo y arrastrar la app a
@@ -121,3 +122,51 @@ o administrador de la cuenta.
   corre en su propio proceso.
 - **Firmar en local.** Solo firma el workflow: el certificado no sale de los
   secrets.
+
+## Windows
+
+F8-06 ([#93](https://github.com/xlCyanz/galera/issues/93)).
+
+Lo que se reparte es un **instalador `.exe`** hecho con NSIS. Instala Galera
+para quien lo abre, sin pedir permisos de administrador, y si al equipo le
+falta WebView2 —el motor del webview, que Windows 10 y 11 suelen traer ya—
+lo descarga durante la instalación.
+
+Lo hace el mismo workflow, en el job *instalador de Windows*, cada vez que
+corre el de macOS: al etiquetar, a mano y en los PR que tocan el
+empaquetado. El instalador queda como artefacto.
+
+**Va sin firmar.** Windows lo instala, pero SmartScreen avisa de que no
+conoce al editor hasta que el instalador acumula descargas. Firmarlo pide un
+certificado de firma de código, que es otra cuenta y otro gasto; cuando lo
+haya, se firma en este mismo job y sus secrets van con los de Apple.
+
+### Que el núcleo haga lo mismo en Windows
+
+El CI compila y pasa todas las pruebas también en Windows (`windows-latest`
+en la matriz de Rust de [`ci.yml`](../.github/workflows/ci.yml)), y además:
+
+- **El mismo PDF en todos los sistemas.** Cada sistema saca el PDF de cada
+  fixture de `fixtures/` con `galera-cli`, y el job *El mismo PDF en todos
+  los sistemas* los compara **byte a byte**. Si Windows cargara otra fuente,
+  compusiera otro corte de línea o escribiera otra fecha, saldría distinto y
+  el CI fallaría. Se puede porque las fuentes son las del proyecto, nunca las
+  del sistema, y el PDF no lleva fecha.
+- **Las rutas.** La carpeta del proyecto se escribe como en cada sistema
+  (`C:\Users\…`), pero las rutas **dentro del documento** van siempre con
+  `/`, que Windows entiende igual. Una ruta con `\` se rechaza en todos los
+  sistemas con un error que lo dice: en Windows funcionaría y en macOS no, y
+  el documento tiene que abrirse igual en todas partes (ver
+  `crates/galera-core/src/project.rs`). Una unidad (`C:/…`) o una ruta de red
+  (`//servidor/…`) son rutas absolutas, y se rechazan como cualquier otra.
+- **Los saltos de línea.** `.gitattributes` obliga a LF también en Windows:
+  las instantáneas y los fixtures se comparan byte a byte, y un CRLF los haría
+  distintos sin que nada cambiara.
+
+### Probarlo
+
+- **Sin etiquetar:** Actions → *Empaquetado* → *Run workflow*, y descargar
+  el artefacto `galera-windows`.
+- **En local**, en un Windows con Rust, Node y pnpm: `pnpm tauri build
+  --bundles nsis`. El instalador sale en `target/release/bundle/nsis/`.
+
