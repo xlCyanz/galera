@@ -32,6 +32,7 @@ En macOS el modificador es ⌘; en Windows y Linux, Ctrl.
 | Cortar | `⌘X` | `Ctrl+X` |
 | Pegar | `⌘V` | `Ctrl+V` |
 | Duplicar | `⌘D` | `Ctrl+D` |
+| Borrar lo seleccionado | `⌫` | `Supr` |
 | Agrupar | `⌘G` | `Ctrl+G` |
 | Desagrupar | `⌘⇧G` | `Ctrl+Shift+G` |
 | Negrita | `⌘B` | `Ctrl+B` |
@@ -123,6 +124,12 @@ teclas van al texto y no a las herramientas:
   ya seleccionado. Al portapapeles del sistema va el **texto plano** de lo
   copiado, para pegarlo fuera. Dentro de un texto, `⌘C`, `⌘X` y `⌘V` son
   del texto.
+- **Borrar.** `⌫` (`Supr` fuera de macOS; valen las dos) borra lo
+  seleccionado en un solo paso, que se deshace de una vez. Solo con el foco
+  en el lienzo, en la lista de capas o en ninguna parte: en un diálogo, un
+  menú, la lista de páginas o un botón no hace nada, y escribiendo borra
+  texto. Lo bloqueado no se borra y se queda seleccionado. Es cortar sin
+  copiar.
 - **Los grupos.** `⌘G` mete lo seleccionado en un grupo, que a partir de
   ahí se mueve, se gira y se estira como un solo elemento; `⌘⇧G` lo
   deshace. Agrupar no mueve nada de sitio: lo que cambia es desde dónde se

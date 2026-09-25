@@ -35,6 +35,8 @@ export interface Keys {
   alt?: boolean;
   /** Cómo se escribe, si no sale de las teclas: «+», «↑». */
   show?: string;
+  /** Cómo se escribe fuera de macOS, si cambia: «⌫» en el Mac es «Supr». */
+  showOthers?: string;
 }
 
 /** Un atajo del editor. */
@@ -82,6 +84,13 @@ export const SHORTCUTS = [
   { id: "cut", label: "Cortar", group: "Edición", keys: { key: "x", mod: true } },
   { id: "paste", label: "Pegar", group: "Edición", keys: { key: "v", mod: true } },
   { id: "duplicate", label: "Duplicar", group: "Edición", keys: { key: "d", mod: true } },
+  {
+    id: "delete",
+    label: "Borrar lo seleccionado",
+    group: "Edición",
+    // La tecla grande del Mac es Retroceso; la de Windows, Supr. Valen las dos.
+    keys: { key: ["delete", "backspace"], show: "⌫", showOthers: "Supr" },
+  },
   { id: "group", label: "Agrupar", group: "Edición", keys: { key: "g", mod: true } },
   { id: "ungroup", label: "Desagrupar", group: "Edición", keys: { key: "g", mod: true, shift: true } },
 
@@ -159,7 +168,10 @@ export function shortcut(id: ShortcutId): Shortcut {
 }
 
 /** Cómo se escribe una tecla suelta: «Esc», «←», «R». */
-function keyName(keys: Keys): string {
+function keyName(keys: Keys, mac: boolean): string {
+  if (!mac && keys.showOthers !== undefined) {
+    return keys.showOthers;
+  }
   if (keys.show !== undefined) {
     return keys.show;
   }
@@ -182,7 +194,7 @@ export function shortcutLabel(id: ShortcutId, mac: boolean): string {
   if (keys.shift === true) {
     parts.push(mac ? "⇧" : "Shift");
   }
-  parts.push(keyName(keys));
+  parts.push(keyName(keys, mac));
   return mac ? parts.join("") : parts.join("+");
 }
 
