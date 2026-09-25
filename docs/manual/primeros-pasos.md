@@ -17,8 +17,7 @@ Las descargas están en la página de
   no va firmado, Windows puede decir que no conoce al editor: pulsa «Más
   información» y «Ejecutar de todas formas».
 
-> 📷 Captura pendiente: `capturas/01-ventana-vacia.png`, la ventana al
-> abrirla por primera vez, con la galería de plantillas.
+![La ventana de Galera al abrirla, con la galería de plantillas](capturas/01-ventana-vacia.png)
 
 ## 2. Empezar desde una plantilla
 
@@ -39,8 +38,7 @@ página es un A4 vacío.
 
 ## 3. La ventana
 
-> 📷 Captura pendiente: `capturas/02-ventana-con-documento.png`, la ventana
-> con el informe abierto y las zonas señaladas.
+![La ventana con el «Informe sencillo» abierto: los botones arriba, las herramientas a la izquierda, el lienzo en el centro con el título seleccionado, y a la derecha los paneles y el inspector](capturas/02-ventana-con-documento.png)
 
 De arriba abajo y de izquierda a derecha:
 
@@ -72,8 +70,7 @@ De arriba abajo y de izquierda a derecha:
 La fuente, el tamaño, la alineación y el interlineado del bloque entero
 están en el **inspector**, con el texto seleccionado.
 
-> 📷 Captura pendiente: `capturas/03-editando-texto.png`, un texto en
-> edición con la barra de formato.
+![Un título en edición, con el texto seleccionado y la barra de formato encima](capturas/03-editando-texto.png)
 
 ## 5. Rellenar las variables
 
@@ -115,7 +112,7 @@ Para otros formatos está **«Exportar a…»**: PDF, SVG o PNG (un archivo por
 página, con la densidad que elijas) o el código Typst. Puedes exportar todo,
 solo la página actual o un rango.
 
-> 📷 Captura pendiente: `capturas/04-exportar.png`, el diálogo «Exportar».
+![El diálogo «Exportar» con PNG elegido: la densidad y las páginas](capturas/04-exportar.png)
 
 ## Y ahora
 

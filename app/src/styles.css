@@ -969,13 +969,22 @@ body {
   min-height: 100px;
 }
 
-.side-panels > section {
+/* El panel que se ve, bajo las pestañas: si lo que lleva no cabe —un CSV
+   cargado en «Lote», muchas capas—, se desplaza dentro de su caja en vez de
+   salirse y montarse encima del inspector. */
+.side-panels > :not(.side-tabs) {
   max-height: none;
   min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
+/* Las siete pestañas no caben en una fila del panel (280 px): bajan a una
+   segunda en vez de salirse, porque el panel no se desplaza en horizontal
+   y las que se salían no se podían pulsar. */
 .side-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
