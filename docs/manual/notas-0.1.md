@@ -23,7 +23,8 @@ desde una hoja de cálculo.
   demás elementos y de la página. Alinear y repartir. Reglas en milímetros.
 - Capas: reordenar, ocultar, bloquear y poner nombre. Grupos.
 - Varias páginas por documento, cada una con su tamaño.
-- Deshacer y rehacer todo, con el nombre de lo que se deshace.
+- Borrar con `⌫` o `Supr`, y deshacer y rehacer todo, con el nombre de lo
+  que se deshace.
 - Copiar y pegar entre documentos, con las fuentes y las imágenes que hagan
   falta.
 
@@ -73,7 +74,6 @@ desde una hoja de cálculo.
 Son las cosas que más se echan de menos. Están apuntadas para las próximas
 versiones.
 
-- **Borrar con `Supr`.** Por ahora, un elemento se quita cortándolo (`⌘X`).
 - **Crear tablas y textos que fluyen** desde la app, y **combinar celdas**:
   vienen en las plantillas y se pueden copiar de un documento a otro, pero
   no hay herramienta para hacerlos desde cero.

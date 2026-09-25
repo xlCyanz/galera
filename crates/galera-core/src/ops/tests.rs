@@ -1338,6 +1338,15 @@ fn a_batch_is_named_by_what_it_does() {
         ],
     };
     assert_eq!(mixed.describe(), "Cambiar 2 elementos");
+
+    // Borrar varios (cortar, o Supr en la interfaz) dice lo que hizo.
+    let deletes = Op::Batch {
+        ops: ["r1", "t1", "e1"]
+            .into_iter()
+            .map(|id| Op::Delete { id: id.into() })
+            .collect(),
+    };
+    assert_eq!(deletes.describe(), "Eliminar 3 elementos");
 }
 
 /// El elemento de un compuesto solo existe si todos son el mismo.

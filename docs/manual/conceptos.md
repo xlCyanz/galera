@@ -77,8 +77,8 @@ ahí se puede:
 
 - **Reordenar**, arrastrando o con `⌥↑` y `⌥↓`.
 - **Ocultar** (el ojo): no se ve en el lienzo ni sale al exportar.
-- **Bloquear** (el candado): no se mueve por accidente. Un elemento
-  bloqueado solo se selecciona desde el panel.
+- **Bloquear** (el candado): no se mueve ni se borra por accidente. Un
+  elemento bloqueado solo se selecciona desde el panel.
 - **Renombrar**, con doble clic: el nombre te ayuda a encontrarlo, no sale
   en el documento.
 
