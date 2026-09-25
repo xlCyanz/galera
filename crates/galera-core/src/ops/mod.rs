@@ -36,7 +36,7 @@ use crate::layout::MmRect;
 use crate::model::table::{ColumnWidth, TableRow};
 use crate::model::text::{Format, TextError};
 use crate::model::{
-    Document, Element, Flow, Line, Page, Run, Stroke, TextStyle, Variable, is_valid_id,
+    Document, Element, Flow, Line, Page, PageSize, Run, Stroke, TextStyle, Variable, is_valid_id,
 };
 use crate::variables;
 
@@ -282,6 +282,16 @@ pub enum Op {
         id: String,
         /// La posición nueva, contando desde 0.
         index: usize,
+    },
+
+    /// Cambia el tamaño de una página. Los elementos se quedan donde
+    /// estaban, medidos desde la esquina de arriba a la izquierda: lo que
+    /// quede fuera de una página más pequeña, fuera se queda.
+    ResizePage {
+        /// La página, por su id.
+        id: String,
+        /// El tamaño nuevo, con su unidad.
+        size: PageSize,
     },
 
     /// Mete varios elementos de una página en un grupo nuevo.
@@ -585,6 +595,16 @@ pub enum OpError {
         /// El id que se pidió.
         id: String,
     },
+    /// Un tamaño de página con una medida que no es mayor que cero.
+    #[error(
+        "el tamaño de página {width} × {height} no vale: las dos medidas tienen que ser mayores que cero"
+    )]
+    InvalidPageSize {
+        /// El ancho que se pidió.
+        width: f64,
+        /// El alto que se pidió.
+        height: f64,
+    },
     /// Ya hay un elemento o una página con ese id.
     #[error("ya hay un elemento o una página con el id {id:?}")]
     DuplicateId {
@@ -749,6 +769,7 @@ impl Op {
             Op::RemovePage { id } => format!("Quitar la página {id}"),
             Op::DuplicatePage { id, .. } => format!("Duplicar la página {id}"),
             Op::ReorderPage { id, .. } => format!("Mover la página {id}"),
+            Op::ResizePage { id, .. } => format!("Cambiar el tamaño de la página {id}"),
             Op::Group { ids, .. } => format!("Agrupar {} elementos", ids.len()),
             Op::Ungroup { id } => format!("Desagrupar {id}"),
             Op::CreateFlow { name, .. } => format!("Crear el flujo {name}"),
@@ -800,6 +821,7 @@ impl Op {
             | Op::RemovePage { .. }
             | Op::DuplicatePage { .. }
             | Op::ReorderPage { .. }
+            | Op::ResizePage { .. }
             | Op::SetTitle { .. }
             | Op::SetVariable { .. }
             | Op::RemoveVariable { .. }
@@ -848,6 +870,7 @@ impl Op {
             Op::DuplicatePage { id, to } => pages::apply_duplicate(document, id, to),
 
             Op::ReorderPage { id, index } => pages::apply_reorder(document, id, *index),
+            Op::ResizePage { id, size } => pages::apply_resize(document, id, size),
 
             Op::Group { ids, id, rect } => group::apply_group(document, ids, id, *rect),
 

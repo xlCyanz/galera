@@ -18,12 +18,12 @@
  * Arriba, alinear y repartir lo seleccionado (`AlignBar.tsx`).
  *
  * Sin selección, enseña el título del documento (editable) y la página que
- * se ve: su id, su tamaño y cuántos elementos tiene.
+ * se ve: su id, cuántos elementos tiene y su tamaño, que se cambia eligiendo
+ * un papel, girándola o escribiendo el ancho y el alto (`pageSizes.ts`).
  */
 import { Suspense, lazy } from "react";
 
 import { applyOp } from "../commands";
-import { toMillimeters } from "../canvas/geometry";
 import {
   useCurrentPage,
   useDocumentStore,
@@ -33,7 +33,7 @@ import {
 } from "../store/document";
 import { useElementBox, useLayoutStore } from "../store/layout";
 import type { LayoutBox } from "../types/layout";
-import type { Element, Page } from "../types/model";
+import type { Element, Page, PageSize } from "../types/model";
 import { AlignBar } from "./AlignBar";
 import { IdField } from "./IdField";
 import { MeasureField } from "./MeasureField";
@@ -44,6 +44,7 @@ import { TextInspector } from "./TextInspector";
 import { formatNumber } from "./fieldValue";
 import { type FieldName, fieldOp, groupFields, inspectorFields } from "./inspectorFields";
 import { ELEMENT_KIND } from "./layerOrder";
+import { PAPERS, describeSize, paperSize, withMeasure, withOrientation } from "./pageSizes";
 import { isShape } from "./shapeFields";
 
 // El editor de código trae CodeMirror, que pesa: se carga la primera vez
@@ -207,18 +208,72 @@ function GroupInspector({
 }
 
 function PageInspector({ page, index, title }: { page: Page; index: number; title: string }) {
-  const mm = (value: number) => formatNumber(toMillimeters(value, page.size.unit));
+  const size = describeSize(page.size);
+  const resize = (next: PageSize | null) => {
+    if (next === null) {
+      return;
+    }
+    void applyOp({ op: "resize_page", id: page.id, size: next })
+      .then((applied) => useDocumentStore.getState().applyEdit(applied))
+      .catch(() => undefined);
+  };
+  const positive = (value: number) => Number.isFinite(value) && value > 0;
   return (
     <section>
       <h2>
         Página {index + 1} <span className="inspector-id">{page.id}</span>
       </h2>
       <TitleField title={title} />
+      <div className="page-size">
+        <select
+          className="page-paper"
+          aria-label="Tamaño de la página"
+          value={size.paper?.id ?? "custom"}
+          onChange={(event) => {
+            const paper = PAPERS.find((candidate) => candidate.id === event.currentTarget.value);
+            if (paper !== undefined) {
+              resize(paperSize(paper, size.orientation));
+            }
+          }}
+        >
+          {PAPERS.map((paper) => (
+            <option key={paper.id} value={paper.id}>
+              {paper.name} ({formatNumber(paper.width)} × {formatNumber(paper.height)} mm)
+            </option>
+          ))}
+          {/* Solo para enseñarlo: a un tamaño a medida se llega escribiendo. */}
+          <option value="custom" disabled>
+            Personalizado
+          </option>
+        </select>
+        <div className="page-orientation" role="group" aria-label="Orientación">
+          {(["portrait", "landscape"] as const).map((orientation) => (
+            <button
+              key={orientation}
+              type="button"
+              aria-pressed={size.orientation === orientation}
+              onClick={() => resize(withOrientation(page.size, orientation))}
+            >
+              {orientation === "portrait" ? "Vertical" : "Horizontal"}
+            </button>
+          ))}
+        </div>
+        <MeasureField
+          label="An"
+          title="Ancho de la página"
+          value={size.width}
+          unit="mm"
+          onCommit={(width) => positive(width) && resize(withMeasure(page.size, "width", width))}
+        />
+        <MeasureField
+          label="Al"
+          title="Alto de la página"
+          value={size.height}
+          unit="mm"
+          onCommit={(height) => positive(height) && resize(withMeasure(page.size, "height", height))}
+        />
+      </div>
       <dl className="inspector-page">
-        <dt>Tamaño</dt>
-        <dd>
-          {mm(page.size.width)} × {mm(page.size.height)} mm
-        </dd>
         <dt>Elementos</dt>
         <dd>{page.elements.length}</dd>
       </dl>

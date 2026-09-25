@@ -43,7 +43,8 @@ forma a la otra.
 ## Página
 
 Cada página tiene su tamaño. Puedes tener páginas de tamaños distintos en el
-mismo documento. En la pestaña **«Páginas»** están las miniaturas:
+mismo documento. Se cambia en el inspector, sin nada seleccionado: el papel,
+la orientación o el ancho y el alto a mano. En la pestaña **«Páginas»** están las miniaturas:
 «Añadir» (una página más detrás de la actual, del mismo tamaño),
 «Duplicar» y «Eliminar». Se reordenan arrastrándolas o con `⌥↑` y `⌥↓`.
 

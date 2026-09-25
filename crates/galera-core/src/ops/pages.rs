@@ -1,4 +1,4 @@
-//! Añadir, copiar, mover y quitar páginas.
+//! Añadir, copiar, mover, redimensionar y quitar páginas.
 //!
 //! Una página es la unidad más grande del documento y, como todo lo demás,
 //! solo cambia con comandos ([`Op`]), así que ⌘Z deshace cualquiera de estas
@@ -18,7 +18,7 @@
 //! Así la copia es igual pero con nombres propios, y lo que se refiera a un
 //! elemento por su id sigue señalando al original.
 
-use crate::model::{Document, Element, Page, is_valid_id};
+use crate::model::{Document, Element, Page, PageSize, is_valid_id};
 use crate::ops::{Op, OpError};
 
 /// Mete una página en el documento, en `index` o al final.
@@ -112,6 +112,33 @@ pub(super) fn apply_reorder(
     Ok(Op::ReorderPage {
         id: id.to_owned(),
         index: from,
+    })
+}
+
+/// Cambia el tamaño de una página.
+///
+/// # Errores
+///
+/// - [`OpError::PageNotFound`] si no hay ninguna página con ese id.
+/// - [`OpError::InvalidPageSize`] si alguna medida no es mayor que cero, o
+///   no es un número.
+pub(super) fn apply_resize(
+    document: &mut Document,
+    id: &str,
+    size: &PageSize,
+) -> Result<Op, OpError> {
+    let at = locate(document, id)?;
+    let valid = |value: f64| value.is_finite() && value > 0.0;
+    if !valid(size.width) || !valid(size.height) {
+        return Err(OpError::InvalidPageSize {
+            width: size.width,
+            height: size.height,
+        });
+    }
+    let before = std::mem::replace(&mut document.pages[at].size, size.clone());
+    Ok(Op::ResizePage {
+        id: id.to_owned(),
+        size: before,
     })
 }
 

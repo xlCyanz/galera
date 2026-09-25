@@ -44,10 +44,11 @@ Mira en «Capas» si está **oculto** (el ojo tachado): lo oculto no se
 exporta.
 
 **¿Cómo cambio el tamaño de la página?**
-En esta versión, los documentos nuevos empiezan en A4 y las páginas nuevas
-copian el tamaño de la actual. Para otro tamaño, parte de una plantilla que
-lo tenga (el «Certificado» es un A4 apaisado; la «Credencial de evento»,
-una tarjeta de 100 × 70 mm).
+Sin nada seleccionado, el inspector enseña la página: elige el papel (A4,
+A5, Carta…), pulsa «Vertical» u «Horizontal», o escribe el ancho y el alto
+en milímetros para un tamaño a medida. Cada página tiene el suyo, y las
+nuevas copian el de la actual. Los elementos no se mueven: lo que quede
+fuera de una página más pequeña, fuera se queda, y no se ve.
 
 **¿Cómo hago una tabla o un texto a dos columnas?**
 En esta versión vienen hechos en las plantillas: la tabla de la «Factura»,
