@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v7
 
@@ -79,6 +79,57 @@ jobs:
             exit 1
           fi
 
+      # El mismo JSON tiene que dar el mismo PDF en todos los sistemas: las
+      # fuentes son las del proyecto y el PDF no lleva fecha. Cada sistema
+      # saca el de cada fixture, y el job `pdf` los compara byte a byte.
+      - name: PDF de cada fixture
+        shell: bash
+        run: |
+          mkdir -p pdf
+          for fixture in fixtures/*.json; do
+            name=$(basename "$fixture" .json)
+            cargo run -q -p galera-cli -- "$fixture" -o "pdf/$name.pdf"
+          done
+          ls pdf
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pdf-${{ matrix.os }}
+          path: pdf/
+          if-no-files-found: error
+
+  pdf:
+    name: El mismo PDF en todos los sistemas
+    needs: rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: pdf-*
+
+      - name: Comparar byte a byte
+        run: |
+          reference=pdf-ubuntu-latest
+          count=$(ls "$reference" | wc -l)
+          echo "$count PDF por sistema"
+          [ "$count" -gt 0 ] || { echo "::error::No hay PDF que comparar"; exit 1; }
+          status=0
+          for other in pdf-macos-latest pdf-windows-latest; do
+            if ! diff <(ls "$reference") <(ls "$other"); then
+              echo "::error::$other no tiene los mismos PDF"
+              status=1
+            fi
+            for file in "$reference"/*.pdf; do
+              name=$(basename "$file")
+              if ! cmp -s "$file" "$other/$name"; then
+                echo "::error::$name sale distinto en $other"
+                status=1
+              fi
+            done
+          done
+          [ "$status" -eq 0 ] && sha256sum "$reference"/*.pdf
+          exit "$status"
+
   frontend:
     name: Interfaz
     needs: detect
@@ -117,15 +168,16 @@ jobs:
   ci:
     name: CI
     if: always()
-    needs: [detect, rust, frontend]
+    needs: [detect, rust, pdf, frontend]
     runs-on: ubuntu-latest
     steps:
       - name: Comprobar resultados
         run: |
           echo "detect:   ${{ needs.detect.result }}"
           echo "rust:     ${{ needs.rust.result }}"
+          echo "pdf:      ${{ needs.pdf.result }}"
           echo "frontend: ${{ needs.frontend.result }}"
-          for r in "${{ needs.detect.result }}" "${{ needs.rust.result }}" "${{ needs.frontend.result }}"; do
+          for r in "${{ needs.detect.result }}" "${{ needs.rust.result }}" "${{ needs.pdf.result }}" "${{ needs.frontend.result }}"; do
             case "$r" in
               success|skipped) ;;
               *) echo "::error::Un job requerido no pasó ($r)"; exit 1 ;;

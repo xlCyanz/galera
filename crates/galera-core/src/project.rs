@@ -25,6 +25,16 @@
 //! 2. **Real**, después de resolver enlaces simbólicos: el resultado tiene
 //!    que seguir dentro de la raíz. Un `assets/logo.png` puede ser un enlace
 //!    a `/etc/passwd`, y eso el primer paso no lo ve.
+//!
+//! # Las rutas se escriben con `/`
+//!
+//! En el documento, las carpetas se separan siempre con `/`, también en
+//! Windows, que la entiende igual. `\` no se admite en ningún sistema: en
+//! Windows separaría carpetas, pero en macOS y en Linux es un carácter más
+//! del nombre, y el mismo documento encontraría sus archivos en un sitio y
+//! no en otro (principio 4). Mejor un error claro en todas partes. La
+//! carpeta del proyecto, en cambio, es una ruta del sistema y se escribe
+//! como en él (`C:\Users\…`).
 
 use std::io;
 use std::path::{Component, Path, PathBuf};
@@ -71,6 +81,11 @@ pub enum AccessError {
     /// La ruta es una carpeta, no un archivo.
     #[error("la ruta es una carpeta, no un archivo")]
     IsDirectory,
+    /// La ruta separa las carpetas con `\`: ver el módulo.
+    #[error(
+        "la ruta separa las carpetas con «\\»; en un documento van con «/», para que se abra igual en cualquier sistema"
+    )]
+    Backslash,
     /// Otro error del sistema de archivos.
     #[error("no se puede leer: {0}")]
     Io(#[source] io::Error),
@@ -112,10 +127,16 @@ impl Project {
     ///
     /// # Errores
     ///
+    /// - [`AccessError::Backslash`] si separa las carpetas con `\`.
     /// - [`AccessError::Outside`] si es absoluta, sube con `..`, está vacía o
     ///   llega fuera a través de un enlace simbólico.
     /// - [`AccessError::NotFound`] si es válida pero no hay nada.
     pub fn resolve(&self, relative: &str) -> Result<PathBuf, AccessError> {
+        // Antes que nada: en Windows, `\` cambiaría lo que significa la
+        // ruta, y en los demás sistemas no.
+        if relative.contains('\\') {
+            return Err(AccessError::Backslash);
+        }
         let path = Path::new(relative);
 
         // Paso léxico. `CurDir` (`./`) es inofensivo; `ParentDir` (`..`),
@@ -237,10 +258,52 @@ mod tests {
             Err(AccessError::Outside)
         ));
 
-        // Incluso si apunta a un archivo que sí está en el proyecto.
+        // Incluso si apunta a un archivo que sí está en el proyecto. Con `/`:
+        // en Windows la ruta real lleva `\`, y eso se rechaza antes y por
+        // otro motivo (`a_backslash_is_refused_everywhere`).
         let absolute = project.root().join("assets/logo.png");
-        let absolute = absolute.to_str().expect("ruta UTF-8");
-        assert!(matches!(project.read(absolute), Err(AccessError::Outside)));
+        let absolute = absolute.to_str().expect("ruta UTF-8").replace('\\', "/");
+        assert!(
+            matches!(project.read(&absolute), Err(AccessError::Outside)),
+            "{absolute:?}"
+        );
+    }
+
+    /// Una ruta con `\` no se lee en ningún sistema, ni siquiera en
+    /// Windows, donde encontraría el archivo: así el documento se comporta
+    /// igual en todas partes.
+    #[test]
+    fn a_backslash_is_refused_everywhere() {
+        let (_dir, project) = project();
+        for path in [
+            "assets\\logo.png",
+            ".\\assets\\logo.png",
+            "..\\..\\etc\\passwd",
+        ] {
+            assert!(
+                matches!(project.read(path), Err(AccessError::Backslash)),
+                "{path:?}"
+            );
+        }
+        // Con `/`, el mismo archivo se lee.
+        assert!(project.read("assets/logo.png").is_ok());
+    }
+
+    /// En Windows, una unidad o una ruta de red también son rutas absolutas.
+    #[cfg(windows)]
+    #[test]
+    fn a_windows_drive_or_share_is_outside() {
+        let (_dir, project) = project();
+        for path in [
+            "C:/Windows/win.ini",
+            "C:Windows/win.ini",
+            "//servidor/recurso/x.png",
+        ] {
+            assert!(
+                matches!(project.read(path), Err(AccessError::Outside)),
+                "{path:?}"
+            );
+        }
     }
 
     #[test]

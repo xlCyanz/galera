@@ -14,8 +14,8 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | [Fase 5 — Productividad](https://github.com/xlCyanz/galera/milestone/6) | 9 | 9 |
 | [Fase 6 — Plantillas y variables](https://github.com/xlCyanz/galera/milestone/7) | 7 | 7 |
 | [Fase 7 — Texto que fluye](https://github.com/xlCyanz/galera/milestone/8) | 5 | 5 |
-| [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 3 |
-| **Total** | **95** | **87** |
+| [Fase 8 — Pulido y distribución](https://github.com/xlCyanz/galera/milestone/9) | 8 | 4 |
+| **Total** | **95** | **88** |
 
 
 ---
@@ -208,7 +208,7 @@ Fuente de verdad del avance del proyecto. Cada tarea tiene su issue en GitHub co
 | 🟡 | **F8-03** — Accesibilidad: roles, nombres y contraste ([recorrido con VoiceOver](voiceover.md)) | [#90](https://github.com/xlCyanz/galera/issues/90) | #89, #88 |
 | ✅ | **F8-04** — Rendimiento con documentos de 50 páginas ([medidas](rendimiento.md#un-documento-de-50-páginas)) | [#91](https://github.com/xlCyanz/galera/issues/91) | #65, #58 |
 | 🟡 | **F8-05** — Firma y notarización para macOS ([cómo](distribucion.md)) | [#92](https://github.com/xlCyanz/galera/issues/92) | #51 |
-| ⬜ | **F8-06** — Empaquetado para Windows | [#93](https://github.com/xlCyanz/galera/issues/93) | #92 |
+| ✅ | **F8-06** — Empaquetado para Windows ([cómo](distribucion.md#windows)) | [#93](https://github.com/xlCyanz/galera/issues/93) | #92 |
 | ⬜ | **F8-07** — Publicación de releases automatizada | [#94](https://github.com/xlCyanz/galera/issues/94) | #92, #93 |
 | ⬜ | **F8-08** — Manual de usuario y notas de la primera versión | [#95](https://github.com/xlCyanz/galera/issues/95) | #94, #79 |
 

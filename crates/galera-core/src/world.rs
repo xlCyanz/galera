@@ -222,6 +222,9 @@ impl GaleraWorld {
             // que edita, y la ruta de su carpeta no le dice nada.
             AccessError::NotFound => FileError::NotFound(PathBuf::from(relative)),
             AccessError::IsDirectory => FileError::IsDirectory,
+            AccessError::Backslash => {
+                FileError::Other(Some(AccessError::Backslash.to_string().into()))
+            }
             AccessError::Io(error) => FileError::from_io(error, relative.as_ref()),
         })?;
 

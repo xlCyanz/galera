@@ -1,0 +1,4 @@
+# Todo el texto se guarda y se saca con saltos de línea LF, también en
+# Windows: las instantáneas, los fixtures y la guía se comparan byte a
+# byte, y un CRLF de más los haría distintos sin que nada cambiara.
+* text=auto eol=lf

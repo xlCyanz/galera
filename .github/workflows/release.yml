@@ -1,17 +1,23 @@
-name: macOS
+name: Empaquetado
 
-# Empaqueta Galera para macOS: un `.dmg` universal (Apple Silicon e Intel),
-# firmado con el certificado Developer ID y notarizado por Apple, para que se
-# abra sin avisos de Gatekeeper. Ver docs/distribucion.md.
+# Empaqueta Galera para repartirla. Ver docs/distribucion.md.
 #
-# - Al subir una etiqueta `v*` y a mano (`workflow_dispatch`): firma y
-#   notariza. Sin los secrets de firma, falla: lo que se reparte tiene que ir
-#   firmado.
-# - En un PR que toque el empaquetado: lo mismo sin firmar —los PR no ven los
-#   secrets—, para comprobar que el `.dmg` sale y es universal.
+# - macOS: un `.dmg` universal (Apple Silicon e Intel), firmado con el
+#   certificado Developer ID y notarizado por Apple, para que se abra sin
+#   avisos de Gatekeeper.
+# - Windows: un instalador `.exe` (NSIS), que instala para quien lo abre sin
+#   pedir permisos de administrador.
 #
-# Publicar el `.dmg` en una release de GitHub es de F8-07 (#94); aquí queda
-# como artefacto del workflow.
+# Cuándo corre:
+#
+# - Al subir una etiqueta `v*` y a mano (`workflow_dispatch`). El `.dmg` se
+#   firma y se notariza; sin los secrets de firma, falla: lo que se reparte
+#   tiene que ir firmado.
+# - En un PR que toque el empaquetado: lo mismo, con el `.dmg` sin firmar
+#   —los PR no ven los secrets—, para comprobar que todo sale.
+#
+# Publicar lo empaquetado en una release de GitHub es de F8-07 (#94); aquí
+# queda como artefacto del workflow.
 
 on:
   push:
@@ -24,7 +30,7 @@ on:
       - app/src-tauri/Cargo.toml
 
 concurrency:
-  group: macos-${{ github.ref }}
+  group: empaquetado-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -171,3 +177,41 @@ jobs:
         run: |
           security delete-keychain "$RUNNER_TEMP/galera.keychain-db" || true
           rm -f "$RUNNER_TEMP/AuthKey.p8"
+
+  windows:
+    name: instalador de Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Caché de Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Sin firmar: Windows lo abre, aunque SmartScreen avisa de que no
+      # conoce al editor. Ver docs/distribucion.md.
+      - name: Compilar y empaquetar
+        run: pnpm tauri build --bundles nsis
+
+      - name: Localizar el instalador
+        shell: bash
+        run: |
+          installer=$(ls target/release/bundle/nsis/*.exe | head -n 1)
+          [ -n "$installer" ] || { echo "::error::No salió el instalador"; exit 1; }
+          echo "instalador: $installer ($(du -h "$installer" | cut -f1))"
+
+      # La ruta, relativa y con patrón: la que da bash en Windows
+      # (`/d/a/…`) no la entiende upload-artifact.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: galera-windows
+          path: target/release/bundle/nsis/*.exe
+          if-no-files-found: error
