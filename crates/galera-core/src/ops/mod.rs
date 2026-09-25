@@ -446,6 +446,33 @@ pub enum Op {
         width: ColumnWidth,
     },
 
+    /// Combina las celdas de un rectángulo de la rejilla de una tabla en la
+    /// de arriba a la izquierda, que se queda con los textos de todas.
+    /// Ninguna celda puede quedar partida por el borde.
+    MergeCells {
+        /// La tabla.
+        id: String,
+        /// La fila de arriba del rectángulo, contando desde 0.
+        row: usize,
+        /// La columna de la izquierda, de la rejilla, contando desde 0.
+        column: usize,
+        /// Cuántas filas abarca.
+        rows: usize,
+        /// Cuántas columnas abarca.
+        columns: usize,
+    },
+
+    /// Separa una celda combinada: vuelve a ocupar un solo sitio y lo demás
+    /// que ocupaba vuelven a ser celdas vacías.
+    SplitCell {
+        /// La tabla.
+        id: String,
+        /// Su fila, contando desde 0.
+        row: usize,
+        /// Su columna de la rejilla, contando desde 0.
+        column: usize,
+    },
+
     /// Mete texto en una celda de una tabla.
     ///
     /// La celda se dice por su sitio en la rejilla, que es el que cuentan
@@ -708,6 +735,14 @@ pub enum OpError {
         zones: Vec<String>,
     },
 
+    /// Unas celdas que no se pueden combinar, o una que no se puede separar.
+    #[error("no se puede en la tabla {id:?}: {why}")]
+    CannotMerge {
+        /// La tabla.
+        id: String,
+        /// Por qué.
+        why: String,
+    },
     /// La tabla no tiene esa fila, esa columna o esa celda.
     #[error("la tabla {id:?} no tiene {what}")]
     TablePartNotFound {
@@ -785,6 +820,8 @@ impl Op {
             Op::InsertTableColumn { id, .. } => format!("Añadir una columna a {id}"),
             Op::RemoveTableColumn { id, .. } => format!("Quitar una columna de {id}"),
             Op::SetColumnWidth { id, .. } => format!("Cambiar una columna de {id}"),
+            Op::MergeCells { id, .. } => format!("Combinar celdas de {id}"),
+            Op::SplitCell { id, .. } => format!("Separar una celda de {id}"),
             Op::InsertCellText { id, .. } => format!("Escribir en {id}"),
             Op::DeleteCellText { id, .. } => format!("Borrar texto de {id}"),
             Op::FormatCellText { id, .. } => format!("Dar formato a {id}"),
@@ -812,6 +849,8 @@ impl Op {
             | Op::InsertTableColumn { id, .. }
             | Op::RemoveTableColumn { id, .. }
             | Op::SetColumnWidth { id, .. }
+            | Op::MergeCells { id, .. }
+            | Op::SplitCell { id, .. }
             | Op::InsertCellText { id, .. }
             | Op::DeleteCellText { id, .. }
             | Op::FormatCellText { id, .. } => Some(id),
@@ -919,6 +958,20 @@ impl Op {
 
             Op::SetColumnWidth { id, column, width } => edit(document, id, |element| {
                 table::set_column_width(element, id, *column, *width)
+            }),
+
+            Op::MergeCells {
+                id,
+                row,
+                column,
+                rows,
+                columns,
+            } => edit(document, id, |element| {
+                table::merge_cells(element, id, *row, *column, *rows, *columns)
+            }),
+
+            Op::SplitCell { id, row, column } => edit(document, id, |element| {
+                table::split_cell(element, id, *row, *column)
             }),
 
             Op::InsertCellText {

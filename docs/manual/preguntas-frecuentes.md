@@ -53,7 +53,8 @@ fuera de una página más pequeña, fuera se queda, y no se ve.
 **¿Cómo hago una tabla?**
 Con la herramienta «Tabla» (`B`): arrastra sobre la página para darle el
 ancho. Sale de tres por tres; con el botón derecho en una celda se añaden o
-se quitan filas y columnas. Combinar celdas todavía no se puede.
+se quitan filas y columnas, y se combinan celdas (ver
+[Tabla](conceptos.md#tabla)).
 
 **¿Cómo hago un texto a dos columnas?**
 Con la herramienta «Zona de texto» (`F`): dibuja la primera columna, y con

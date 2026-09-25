@@ -1488,6 +1488,14 @@ body {
   box-shadow: 0 6px 16px var(--shadow-menu);
 }
 
+/* Por qué el núcleo no ha podido combinar o separar. */
+.table-menu-refused {
+  max-width: 16rem;
+  margin: 4px 8px;
+  color: var(--danger);
+  font-size: 0.85em;
+}
+
 .table-menu button {
   display: block;
   width: 100%;

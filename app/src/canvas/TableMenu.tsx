@@ -3,20 +3,27 @@
  *
  * Lo que ofrece es lo mismo que el inspector —meter y quitar filas y
  * columnas— pero **sobre la celda donde se ha pulsado**: meter una fila
- * encima es meterla encima de esa. Cada opción manda un comando, así que
- * todas se deshacen.
+ * encima es meterla encima de esa. Además, combinar la celda con las
+ * marcadas (⇧ o ⌘ y clic) en el rectángulo que las contiene, y separar una
+ * combinada. Cada opción manda un comando, así que todas se deshacen; si el
+ * núcleo no puede —un rectángulo que parte una celda combinada—, el menú
+ * se queda abierto y dice por qué.
  */
-import { type KeyboardEvent, useRef } from "react";
+import { type KeyboardEvent, useRef, useState } from "react";
 
-import { applyOp } from "../commands";
+import { applyOp, errorMessage } from "../commands";
 import { focusables, useDialogFocus } from "../hooks/useDialogFocus";
 import { useDocumentStore } from "../store/document";
-import { tableOf } from "../text/table";
+import { useEditingStore } from "../store/editing";
+import { cellOf, tableOf } from "../text/table";
 import {
   insertColumnOp,
   insertRowOp,
+  mergeCellsOp,
+  mergeRegion,
   removeColumnOp,
   removeRowOp,
+  splitCellOp,
 } from "../ui/tableEdits";
 import type { Op } from "../types/ops";
 import type { TableMenuAt } from "./useTableMenu";
@@ -30,6 +37,9 @@ export interface TableMenuProps {
 
 export function TableMenu({ at, onClose }: TableMenuProps) {
   const document = useDocumentStore((state) => state.document);
+  const editing = useEditingStore((state) => state.cell);
+  const marked = useEditingStore((state) => state.marked);
+  const [refused, setRefused] = useState<string | null>(null);
   const menu = useRef<HTMLDivElement>(null);
   // El foco entra en la primera opción y, al cerrar, vuelve a donde estaba
   // —el texto de la celda, si se abrió escribiendo—. Un menú no atrapa el
@@ -68,13 +78,26 @@ export function TableMenu({ at, onClose }: TableMenuProps) {
   };
 
   const run = (op: Op) => {
-    onClose();
     applyOp(op)
-      .then((applied) => useDocumentStore.getState().applyEdit(applied))
-      .catch(() => {
-        // La tabla se queda como estaba.
+      .then((applied) => {
+        useDocumentStore.getState().applyEdit(applied);
+        onClose();
+      })
+      .catch((reason: unknown) => {
+        // La tabla se queda como estaba, y el menú dice por qué.
+        setRefused(errorMessage(reason));
       });
   };
+
+  // Lo que se combina: la celda del menú, la que se escribe y las marcadas
+  // de esta tabla.
+  const cells = [
+    { row: at.row, column: at.column },
+    ...(editing !== null && editing.table === at.table ? [{ row: editing.row, column: editing.column }, ...marked] : []),
+  ];
+  const region = mergeRegion(table, cells);
+  const here = cellOf(document, at.table, at.row, at.column);
+  const merged = here !== null && (here.rowspan > 1 || here.colspan > 1);
 
   const columns = table.columns.length;
 
@@ -127,6 +150,29 @@ export function TableMenu({ at, onClose }: TableMenuProps) {
       >
         Quitar la columna
       </button>
+      <hr />
+      <button
+        type="button"
+        role="menuitem"
+        disabled={region === null}
+        title={region === null ? "Marca otras celdas con ⇧ o ⌘ y clic para combinarlas con esta" : undefined}
+        onClick={() => region !== null && run(mergeCellsOp(at.table, region))}
+      >
+        Combinar celdas
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        disabled={!merged}
+        onClick={() => run(splitCellOp(at.table, at.row, at.column))}
+      >
+        Separar la celda
+      </button>
+      {refused !== null && (
+        <p className="table-menu-refused" role="alert">
+          {refused}
+        </p>
+      )}
     </div>
   );
 }

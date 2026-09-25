@@ -412,7 +412,39 @@ column: number,
 /**
  * Lo que pasa a medir.
  */
-width: ColumnWidth, } | { "op": "insert_cell_text", 
+width: ColumnWidth, } | { "op": "merge_cells", 
+/**
+ * La tabla.
+ */
+id: string, 
+/**
+ * La fila de arriba del rectángulo, contando desde 0.
+ */
+row: number, 
+/**
+ * La columna de la izquierda, de la rejilla, contando desde 0.
+ */
+column: number, 
+/**
+ * Cuántas filas abarca.
+ */
+rows: number, 
+/**
+ * Cuántas columnas abarca.
+ */
+columns: number, } | { "op": "split_cell", 
+/**
+ * La tabla.
+ */
+id: string, 
+/**
+ * Su fila, contando desde 0.
+ */
+row: number, 
+/**
+ * Su columna de la rejilla, contando desde 0.
+ */
+column: number, } | { "op": "insert_cell_text", 
 /**
  * La tabla.
  */
