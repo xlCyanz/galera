@@ -60,7 +60,7 @@ Todo lo que se pone sobre una página es un elemento:
 | **Imagen** | Una imagen del proyecto (PNG, JPEG, GIF, WebP o SVG) | `I` y clic, o soltar el archivo sobre la página |
 | **Bloque de código** | Código de Typst escrito a mano, para lo que no tiene herramienta propia | `C` |
 | **Tabla** | Filas y columnas de celdas con texto | Herramienta «Tabla» (`B`): arrastra para darle ancho |
-| **Zona de texto** | Un trozo de un texto que fluye | Viene en las plantillas: ver [Texto que fluye](#texto-que-fluye) |
+| **Zona de texto** | Un trozo de un texto que fluye | Herramienta «Zona de texto» (`F`): ver [Texto que fluye](#texto-que-fluye) |
 | **Grupo** | Varios elementos que se mueven y se giran juntos | Selecciónalos y `⌘G` |
 
 Todos tienen posición (**X**, **Y**), tamaño (**An**, **Al**) y **giro**, en
@@ -137,9 +137,20 @@ Doble clic en cualquier zona y se edita el texto entero. Mientras escribes,
 cada zona enseña su número en la cadena («1 de 3»), que no sale al
 exportar.
 
-En esta versión, los textos que fluyen vienen hechos en las plantillas
-«Boletín a dos columnas» y «Carta con membrete»: todavía no se pueden crear
-zonas nuevas ni encadenarlas desde la app.
+**Crear uno** es dibujar zonas con la herramienta **«Zona de texto»**
+(`F`), como un rectángulo:
+
+1. **Sin nada seleccionado**, la primera zona empieza un texto que fluye
+   nuevo, con un texto de ejemplo.
+2. **Con esa zona seleccionada**, dibuja la siguiente —al lado, para una
+   segunda columna, o en otra página—: sigue su texto, detrás de ella en la
+   cadena. La nueva queda seleccionada, así que se pueden encadenar todas
+   seguidas.
+
+En el inspector, cada zona dice qué puesto ocupa («Zona 2 de 3») y
+**«Sacar de la cadena»** la separa: pasa a tener un texto suyo, vacío, y lo
+que venía después sigue en las demás. Borrar una zona también la saca de la
+cadena.
 
 ## Tabla
 

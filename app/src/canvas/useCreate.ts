@@ -23,6 +23,10 @@
  * del núcleo y pidiendo una fuente si no hay—: tres filas y tres columnas
  * iguales, con las celdas vacías.
  *
+ * Una zona de texto se dibuja como una caja y también necesita fuente: sin
+ * nada seleccionado empieza un texto que fluye nuevo, y con una zona
+ * seleccionada sigue su texto, detrás de ella (`flowCreate.ts`).
+ *
  * Las cuentas están en `createGeometry.ts`.
  */
 import { type PointerEvent, useEffect, useEffectEvent, useRef, useState } from "react";
@@ -45,6 +49,7 @@ import {
   shapeElement,
   shapeFromDrag,
 } from "./createGeometry";
+import { flowCreateOp } from "./flowCreate";
 import { type CanvasTransform, toDocument } from "./transform";
 
 export type CreateState =
@@ -128,7 +133,11 @@ export function useCreate(transform: CanvasTransform | null, page: number): Crea
     const id = newElementId(document, kind);
     setState({ phase: "committing", kind, shape, revision: null });
     try {
-      const applied = await applyOp({ op: "create", page: target.id, index: null, element: shapeElement(id, shape, style) });
+      const op =
+        kind === "flow" && style !== undefined
+          ? flowCreateOp(document, target.id, id, shape, style, useDocumentStore.getState().selection)
+          : ({ op: "create", page: target.id, index: null, element: shapeElement(id, shape, style) } as const);
+      const applied = await applyOp(op);
       useDocumentStore.getState().applyEdit(applied);
       useDocumentStore.getState().select(id);
       useToolStore.getState().created();

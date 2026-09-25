@@ -7,7 +7,8 @@
  * En un texto, además, su estilo: fuente, tamaño, color, alineación,
  * interlineado y espacio entre párrafos (`TextInspector.tsx`);
  * en una forma, su relleno, borde y radio (`ShapeInspector.tsx`); en una
- * tabla, sus filas y sus columnas (`TableInspector.tsx`); en un
+ * tabla, sus filas y sus columnas (`TableInspector.tsx`); en una zona de
+ * texto, su sitio en la cadena (`FlowInspector.tsx`); en un
  * bloque de código, su código (`CodeEditor.tsx`). El id se cambia con
  * doble clic (`IdField.tsx`).
  *
@@ -35,6 +36,7 @@ import { useElementBox, useLayoutStore } from "../store/layout";
 import type { LayoutBox } from "../types/layout";
 import type { Element, Page, PageSize } from "../types/model";
 import { AlignBar } from "./AlignBar";
+import { FlowInspector } from "./FlowInspector";
 import { IdField } from "./IdField";
 import { MeasureField } from "./MeasureField";
 import { ShapeInspector } from "./ShapeInspector";
@@ -139,6 +141,7 @@ function ElementInspector({ element, measured }: { element: Element; measured: R
       </div>
       {element.type === "text" && <TextInspector element={element} />}
       {element.type === "table" && <TableInspector element={element} />}
+      {element.type === "flow" && <FlowInspector element={element} />}
       {element.type === "code" && (
         <Suspense fallback={<p className="code-hint">Cargando el editor…</p>}>
           <CodeEditor id={element.id} source={element.source} />

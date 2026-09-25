@@ -53,9 +53,8 @@ primera versión y lo que le falta, en las
 [notas de la 0.1](docs/manual/notas-0.1.md).
 
 > **Estado:** la app hace ya lo que promete: diseñar páginas con textos,
-> formas, imágenes y tablas —y textos que fluyen, que por ahora vienen en
-> las plantillas—, editar el texto sobre la página con el cursor que da
-> Typst, rellenar plantillas con variables y
+> formas, imágenes, tablas y textos que fluyen de zona en zona, editar el
+> texto sobre la página con el cursor que da Typst, rellenar plantillas con variables y
 > generar en lote desde un CSV, y exportar a PDF, SVG y PNG. Se empaqueta
 > para macOS y Windows y se publica al etiquetar una versión. Quedan las
 > sesiones de prueba a mano, la firma con la cuenta de Apple y el diseño

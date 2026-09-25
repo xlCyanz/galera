@@ -69,9 +69,22 @@ beforeEach(async () => {
       const op = (args as { op: (typeof ops)[number] }).op;
       ops.push(op);
       // El backend aplica sobre lo que tiene: aquí, lo que hay en el store.
+      // Una zona de texto llega en un lote, con su flujo.
       const document = structuredClone(useDocumentStore.getState().document ?? project.document);
-      document.pages[0]!.elements.push(op.element);
-      const applied: AppliedOp = { revision: 1 + ops.length, document, description: `Crear ${op.element.id}`, undo: `Crear ${op.element.id}`, redo: null };
+      const steps = (op as unknown as { op: string; ops?: Array<Record<string, unknown>> }).ops ?? [op as unknown as Record<string, unknown>];
+      let element = op.element;
+      for (const step of steps) {
+        if (step.op === "create") {
+          element = step.element as Element;
+          document.pages[0]!.elements.push(element);
+        } else if (step.op === "create_flow") {
+          document.flows = { ...document.flows, [step.name as string]: structuredClone(step.flow) as NonNullable<typeof document.flows>[string] };
+        } else if (step.op === "link_zone") {
+          const zones = document.flows![step.flow as string]!.zones;
+          zones.splice((step.index as number | null) ?? zones.length, 0, step.zone as string);
+        }
+      }
+      const applied: AppliedOp = { revision: 1 + ops.length, document, description: `Crear ${element.id}`, undo: `Crear ${element.id}`, redo: null };
       return applied;
     }
     return null;
@@ -131,7 +144,7 @@ async function up() {
   });
 }
 
-function tool(name: "rect" | "ellipse" | "line" | "text" | "code" | "table") {
+function tool(name: "rect" | "ellipse" | "line" | "text" | "code" | "table" | "flow") {
   act(() => useToolStore.getState().setTool(name));
 }
 
@@ -337,6 +350,39 @@ describe("crear una tabla", () => {
     await up();
     expect(ops).toHaveLength(0);
     expect(notice()!.textContent).toContain("para poder crear tablas");
+  });
+});
+
+describe("crear una zona de texto", () => {
+  it("sin nada seleccionado empieza un texto que fluye; con la zona seleccionada, la siguiente sigue su texto", async () => {
+    tool("flow");
+    down(20, 30);
+    move(100, 130);
+    expect(preview()!.dataset.shape).toBe("flow");
+    await up();
+    expect(ops[0]).toMatchObject({
+      op: "batch",
+      ops: [
+        { op: "create_flow", name: "flujo-1", flow: { style: { font: "Inter" }, zones: [] } },
+        { op: "create", element: { type: "flow", id: "flow-1", x: 20, y: 30, w: 80, h: 100, flow: "flujo-1" } },
+        { op: "link_zone", flow: "flujo-1", zone: "flow-1", index: null },
+      ],
+    });
+    // Queda seleccionada: la siguiente zona sigue su texto.
+    expect(useDocumentStore.getState().selection).toEqual(["flow-1"]);
+
+    tool("flow");
+    down(110, 30);
+    move(190, 130);
+    await up();
+    expect(ops[1]).toEqual({
+      op: "batch",
+      ops: [
+        { op: "create", page: "p1", index: null, element: { type: "flow", id: "flow-2", x: 110, y: 30, w: 80, h: 100, rotation: 0, flow: "flujo-1" } },
+        { op: "link_zone", flow: "flujo-1", zone: "flow-2", index: 1 },
+      ],
+    });
+    expect(useDocumentStore.getState().document?.flows?.["flujo-1"]?.zones).toEqual(["flow-1", "flow-2"]);
   });
 });
 

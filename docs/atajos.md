@@ -87,6 +87,7 @@ teclas van al texto y no a las herramientas:
 | Imagen | `I` | `I` |
 | Bloque de código | `C` | `C` |
 | Tabla | `B` | `B` |
+| Zona de texto | `F` | `F` |
 | Mano | `H` | `H` |
 
 ### Vista

@@ -8,7 +8,7 @@
  */
 import type { ShortcutId } from "../shortcuts";
 
-export const TOOL_IDS = ["select", "text", "rect", "ellipse", "line", "image", "code", "table", "hand"] as const;
+export const TOOL_IDS = ["select", "text", "rect", "ellipse", "line", "image", "code", "table", "flow", "hand"] as const;
 export type Tool = (typeof TOOL_IDS)[number];
 
 export interface ToolInfo {
@@ -30,11 +30,12 @@ export const TOOLS: readonly ToolInfo[] = [
   { id: "image", label: "Imagen", shortcut: "toolImage", cursor: "copy" },
   { id: "code", label: "Bloque de código", shortcut: "toolCode", cursor: "crosshair" },
   { id: "table", label: "Tabla", shortcut: "toolTable", cursor: "crosshair" },
+  { id: "flow", label: "Zona de texto", shortcut: "toolFlow", cursor: "crosshair" },
   { id: "hand", label: "Mano", shortcut: "toolHand", cursor: "grab" },
 ];
 
 /** Las herramientas que crean arrastrando sobre el lienzo (`useCreate`). */
-export type ShapeTool = Extract<Tool, "rect" | "ellipse" | "line" | "text" | "code" | "table">;
+export type ShapeTool = Extract<Tool, "rect" | "ellipse" | "line" | "text" | "code" | "table" | "flow">;
 
 /** Si la herramienta crea arrastrando: todas las que crean, menos la de imagen. */
 export function isShapeTool(tool: Tool): tool is ShapeTool {

@@ -14,7 +14,7 @@ const press = (key: string, modifiers: Partial<KeyboardEvent> = {}) => ({
 });
 
 describe("herramientas", () => {
-  it("son nueve, cada una con su atajo, sin repetir", () => {
+  it("son diez, cada una con su atajo, sin repetir", () => {
     expect(TOOLS.map((tool) => tool.id)).toEqual([...TOOL_IDS]);
     expect(new Set(TOOLS.map((tool) => tool.shortcut)).size).toBe(TOOLS.length);
     expect(TOOLS.every((tool) => tool.label.length > 0)).toBe(true);
@@ -28,6 +28,7 @@ describe("herramientas", () => {
       "I",
       "C",
       "B",
+      "F",
       "H",
     ]);
   });
@@ -46,10 +47,10 @@ describe("herramientas", () => {
     expect(shortcutFor(press("t", { altKey: true }), true)).toBeNull();
   });
 
-  it("solo crean elementos las de texto, formas, línea, imagen, código y tabla", () => {
-    expect(TOOL_IDS.filter(createsElements)).toEqual(["text", "rect", "ellipse", "line", "image", "code", "table"]);
+  it("solo crean elementos las de texto, formas, línea, imagen, código, tabla y zona", () => {
+    expect(TOOL_IDS.filter(createsElements)).toEqual(["text", "rect", "ellipse", "line", "image", "code", "table", "flow"]);
     // Todas arrastrando, menos la imagen, que abre un diálogo.
-    expect(TOOL_IDS.filter(isShapeTool)).toEqual(["text", "rect", "ellipse", "line", "code", "table"]);
+    expect(TOOL_IDS.filter(isShapeTool)).toEqual(["text", "rect", "ellipse", "line", "code", "table", "flow"]);
     expect(toolInfo("hand").cursor).toBe("grab");
   });
 

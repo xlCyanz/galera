@@ -489,6 +489,27 @@ body {
   min-width: 1.6em;
 }
 
+/* Una zona de texto: su sitio en la cadena. */
+.flow-inspector {
+  display: grid;
+  gap: 6px;
+  margin-top: 0.5rem;
+}
+
+.flow-inspector p {
+  margin: 0;
+}
+
+.flow-hint {
+  color: var(--ink-muted);
+  font-size: 0.85em;
+}
+
+.flow-inspector button {
+  justify-self: start;
+  font: inherit;
+}
+
 /* El tamaño de la página: el papel, la orientación y las dos medidas. */
 .page-size {
   display: grid;
