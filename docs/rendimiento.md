@@ -148,12 +148,18 @@ tecla a pantalla de #208.
 ## Qué vigila que no se estropee
 
 El banco no corre en CI: mide tiempos, y una máquina compartida no da
-números comparables. Lo que corre con el resto de las pruebas es
-`compile::cache::typing_in_five_pages_stays_within_budget`, que mide el
-mismo camino, comprueba que el entorno se construye **una sola vez** y que
-solo se vuelve a dibujar **la página que cambió**, y falla si una tecla se
-pasa de su presupuesto. Ese presupuesto es holgado a propósito: las pruebas
-corren sin optimizar, así que el número que cuenta para el criterio de la
+números comparables. Lo que corre con el resto de las pruebas, en
+`compile::cache`, mide el mismo camino y comprueba que el entorno se
+construye **una sola vez**, que solo se vuelve a dibujar **la página que
+cambió** y que una tecla con caché cuesta **menos que compilar desde cero**.
+Escribir en un flujo de cinco zonas se compara con escribir en un bloque:
+puede costar hasta seis veces más (hoy, unas tres).
+
+Ninguna de esas pruebas compara con un número de milisegundos. Corren sin
+optimizar y en máquinas muy distintas —un runner de CI va unas cuatro veces
+más despacio que un M4—, así que un número fijo o falla sin motivo en la
+lenta o no vigila nada en la rápida. Se compara con algo medido en la misma
+máquina y al mismo tiempo, y el número que cuenta para el criterio de la
 fase es el del banco.
 
 Si alguna vez deja de cumplirse, lo primero que hay que mirar es lo que ya

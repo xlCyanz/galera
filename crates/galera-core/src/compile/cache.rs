@@ -220,17 +220,39 @@ mod tests {
     use super::*;
     use crate::model::{Element, TextStyle};
 
-    /// Lo que puede tardar un cambio de una letra en un documento de cinco
-    /// páginas, con la caché puesta.
+    /// Cuánto puede costar una tecla en un flujo de cinco zonas, en veces lo
+    /// que cuesta en un bloque de texto de cinco páginas.
     ///
-    /// El objetivo de la fase son 50 ms entre tecla y render, medidos con el
-    /// binario optimizado (ver `benches/compile.rs` y
-    /// `docs/decisiones/compilacion-incremental.md`). Las pruebas corren sin
-    /// optimizar, así que este presupuesto es otro: holgado, para que no
-    /// falle por ir la máquina cargada, pero lo bastante ajustado como para
-    /// que una compilación desde cero —que tarda de sobra más que esto— no
-    /// pase.
-    const BUDGET: Duration = Duration::from_millis(250);
+    /// Las pruebas no comparan con un número de milisegundos: corren sin
+    /// optimizar y en máquinas que van unas cuatro veces más despacio que
+    /// otras, así que cualquier número o se queda corto en la lenta o no
+    /// vigila nada en la rápida. El presupuesto de verdad —50 ms entre tecla
+    /// y render— lo mide el banco con el binario optimizado (ver
+    /// `benches/compile.rs` y `docs/rendimiento.md`). Aquí se compara con
+    /// otra cosa medida en la misma máquina y al mismo tiempo.
+    ///
+    /// Medido sin optimizar: una tecla en el flujo cuesta unas tres veces lo
+    /// que en el bloque (65 ms frente a 20 en un M4). Con seis hay margen
+    /// para una máquina cargada, y se sigue notando lo que se quiere
+    /// vigilar: que repartir el texto entre las zonas vuelva a medir el
+    /// texto entero en cada zona, que era más de un segundo por tecla (ver
+    /// `docs/decisiones/texto-que-fluye.md`).
+    const FLOW_TIMES_BLOCK: u32 = 6;
+
+    /// Las pruebas que miden tiempos, de una en una.
+    ///
+    /// Las demás pruebas corren a la vez y le quitan tiempo a cualquiera;
+    /// eso lo aguantan las comparaciones, que miden lo uno y lo otro con la
+    /// misma carga. Lo que no aguantarían es que otra prueba de tiempos
+    /// vaciara la memoria de Typst (`comemo::evict(0)`) mientras esta mide
+    /// con caché.
+    static TIMING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn timing() -> std::sync::MutexGuard<'static, ()> {
+        TIMING
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 
     /// Un proyecto temporal con una fuente de verdad.
     fn project_dir() -> TempDir {
@@ -304,44 +326,66 @@ mod tests {
         times[times.len() / 2]
     }
 
-    /// El criterio de la tarea: escribir en un documento de cinco páginas
-    /// cabe en el presupuesto, y se mide.
-    ///
-    /// Lo que se mide es el camino entero de una tecla: compilar y dibujar
-    /// las páginas, que es lo que hace la app en cada cambio.
-    #[test]
-    fn typing_in_five_pages_stays_within_budget() {
-        let dir = project_dir();
-        let project = open(&dir);
-        let mut document = five_pages("Cooperativa agrícola del este");
-
-        // Desde cero, como si se abriera el documento en cada tecla, que es
-        // lo que se hacía antes de este módulo. Cada vez con una letra más:
-        // así ninguna de las dos tandas compila dos veces lo mismo.
-        let fresh = median(
+    /// Desde cero de verdad: sin la memoria de Typst, como si se abriera el
+    /// documento en cada tecla, que es lo que se hacía antes de este módulo.
+    /// Cada vez con una letra más: así nada se compila dos veces.
+    fn from_scratch(document: &mut Document, project: &Project, keys: usize) -> Duration {
+        median(
             ('A'..)
-                .take(5)
+                .take(keys)
                 .map(|letter| {
-                    type_a_letter(&mut document, letter);
+                    type_a_letter(document, letter);
+                    comemo::evict(0);
                     let started = Instant::now();
-                    let compiled = crate::compile(&document, &project).expect("compila");
+                    let compiled = crate::compile(document, project).expect("compila");
                     for page in 0..compiled.page_count() {
                         compiled.to_svg(page).expect("svg");
                     }
                     started.elapsed()
                 })
                 .collect(),
-        );
+        )
+    }
 
-        let mut compiler = Compiler::new(project);
-        let first = compiler.compile(&document).expect("la primera compila");
+    /// Una tecla en un bloque de cinco páginas con la caché puesta: la
+    /// mediana de una tanda, después de una primera compilación.
+    fn block_keystroke(project: &Project, document: &mut Document) -> (Duration, Compiler) {
+        let mut compiler = Compiler::new(project.clone());
+        let first = compiler.compile(document).expect("la primera compila");
         compiler.page_svgs(&first);
-        let cached = median(typing(&mut compiler, &mut document, 7));
+        let cached = median(typing(&mut compiler, document, 7));
+        (cached, compiler)
+    }
+
+    /// El criterio de la tarea: escribir en un documento de cinco páginas
+    /// con la caché cuesta menos que compilar desde cero, y el entorno se
+    /// construye una sola vez.
+    ///
+    /// Lo que se mide es el camino entero de una tecla: compilar y dibujar
+    /// las páginas, que es lo que hace la app en cada cambio. Sin optimizar,
+    /// en un M4, son unos 20 ms con caché y 33 desde cero.
+    ///
+    /// La comparación pilla que se pierda la caché entera. Perder solo la
+    /// memoria de Typst entre teclas la deja en unos 30 ms frente a 33, y
+    /// eso no se distingue con seguridad en una máquina cargada: apretarla
+    /// más la haría fallar sin motivo. Lo que sí se comprueba sin depender
+    /// de tiempos es que el entorno se construye una vez, aquí, y que solo
+    /// se vuelve a dibujar la página que cambió
+    /// (`only_the_page_that_changed_is_drawn_again`).
+    #[test]
+    fn typing_in_five_pages_is_cheaper_than_from_scratch() {
+        let _timing = timing();
+        let dir = project_dir();
+        let project = open(&dir);
+        let mut document = five_pages("Cooperativa agrícola del este");
+
+        let fresh = from_scratch(&mut document, &project, 5);
+        let (cached, compiler) = block_keystroke(&project, &mut document);
 
         println!("una tecla · desde cero: {fresh:?} · con caché: {cached:?}");
         assert!(
-            cached < BUDGET,
-            "una tecla tarda {cached:?}, más que el presupuesto de {BUDGET:?}"
+            cached < fresh,
+            "con caché, una tecla tarda {cached:?}, y desde cero {fresh:?}"
         );
         assert_eq!(
             compiler.worlds_built(),
@@ -384,15 +428,19 @@ mod tests {
     }
 
     /// El criterio de F7-03: escribir en un texto que fluye por cinco
-    /// páginas cabe en el mismo presupuesto que escribir en un bloque.
+    /// páginas cuesta lo que escribir en un bloque, o poco más.
     ///
     /// Es lo que hay que vigilar de este diseño: cada zona busca su corte
     /// midiendo con Typst, y son medidas de más que un texto normal no
-    /// hace.
+    /// hace. Se compara con una tecla en un bloque medida en la misma
+    /// máquina, no con un número de milisegundos: ver [`FLOW_TIMES_BLOCK`].
     #[test]
-    fn typing_in_a_flow_of_five_zones_stays_within_budget() {
+    fn typing_in_a_flow_of_five_zones_costs_about_what_a_block_does() {
+        let _timing = timing();
         let dir = project_dir();
         let project = open(&dir);
+        let (block, _) =
+            block_keystroke(&project, &mut five_pages("Cooperativa agrícola del este"));
         let mut document = five_zones("Cooperativa agrícola del este");
 
         let mut compiler = Compiler::new(project);
@@ -417,10 +465,15 @@ mod tests {
             .collect();
 
         let typing = median(times);
-        println!("una tecla en un flujo de cinco zonas: {typing:?}");
+        println!("una tecla · en un bloque: {block:?} · en un flujo de cinco zonas: {typing:?}");
         assert!(
-            typing < BUDGET,
-            "una tecla tarda {typing:?}, más que el presupuesto de {BUDGET:?}"
+            typing < block * FLOW_TIMES_BLOCK,
+            "una tecla en el flujo tarda {typing:?}, más de {FLOW_TIMES_BLOCK} veces lo que en un bloque ({block:?})"
+        );
+        assert_eq!(
+            compiler.worlds_built(),
+            1,
+            "el entorno se construye una vez"
         );
     }
 

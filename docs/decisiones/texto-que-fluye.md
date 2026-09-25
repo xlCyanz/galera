@@ -65,7 +65,10 @@ eso era más de un segundo por tecla. La búsqueda va por otro camino:
 
 Con eso, escribir en un flujo de cinco zonas llenas cuesta unos 80 ms por
 tecla, dentro del presupuesto de F4-11, y hay una prueba que lo vigila
-(`typing_in_a_flow_of_five_zones_stays_within_budget`).
+(`typing_in_a_flow_of_five_zones_costs_about_what_a_block_does`): una tecla
+en el flujo no puede costar más de seis veces lo que en un bloque de cinco
+páginas medido en la misma máquina. Hoy son unas tres; medir otra vez el
+texto entero en cada zona era más de un segundo por tecla.
 
 Tres detalles que hacen que esto funcione:
 
